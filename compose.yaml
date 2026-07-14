@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    container_name: ha-app-base
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - TZ=Europe/Paris
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - ha_network
+
+networks:
+  ha_network:
+    external: true
+    name: ha_network

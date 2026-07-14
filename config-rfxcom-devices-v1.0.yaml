@@ -1,0 +1,200 @@
+# Configuration RFXCOM - Devices, Récepteurs et Associations
+# Version 1.0 - 09 Juillet 2026
+# Fichier central pour TOUS les objets RFXCOM découverts et configurés
+# Format : YAML strict
+# Ce fichier contient :
+#   1. Tous les devices RFXCOM physiques (capteurs + émetteurs)
+#   2. Tous les récepteurs logiques avec leurs émetteurs appairés
+#   3. L'émetteur primaire pour chaque récepteur (celui qui envoie les commandes RF433)
+
+---
+
+# =============================================================================
+# SECTION 1 : DEVICES RFXCOM PHYSIQUES
+# =============================================================================
+# Liste de TOUS les devices détectés par le transceiver RFXCOM
+# Chaque device a un identifiant unique : <protocole>_<sensorId>
+# Ces devices sont soit des capteurs (RFXSensor, RFXMeter) soit des émetteurs (Lighting1/2/4)
+
+rfxcom_devices:
+  # --- Capteurs RFXSensor ---
+  rfxsensor_0xa5b3:
+    sensorId: "0xA5B3"
+    type: "RFXSensor"
+    subType: "Temperature"
+    name: "Température---Salon"
+    protocole: "rfxsensor"
+    defaultQuoi: "Température"
+
+  rfxsensor_0xc4d2:
+    sensorId: "0xC4D2"
+    type: "RFXSensor"
+    subType: "Humidity"
+    name: "Humidité---Cuisine"
+    protocole: "rfxsensor"
+    defaultQuoi: "Humidité"
+
+  rfxsensor_0xe7f1:
+    sensorId: "0xE7F1"
+    type: "RFXSensor"
+    subType: "Motion"
+    name: "Mouvement---Couloir"
+    protocole: "rfxsensor"
+    defaultQuoi: "Mouvement"
+
+  rfxsensor_0x98a4:
+    sensorId: "0x98A4"
+    type: "RFXSensor"
+    subType: "Contact"
+    name: "Contact---Entrée"
+    protocole: "rfxsensor"
+    defaultQuoi: "Contact"
+
+  # --- Compteurs RFXMeter ---
+  rfxmeter_0xb2c3:
+    sensorId: "0xB2C3"
+    type: "RFXMeter"
+    subType: "Current"
+    name: "Courant---Tableau"
+    protocole: "rfxmeter"
+    defaultQuoi: "Courant"
+
+  rfxmeter_0xd4e5:
+    sensorId: "0xD4E5"
+    type: "RFXMeter"
+    subType: "Power"
+    name: "Puissance---Cuisine"
+    protocole: "rfxmeter"
+    defaultQuoi: "Puissance"
+
+  # --- Émetteurs Lighting (boutons, interrupteurs, télécommandes) ---
+  lighting1_0x01a2:
+    sensorId: "0x01A2"
+    type: "Lighting1"
+    subType: "AC"
+    name: "Interrupteur---Salon"
+    protocole: "lighting1"
+    defaultQuoi: "Interrupteur"
+
+  lighting2_0x02b3:
+    sensorId: "0x02B3"
+    type: "Lighting2"
+    subType: "AC"
+    name: "Bouton---Salon"
+    protocole: "lighting2"
+    defaultQuoi: "Bouton"
+
+  lighting2_0x1001:
+    sensorId: "0x1001"
+    type: "Lighting2"
+    subType: "AC"
+    name: "Bouton---Cuisine"
+    protocole: "lighting2"
+    defaultQuoi: "Bouton"
+
+  lighting2_0x1002:
+    sensorId: "0x1002"
+    type: "Lighting2"
+    subType: "AC"
+    name: "Bouton---Chambre"
+    protocole: "lighting2"
+    defaultQuoi: "Bouton"
+
+  lighting4_0x2001:
+    sensorId: "0x2001"
+    type: "Lighting4"
+    subType: "AC"
+    name: "Télécommande---Salon"
+    protocole: "lighting4"
+    defaultQuoi: "Télécommande"
+
+---
+
+# =============================================================================
+# SECTION 2 : RÉCEPTEURS LOGIQUES
+# =============================================================================
+# Entités logiques associées aux devices physiques RFXCOM
+# Chaque récepteur a UN émetteur primaire (primaryEmitter) qui détermine
+# vers quel device RFXCOM les commandes seront envoyées
+# La liste complète des émetteurs appairés est dans le champ 'emitters'
+
+rfxcom_receivers:
+  recepteur_001:
+    receiverId: "recepteur_001"
+    name: "Lumière---Salon"
+    type: "light"
+    isDimmable: true
+    defaultLevel: 80
+    primaryEmitter: "lighting2_0x02b3"  # ⭐ Émetteur principal pour envoyer les commandes RF433
+    # Liste de TOUS les émetteurs associés à ce récepteur (relations N↔N)
+    emitters:
+      - emitterId: "lighting2_0x02b3"
+        action: "toggle"
+      - emitterId: "lighting2_0x1001"
+        action: "set_level"
+        value: 50
+
+  recepteur_002:
+    receiverId: "recepteur_002"
+    name: "Interrupteur---Cuisine"
+    type: "switch"
+    primaryEmitter: "lighting1_0x01a2"  # ⭐
+    emitters:
+      - emitterId: "lighting1_0x01a2"
+        action: "toggle"
+      - emitterId: "lighting2_0x1001"
+        action: "on"
+
+  recepteur_003:
+    receiverId: "recepteur_003"
+    name: "Volet---Fenêtre Sud--Cuisine"
+    type: "cover"
+    coverType: "Curtain1"
+    openTimeSec: 25
+    closeTimeSec: 20
+    primaryEmitter: "lighting2_0x03c4"  # ⭐
+    emitters:
+      - emitterId: "lighting2_0x03c4"
+        action: "open"
+      - emitterId: "lighting2_0x04d5"
+        action: "close"
+      - emitterId: "lighting4_0x2001"
+        action: "stop"
+
+  recepteur_004:
+    receiverId: "recepteur_004"
+    name: "Tout Éteindre---Maison"
+    type: "scene"
+    primaryEmitter: "lighting2_0x1002"  # ⭐ (Optionnel pour les scènes, mais recommandé)
+    # Pour les scènes, les actions définissent ce qui se passe
+    actions:
+      - target: "recepteur_001"
+        command: "off"
+        delayMs: 0
+      - target: "recepteur_002"
+        command: "off"
+        delayMs: 200
+      - target: "recepteur_003"
+        command: "close"
+        delayMs: 500
+    # Les émetteurs associés déclenchent cette scène
+    emitters:
+      - emitterId: "lighting2_0x1002"
+        action: "activate_scene"
+
+---
+
+# =============================================================================
+# SECTION 3 : MAPPING SENSORID → RECEPTEUR (Référence inverse)
+# =============================================================================
+# Optionnel : Mapping inverse pour retrouver rapidement quel récepteur
+# est associé à un sensorId donné (utile pour le traitement des messages RF433)
+# Ce mapping est généré automatiquement à partir des primaryEmitter
+#
+# sensorId_to_receiver:
+#   "0x02B3": "recepteur_001"
+#   "0x01A2": "recepteur_002"
+#   "0x03C4": "recepteur_003"
+
+---
+# Fin du fichier - Version 1.0
