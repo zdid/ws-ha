@@ -41,7 +41,9 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile --prod
 COPY --from=builder /app/dist ./dist
 
 # Créer les dossiers persistants
-RUN mkdir -p /app/data /app/logs /app/applications_desactivees
+RUN mkdir -p /app/data /app/logs \
+    /app/applications_desactivees/src/applications \
+    /app/applications_desactivees/dist
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
