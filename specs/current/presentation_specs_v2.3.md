@@ -1,10 +1,11 @@
 # Spécifications - Couche de Présentation Multi-Applications
 
-**Version :** 2.2  
+**Version :** 2.3  
 **Date :** 14 Juillet 2026  
-**Conformité :** specs-techniques-socle-ha-mqtt-v4.3.md  
+**Conformité :** specs-techniques-socle-ha-mqtt-v4.4.md  
 **Statut :** Document de référence pour toutes les applications du socle HA-MQTT
 
+> **v2.3** : Ajout de la **gestion dynamique d'activation/désactivation** des applications. Ajout de la section §4.7 "Activation/Désactivation Dynamique des Applications". Mise à jour de la structure du menu avec gestion des applications au niveau 1.
 > **v2.2** : **Clarification explicite** de la dynamique d'ajout/suppression des applications ( menu, écrans, paramétrage technique) **sans modification du cœur**. Ajout de la section §4.6 "Ajout/Suppression Dynamique d'Applications".
 > **v2.1** : Ajout de la **génération dynamique des formulaires de configuration des modules** via métadonnées UI (`configUi`, `ModuleUiMetadata`).
 > **v2.0** : Migration vers **Alpine.js** pour la couche UI, mise à jour structure répertoires pour regroupement des applications sous `src/applications/`.
@@ -653,6 +654,109 @@ rm -rf src/applications/rfxcom/
 
 ---
 
+## 🔄 4.7 Activation/Désactivation Dynamique des Applications (NOUVEAU v2.3)
+
+### 4.7.1 Principe
+Une application peut être **activée** ou **désactivée** sans modification du cœur, par simple déplacement de son répertoire entre :
+- `src/applications/` → **Applications activées** (chargées au démarrage)
+- `src/applications_desactivees/` → **Applications désactivées** (ignorées)
+
+**Mécanisme :**
+- La détection dynamique (`AppService.scanApplications()`) **ignore** le répertoire `applications_desactivees/`
+- Seul le contenu de `applications/` est chargé et affiché dans le menu
+
+### 4.7.2 Processus d'Activation/Désactivation
+1. **Via l'UI (recommandé) :**
+   - L'utilisateur clique sur **[Désactiver]** dans le menu "Gestion des applications > Activées"
+   - L'UI envoie une commande au backend : `POST /api/applications/{id}/disable`
+   - Le backend déplace le répertoire : `applications/{id}/` → `applications_desactivees/{id}/`
+   - Un **restart** est déclenché automatiquement (ou message d'alerte si manuel)
+
+2. **Manuellement (filesystem) :**
+   - Déplacement manuel du répertoire entre les deux dossiers
+   - **Restart obligatoire** pour prise en compte
+
+### 4.7.3 Impact sur la Présentation
+
+**Structure du menu (voir §6.1) :**
+```
+Paramètres Techniques
+├── Commun
+│   ├── MQTT
+│   ├── Home Assistant WS
+│   ├── Web
+│   └── Logging
+├── Gestion des applications
+│   ├── ✅ Activées
+│   │   ├── RFXCOM [Désactiver]
+│   │   ├── ZIGBEE [Désactiver]
+│   │   └── tartenpion [Désactiver]  (dynamique)
+│   └── ❌ Désactivées
+│       └── (liste) [Activer]
+├── RFXCOM (menu dédié - niveau 1)
+│   └── Paramètres techniques RFXCOM
+├── ZIGBEE (menu dédié - niveau 1)
+│   └── Paramètres techniques ZIGBEE
+└── tartenpion (menu dédié - niveau 1, dynamique)
+    └── Paramètres techniques tartenpion
+```
+
+**Comportement dynamique :**
+- Une application **activée** apparaît :
+  - ✅ Dans `Gestion des applications > Activées` (avec bouton [Désactiver])
+  - ✅ Comme **entrée de niveau 1** dans le menu principal (avec ses paramètres techniques)
+- Une application **désactivée** disparaît :
+  - ❌ Du menu principal de niveau 1
+  - ✅ Reste visible dans `Gestion des applications > Désactivées` (avec bouton [Activer])
+
+### 4.7.4 Exemple : Activation de tartenpion
+
+**Avant activation :**
+```
+src/
+├── applications/
+│   ├── rfxcom/
+│   └── zigbee2mqtt/
+└── applications_desactivees/
+    └── tartenpion/
+```
+→ Menu : Pas d'entrée "tartenpion" au niveau 1, visible dans "Gestion > Désactivées"
+
+**Après activation :**
+```
+src/
+├── applications/
+│   ├── rfxcom/
+│   ├── zigbee2mqtt/
+│   └── tartenpion/  ← déplacé
+└── applications_desactivees/
+```
+→ Menu : "tartenpion" apparaît au niveau 1 + visible dans "Gestion > Activées"
+
+### 4.7.5 Flux Complet
+
+```mermaid
+graph TD
+    A[Utilisateur clique [Activer]] --> B[Backend : déplace tartenpion/]
+    B --> C[applications_desactivees/ → applications/]
+    C --> D[Backend déclenche restart]
+    D --> E[Redémarrage]
+    E --> F[AppService rescan applications/]
+    F --> G[UI reçoit nouvelle liste]
+    G --> H[Menu mis à jour]
+```
+
+### 4.7.6 Garanties
+
+| **Garantie** | **Mécanisme** | **Preuve** |
+|--------------|---------------|------------|
+| Pas de modification cœur | Déplacement de répertoires uniquement | Convention filesystem |
+| Menu dynamique | Génération via `x-for` sur modules détectés | `index.html` (lignes 58-71) |
+| Données conservées | `data/{app}/` non supprimé | Persistance indépendante |
+| Activation réversible | Répertoire simplement déplacé | Pas de suppression |
+
+---
+
 ## ⚡ 5. Paramètres Techniques (Socle)
 
 ### 5.1 Définition
@@ -1161,6 +1265,7 @@ rm -rf src/applications/rfxcom/
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **2.3** | 14/07/2026 | Mistral Vibe | Ajout de la **gestion dynamique d'activation/désactivation** des applications. Ajout §4.7 "Activation/Désactivation Dynamique" avec répertoires `applications_desactivees/`. Mise à jour structure menu : gestion des apps au niveau 1 + menus dédiés par application. |
 | **2.2** | 14/07/2026 | Mistral Vibe | **Clarification explicite** de la dynamique d'ajout/suppression des applications. Ajout de §4.6 "Ajout/Suppression Dynamique d'Applications" avec exemples concrets et garanties. Mise à jour de la structure des répertoires UI. |
 | 2.1 | 13/07/2026 | Mistral Vibe | Ajout de la **génération dynamique des formulaires de configuration des modules** via métadonnées UI (`configUi`, `ModuleUiMetadata`). |
 | 2.0 | 12/07/2026 | Mistral Vibe | Migration vers **Alpine.js** pour la couche UI, mise à jour structure répertoires pour regroupement des applications sous `src/applications/`. |

@@ -1,9 +1,10 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.3  
-**Date :** 10 Juillet 2026  
+**Version :** 4.4  
+**Date :** 14 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
 
+> **v4.4** : Ajout de la **gestion dynamique d'activation/désactivation** des applications via répertoires `applications/` et `applications_desactivees/`.
 > **v4.3** : Restructuration de la configuration HA avec flags d'activation (`ws_enable`, `mqtt_enable`) et regroupement MQTT sous HA.
 > **v4.2** : Ajout du support **Alpine.js** pour la couche Présentation, tout en conservant TypeScript comme langage principal.
 
@@ -187,7 +188,66 @@ src/
         └── app.ts                    # Logique UI TypeScript — Socket.io client + Alpine.js
 ```
 
+### 4.3 Gestion Dynamique des Applications (NOUVEAU v4.4)
+
+**Structure étendue des répertoires applications :**
+```
+src/
+├── applications/                     # Applications ACTIVÉES (chargées au démarrage)
+│   ├── rfxcom/
+│   ├── zigbee2mqtt/
+│   └── tartenpion/                # Dynamique - apparaît après activation
+│
+└── applications_desactivees/      # Applications DÉSACTIVÉES (ignorées par le cœur)
+    └── old_app/                    # Exemple : application désactivée
+```
+
+**Mécanisme de détection (AppService.ts) :**
+- Le service `AppService.scanApplications()` (lignes 160-279) **scanne uniquement** `src/applications/`
+- Les répertoires dans `src/applications_desactivees/` sont **exclus** de la détection
+- Seules les applications dans `applications/` sont :
+  - Instanciées au démarrage
+  - Visibles dans le menu de l'UI
+  - Configurables via les paramètres techniques
+
+**Processus d'activation/désactivation :**
+1. **Backend API (recommandé) :**
+   - `POST /api/applications/{id}/enable` → déplace `{id}/` de `applications_desactivees/` vers `applications/`
+   - `POST /api/applications/{id}/disable` → déplace `{id}/` de `applications/` vers `applications_desactivees/`
+   - **Déclenche automatiquement un restart** via `RestartManager.ts`
+
+2. **Filesystem (manuel) :**
+   - Déplacement manuel du répertoire entre les deux dossiers
+   - **Restart obligatoire** pour prise en compte (`docker restart` ou `pm2 restart`)
+
+**Flux complet :**
+```mermaid
+graph TD
+    A[Utilisateur clique [Activer]] --> B[Backend reçoit POST /api/applications/tartenpion/enable]
+    B --> C[Backend vérifie que tartenpion/ existe dans applications_desactivees/]
+    C --> D[fs.renameSync(applications_desactivees/tartenpion, applications/tartenpion)]
+    D --> E[Backend émet app:restart via RestartManager]
+    E --> F[Redémarrage de l'application]
+    F --> G[AppService rescan applications/]
+    G --> H[UI reçoit nouvelle liste via app:modules:list]
+    H --> I[Menu mis à jour dynamiquement]
+```
+
+**Garanties :**
+| Garantie | Mécanisme | Preuve |
+|----------|-----------|--------|
+| Zéro modification cœur | Déplacement de répertoires uniquement | Convention filesystem |
+| Données conservées | `data/{app}/` non supprimé | Persistance indépendante |
+| Activation réversible | Répertoire simplement déplacé | Pas de suppression |
+| Détection automatique | Scan exclusif de `applications/` | `AppService.ts` lignes 160-175 |
+
+**Points d'attention :**
+1. **Nom unique** : Le nom du répertoire doit correspondre à l'`id` déclaré dans `domain/index.ts`
+2. **Structure obligatoire** : Chaque application doit avoir au minimum `domain/index.ts` exportant `{APP_NAME}_APP`
+3. **Restart requis** : Les changements ne sont pris en compte qu'après redémarrage
+
 ---
+
 
 ## 5. Communication Socket.io
 
@@ -1236,4 +1296,14 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 ---
 
-*Spécifications v4.2 — Ajout Alpine.js pour la couche Présentation. Document à utiliser comme prompt de base pour la génération de chaque application du projet.*
+*Spécifications v4.4 — Ajout de la gestion dynamique d'activation/désactivation des applications. Document à utiliser comme prompt de base pour la génération de chaque application du projet.*
+
+---
+
+## 📅 Historique des Versions
+
+| Version | Date | Auteur | Changements |
+|---------|------|--------|-------------|
+| **4.4** | 14/07/2026 | Mistral Vibe | Ajout §4.3 "Gestion Dynamique des Applications" avec répertoires `applications/` et `applications_desactivees/`. Mécanisme d'activation/désactivation par déplacement de répertoires. |
+| 4.3 | 10/07/2026 | - | Restructuration de la configuration HA avec flags d'activation (`ws_enable`, `mqtt_enable`) et regroupement MQTT sous HA. |
+| 4.2 | - | - | Ajout du support Alpine.js pour la couche Présentation.
