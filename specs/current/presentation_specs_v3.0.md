@@ -258,12 +258,17 @@ La barre latérale (`app-sidebar`) contient deux sections principales :
 
 1. **Paramètres Techniques** (menu accordéon)
    - Menu parent cliquable qui se déploie/réduit
-   - Contient les sous-menus :
+   - Contient les sous-menus **communs** :
      - Web-services (section: `ha`)
      - MQTT (Broker externe) (section: `mqtt`)
      - Serveur Web (section: `web`)
      - Journalisation (section: `logging`)
      - Gestion des applications (section: `applications-manager`)
+   - **Contient aussi les sous-menus générés pour les paramètres techniques de chaque application**
+     - Un sous-menu est automatiquement créé pour chaque application détectée
+     - Exemple : si application "RFXCOM" est active, un sous-menu "RFXCOM" apparaît
+     - Ces sous-menus permettent d'accéder aux paramètres **spécifiques à l'application**
+     - Ils sont générés dynamiquement à partir de la liste des modules (`app:modules:list`)
 
 2. **Applications** (menu dynamique)
    - Généré automatiquement à partir de la liste des modules reçus via Socket.io
