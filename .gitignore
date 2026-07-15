@@ -32,6 +32,9 @@ coverage/
 *.log
 npm-debug.log*
 
+# Alpine.js backup
+sauvealpine/
+
 # pnpm
 .pnp
 .pnp.js

@@ -15,7 +15,7 @@ const srcPaths = [
 ];
 
 // Extensions à copier
-const extensions = ['.html', '.css'];
+const extensions = ['.html', '.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
 
 function copyAssets() {
   srcPaths.forEach(srcBase => {

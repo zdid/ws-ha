@@ -1,0 +1,736 @@
+/* src/applications/rfxcom/presentation/styles/rfxcom.css */
+/* Styles spécifiques à l'application RFXCOM */
+/* Conforme à specs-presentation-v2.0.md */
+
+/* =============================================================================
+   STYLES COMMUNS RFXCOM
+   ============================================================================= */
+
+.rfxcom-component {
+  padding: 16px;
+  background: var(--bg-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.component-header {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.component-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.4rem;
+  color: var(--text-primary);
+}
+
+.component-description {
+  margin: 0 0 12px 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.component-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* =============================================================================
+   FILTRES
+   ============================================================================= */
+
+.filters-panel {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.filter-group select {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  min-width: 120px;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.filter-actions {
+  margin-left: auto;
+}
+
+.filter-actions .btn {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+}
+
+/* =============================================================================
+   TABLEAUX
+   ============================================================================= */
+
+.devices-table-container,
+.receivers-table-container {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.devices-table,
+.receivers-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.devices-table th,
+.devices-table td,
+.receivers-table th,
+.receivers-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.devices-table th,
+.receivers-table th {
+  background: var(--card-bg);
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.devices-table tbody tr:hover,
+.receivers-table tbody tr:hover {
+  background: rgba(0, 123, 255, 0.05);
+}
+
+.devices-table tbody tr.device-disabled,
+.receivers-table tbody tr.receiver-disabled {
+  opacity: 0.6;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.devices-table tbody tr.device-low-battery {
+  background: rgba(255, 193, 7, 0.1);
+}
+
+/* =============================================================================
+   CHAMPS DE SAISIE
+   ============================================================================= */
+
+.input-small {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-small:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.input-small::placeholder {
+  color: var(--text-muted);
+}
+
+/* =============================================================================
+   BADGES
+   ============================================================================= */
+
+.signal-badge,
+.battery-badge,
+.primary-badge,
+.ha-badge,
+.emitters-count,
+.device-id,
+.receiver-id {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.signal-badge {
+  background: rgba(144, 238, 144, 0.2);
+  color: var(--success-color);
+}
+
+.signal-badge.signal-excellent { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.signal-badge.signal-good { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+.signal-badge.signal-fair { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+.signal-badge.signal-weak { background: rgba(251, 146, 60, 0.2); color: #fb923c; }
+.signal-badge.signal-poor { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+.battery-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--primary-color);
+}
+
+.battery-badge.battery-high { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.battery-badge.battery-medium { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+.battery-badge.battery-low { background: rgba(251, 158, 11, 0.2); color: #f59e0b; }
+.battery-badge.battery-critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+.primary-badge {
+  background: rgba(185, 28, 28, 0.2);
+  color: #b91c1c;
+  border: 1px solid #b91c1c;
+}
+
+.ha-badge {
+  background: rgba(0, 123, 255, 0.2);
+  color: var(--primary-color);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.emitters-count {
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.device-id,
+.receiver-id {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  padding: 0;
+}
+
+.device-sensor-id {
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.no-primary {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* =============================================================================
+   BOUTONS D'ACTIONS
+   ============================================================================= */
+
+.device-actions,
+.receiver-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-icon:hover {
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.btn-icon.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.btn-icon-small {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.btn-icon-small:hover {
+  background: var(--card-bg);
+  color: var(--primary-color);
+}
+
+.btn-icon-small.primary {
+  color: #f59e0b;
+}
+
+/* =============================================================================
+   TOGGLE SWITCH
+   ============================================================================= */
+
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.toggle-switch input[type="checkbox"] {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  width: 36px;
+  height: 20px;
+  background: var(--border-color);
+  border-radius: 20px;
+  position: relative;
+  transition: background-color 0.3s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+}
+
+.toggle-switch input[type="checkbox"]:checked + .toggle-slider {
+  background: var(--primary-color);
+}
+
+.toggle-switch input[type="checkbox"]:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* =============================================================================
+   ÉTATS VIDES
+   ============================================================================= */
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.empty-state h4 {
+  margin: 0 0 8px 0;
+  color: var(--text-secondary);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.devices-count,
+.receivers-count {
+  margin: 12px 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* =============================================================================
+   MODALES
+   ============================================================================= */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.modal.large-modal .modal-content {
+  max-width: 900px;
+  max-height: 90vh;
+}
+
+.modal-content {
+  background: var(--bg-color);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: auto;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border-radius: 4px;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--card-bg);
+}
+
+.modal-footer .btn {
+  min-width: 100px;
+}
+
+/* =============================================================================
+   FORMULAIRES DANS MODALES
+   ============================================================================= */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-group input,
+.form-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.form-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+.pairing-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 12px 0;
+  padding: 8px;
+  background: var(--card-bg);
+  border-radius: 4px;
+}
+
+/* =============================================================================
+   APPAISSAGE - ÉMETTEURS
+   ============================================================================= */
+
+.pairing-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.emitters-selection h4,
+.paired-emitters h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.emitters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.emitter-card {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-color);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.emitter-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+}
+
+.emitter-card.selected {
+  border-color: var(--primary-color);
+  background: rgba(0, 123, 255, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.emitter-checkbox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.emitter-checkbox input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.emitter-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.emitter-details {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.emitter-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.paired-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.paired-list li {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.paired-list li:last-child {
+  border-bottom: none;
+}
+
+.paired-emitter-name {
+  font-weight: 500;
+}
+
+.primary-marker {
+  color: var(--warning-color);
+  font-size: 0.85rem;
+}
+
+.no-emitters {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+}
+
+/* =============================================================================
+   DÉTAILS GRID
+   ============================================================================= */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--card-bg);
+  border-radius: 4px;
+}
+
+.detail-item label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-item span {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.detail-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.detail-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.device-state {
+  background: var(--card-bg);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+
+@media (max-width: 1024px) {
+  .modal-content {
+    max-width: 95vw;
+    margin: 20px;
+  }
+  
+  .filters-panel {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .filter-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .filter-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .devices-table th,
+  .devices-table td,
+  .receivers-table th,
+  .receivers-table td {
+    padding: 8px 6px;
+    font-size: 0.85rem;
+  }
+  
+  .device-actions,
+  .receiver-actions {
+    flex-wrap: wrap;
+  }
+  
+  .modal-header h3 {
+    font-size: 1rem;
+  }
+}

@@ -4,7 +4,8 @@
   "description": "Socle technique commun pour les applications HA/MQTT",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && node scripts/copy-assets.js",
+    "build": "tsc && tsc -p src/presentation/ui/tsconfig.ui.json && node scripts/copy-assets.js",
+    "build:ui": "tsc -p src/presentation/ui/tsconfig.ui.json",
     "build:watch": "tsc --watch",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
@@ -41,6 +42,7 @@
     "@types/js-yaml": "^4.0.5",
     "@types/node": "^20.10.5",
     "@types/serialport": "^8.0.5",
+    "@types/socket.io-client": "^1.4.36",
     "@types/ws": "^8.5.5",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
