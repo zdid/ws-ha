@@ -2,7 +2,7 @@
   "compilerOptions": {
     /* Language and Environment */
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "dom"],
     "module": "CommonJS",
     "moduleResolution": "node",
 
@@ -47,5 +47,5 @@
     "skipLibCheck": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/presentation/ui/ts/**"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/presentation/ui/ts/**", "src/applications/**"]
 }
