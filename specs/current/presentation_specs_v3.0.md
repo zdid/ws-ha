@@ -1,10 +1,11 @@
 # Spécifications - Couche de Présentation Multi-Applications
 
-**Version :** 3.1  
-**Date :** 15 Juillet 2026  
+**Version :** 3.2  
+**Date :** 16 Juillet 2026  
 **Conformité :** specs-techniques-socle-ha-mqtt-v4.4.md  
 **Statut :** Document de référence pour toutes les applications du socle HA-MQTT
 
+> **📌 v3.2** : **Comportement accordéon strict (1 seul menu déplié) et effacement systématique de la zone de données au clic**. Correction du double déclenchement des écouteurs, utilisation de classes CSS `.visible` au lieu de `style.setProperty()`.
 > **📌 v3.1** : **Structure de menu accordéon et affichage conditionnel**. Menu "Paramètres Techniques" avec sous-menus déployables. Affichage du contenu uniquement au clic sur un menu.
 > **📌 v3.0** : **Migration complète vers TypeScript pur**. Suppression de Alpine.js. Architecture basée sur **TypeScript + Web Components natifs + Socket.io**. Toute la réactivité est gérée via Custom Elements et événements DOM natifs.
 
@@ -277,16 +278,29 @@ La barre latérale (`app-sidebar`) contient deux sections principales :
 
 ### 4.5.2 Comportement du Menu Accordéon
 
-**Comportement de "Paramètres Techniques" :**
+**NOUVEAU v3.2 - Comportement accordéon stricte :**
+- **Un seul menu principal peut être déplié à la fois** (comportement accordéon)
+- Quand un menu est déplié, **tous les autres menus principaux sont automatiquement repliés**
+
+**Comportement de "Paramètres Techniques" et "Applications" :**
 - Au clic sur l'en-tête :
   - Si déployé → se réduit (icône change de ▼ à ▲)
   - Si réduit → se déploie (icône change de ▲ à ▼)
 - Les sous-menus ne sont visibles que lorsque la section est déployée
+- **État initial** : Tous les menus sont **repliés** au chargement (`collapsed`)
+
+**Gestion technique :**
+- Utilisation de la **classe CSS `.visible`** sur `.nav-section-collapse` pour contrôler l'affichage
+- Méthode `classList.toggle('visible', ...)` au lieu de `style.setProperty()` pour éviter les conflits
+- Un double clic sur un menu replie/déplie correctement (pas de double déclenchement)
 
 **CSS utilisé :**
 ```css
-.nav-section-header.collapsed + .nav-section-collapse {
+.nav-section-collapse {
   display: none;
+}
+.nav-section-collapse.visible {
+  display: block !important;
 }
 .nav-section-header.expanded .toggle-icon {
   transform: rotate(90deg);
@@ -295,17 +309,22 @@ La barre latérale (`app-sidebar`) contient deux sections principales :
 
 ### 4.5.3 Affichage du Contenu
 
+**NOUVEAU v3.2 - Effacement systématique de la zone de données :**
+- **Dès le clic sur un menu principal**, la zone de données est **immédiatement effacée**
+- Cela garantit qu'aucun ancien contenu ne persiste pendant le chargement du nouveau contenu
+
 **Règles strictes :**
 - **Aucun contenu n'est affiché dans la fenêtre principale au chargement initial**
 - Le contenu s'affiche UNIQUEMENT quand l'utilisateur clique sur un item de menu
 - Un seul contenu est affiché à la fois (les autres sont masqués)
 
 **Mécanisme :**
-1. Tous les `.content-section` dans `<main>` ont `style="display: none;"` par défaut
-2. Au clic sur un menu, `Sidebar.showContentSection(sectionId)` est appelé
-3. Cette méthode :
-   - Masque toutes les sections (`hideAllContentSections()`)
-   - Affiche la section correspondante si elle existe dans le mapping
+1. **Première action dans `toggleSection()`** : Appel à `hideAllContentSections()` pour effacer la zone
+2. Tous les `.content-section` dans `<main>` ont `style="display: none;"` par défaut
+3. Au clic sur un menu principal :
+   - `hideAllContentSections()` est appelé **immédiatement** (avant tout autre traitement)
+   - Si dépliage d'un menu : les autres menus sont repliés (`collapseAllOtherSections()`)
+   - Puis la section correspondante est affichée si elle existe dans le mapping
    - Pour les modules dynamiques : active le module et affiche le conteneur
 
 **Mapping des sections :**
@@ -1180,6 +1199,7 @@ grep -r "SocketService" src/presentation/ui/ts/ | wc -l
 
 | Version | Date | Auteur | Modifications |
 |---------|------|--------|---------------|
+| 3.2 | 16/07/2026 | Mistral Vibe | **Comportement accordéon strict et effacement de zone**. Un seul menu déplié à la fois. Effacement systématique de la zone de données dès le clic sur un menu principal. Correction du double déclenchement des écouteurs. Utilisation de classes CSS `.visible` au lieu de `style.setProperty()`. |
 | 3.1 | 15/07/2026 | Mistral Vibe | **Structure de menu accordéon**. Menu "Paramètres Techniques" avec sous-menus déployables (Web-services, MQTT, Serveur Web, Journalisation, Gestion des applications). Affichage conditionnel du contenu au clic. Module core géré par ConfigForm, pas de chargement HTML. |
 | 3.0 | 15/07/2026 | Mistral Vibe | **Migration complète vers TypeScript pur**. Suppression d'Alpine.js. Architecture basée sur Web Components natifs + Socket.io + TypeScript. |
 | 2.3 | 14/07/2026 | Mistral Vibe | Ajout de la gestion dynamique d'activation/désactivation des applications. |

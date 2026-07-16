@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles - Module RFXCOM
 
-*Version 5.0 - 09 Juillet 2026*
-*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs*
+*Version 5.1 - 16 Juillet 2026*
+*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: Détection automatique dans l'onglet Devices, toolbar avec Scanner/Effacer/Rafraîchir, deux listes distinctes (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées temporairement*
 
 ---
 
@@ -519,37 +519,67 @@ Voir fichier `config-rfxcom-devices-v1.0.yaml` à la racine du projet.
 
 ### 11.2 Fonctionnalités UI pour RFXCOM
 
+**NOUVEAU v5.1 - Organisation de l'interface :**
+- **Structure en onglets** : Devices | Récepteurs | ~~Scènes~~ (désactivé temporairement)
+- **Associations intégrées aux Récepteurs** : Les appairages (device → récepteur) sont gérés dans l'onglet Récepteurs
+
 **Gestion des Devices :**
 1. **Liste des devices détectés** : Affiche tous les devices RFXCOM avec leur sensorId, type, subType
 2. **QUOI auto-rempli** : Le QUOI est prérempli depuis le subType, modifiable par l'utilisateur
 3. **Saisie du OÙ** : Formulaire pour définir la localisation (lieu_principal obligatoire)
+4. **Deux listes distinctes** :
+   - **Devices déjà paramétrés** : Chargés depuis le fichier de configuration centralisé
+   - **Devices en auto-discovery** : Détectés par scan mais non encore configurés
+
+**Barre d'outils (toolbar) :**
+| Bouton | Icône | Événement Socket.io | Description |
+|--------|-------|---------------------|-------------|
+| Scanner RF433 | 🔍 | `rfxcom:scan:start` | Démarre la détection automatique des devices RF433 |
+| Effacer non paramétrés | 🗑️ | `rfxcom:devices:clear-unconfigured` | Supprime les devices auto-découverts non configurés |
+| Rafraîchir | 🔄 | `rfxcom:devices:refresh` | Recharge la liste des devices **déjà paramétrés** depuis le fichier |
+
+**Note :** Le bouton "Sauvegarder" a été supprimé - les sauvegardes sont déclenchées via les fenêtres modales.
 
 **Gestion des Récepteurs :**
-1. **Création de récepteur** : Définir type (switch/light/cover/scene), primaryEmitter, et liste des emitters
+1. **Création de récepteur** : Définir type (switch/light/cover), primaryEmitter, et liste des emitters
 2. **Configuration variateur** : Pour Lighting2, cocher "isDimmable" pour activer le mode variateur
 3. **Configuration covers** : Saisie des délais openTimeSec/closeTimeSec **OBLIGATOIRES**
 
-**Gestion des Associations :**
+**Gestion des Associations (Appairages) :**
+> ⚠️ **Intégrées dans l'onglet Récepteurs** (pas d'onglet séparé)
+>
 1. **Ajout d'émetteurs à un récepteur** : Sélectionner des émetteurs dans la liste des devices détectés
 2. **Définir l'action** : toggle, on, off, set_level (pour light), open, close, stop (pour cover)
 3. **Définir le primaryEmitter** : L'émetteur principal qui enverra les commandes RF433
+4. **Stockage** : Les associations N↔N sont stockées directement dans la définition du récepteur (primaryEmitter + liste des émetteurs appairés)
+
+**Scènes :**
+> ⚠️ **Fonctionnalité temporairement désactivée** - Mise en commentaire dans l'interface
 
 ### 11.3 Événements Socket.io
 
+**NOUVEAU v5.1 - Événements de détection et gestion :**
+
 **Server → Client :**
 ```typescript
-'rfxcom:devices:list': { devices: RfxComDeviceInfo[] }
-'rfxcom:receivers:list': { receivers: ReceiverConfig[] }
-'rfxcom:device:detected': { device: RfxComDeviceInfo }
-'rfxcom:receiver:created': { receiver: ReceiverConfig }
+'rfxcom:devices:list': { devices: RfxComDeviceInfo[] }           // Liste complète des devices
+'rfxcom:receivers:list': { receivers: ReceiverConfig[] }          // Liste complète des récepteurs
+'rfxcom:device:detected': { device: RfxComDeviceInfo }           // Nouveau device détecté (auto-discovery)
+'rfxcom:receiver:created': { receiver: ReceiverConfig }           // Récepteur créé
+'rfxcom:scan:start': {}                                             // Notification: scan démarré
+'rfxcom:scan:complete': { devices: RfxComDeviceInfo[] }           // Notification: scan terminé avec résultats
+'rfxcom:scan:failed': { error: string }                             // Notification: échec du scan
 ```
 
 **Client → Server :**
 ```typescript
-'rfxcom:receiver:create': { config: ReceiverConfig }
-'rfxcom:receiver:update': { receiverId: string, config: Partial<ReceiverConfig> }
-'rfxcom:receiver:delete': { receiverId: string }
-'config:save': AppConfig
+'rfxcom:receiver:create': { config: ReceiverConfig }               // Créer un récepteur
+'rfxcom:receiver:update': { receiverId: string, config: Partial<ReceiverConfig> }  // Mettre à jour un récepteur
+'rfxcom:receiver:delete': { receiverId: string }                   // Supprimer un récepteur
+'rfxcom:devices:refresh': {}                                       // NOUVEAU: Rafraîchir la liste des devices
+'rfxcom:scan:start': {}                                            // NOUVEAU: Démarrer un scan de détection
+'rfxcom:devices:clear-unconfigured': {}                           // NOUVEAU: Effacer devices non paramétrés
+'config:save': AppConfig                                            // Sauvegarder la configuration globale
 ```
 
 ---
@@ -623,6 +653,29 @@ Appui sur lighting2_0x02b3:
   → recepteur_002 exécute son action (ex: on)
 ```
 
+### 12.4 Ajout d'un Bouton via Détection Automatique (NOUVEAU v5.1)
+```
+Workflow simplifié pour ajouter un nouveau bouton RF433 sans naviguer dans une longue liste :
+
+1. **Onglet Devices** : Utilisateur va dans Applications → RFXCOM → onglet Devices
+2. **Rafraîchir** : Clique sur "🔄 Rafraîchir" → charge la liste des **devices déjà paramétrés**
+3. **Scanner** : Clique sur "🔍 Scanner RF433" → déclenche `rfxcom:scan:start`
+4. **Serveur** : RFXCOM commence la détection RF433
+5. **Notification** : Client reçoit `rfxcom:scan:start` → affiche "Scan en cours..."
+6. **Détection** : Premier device RF433 détecté → serveur émet `rfxcom:device:detected`
+7. **Client** : Reçoit le device → l'ajoute à la liste des **devices en auto-discovery**
+8. **Affichage** : Le device apparaît avec icône "non paramétré" (ex: 📝 ou ⚠️)
+9. **Sélection** : Utilisateur clique sur le device → ouvre **modale de paramétrage**
+10. **Paramétrage** : Utilisateur remplace "[à compléter]" par son OÙ (ex: "Bouton---Salon")
+11. **Validation** : QUOI auto-déterminé depuis subType (ex: "Bouton") + OÙ validé
+12. **Sauvegarde** : Via modale → `rfxcom:device:update` → device passé en "paramétré"
+13. **Rafraîchissement** : Liste mise à jour → device disparaît de "auto-discovery", apparaît dans "paramétrés"
+```
+
+**Nettoyage (optionnel) :**
+- Clique sur "🗑️ Effacer non paramétrés" → `rfxcom:devices:clear-unconfigured`
+- Supprime tous les devices de la liste "auto-discovery" qui n'ont pas été paramétrés
+
 ---
 
 ## 13. Gestion des États
@@ -660,6 +713,8 @@ Appui sur lighting2_0x02b3:
 | cover | open, close, stop, set_position | Envoi OPEN/CLOSE/STOP au device cible |
 
 ### 14.3 Scènes RFXCOM
+
+> ⚠️ **Fonctionnalité temporairement désactivée dans l'interface (v5.1)** - Les scènes ne sont pas accessibles via l'UI pour l'instant. La gestion des scènes reste implémentée côté serveur et peut être configurée manuellement via le fichier YAML.
 
 Une **scène** est un ensemble de commandes exécutées simultanément ou séquentiellement sur plusieurs récepteurs.
 
@@ -866,6 +921,7 @@ Pour les récepteurs de type `cover` :
 | 3.0 | 2026-07-08 | Mistral Vibe | Correction noms techniques, clarification émetteurs/récepteurs |
 | 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, associations N↔N via UI |
 | 5.0 | 2026-07-09 | Mistral Vibe | **Fichier YAML centralisé, primaryEmitter, émetteurs dans récepteur, attributs_taxonomie validé** |
+| 5.1 | 2026-07-16 | Mistral Vibe | **Détection automatique dans onglet Devices, toolbar Scanner/Effacer/Rafraîchir, deux listes devices (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées** |
 
 ---
 
