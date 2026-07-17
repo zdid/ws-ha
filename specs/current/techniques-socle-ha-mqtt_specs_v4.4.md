@@ -255,6 +255,7 @@ graph TD
 4. **Méthode start() requise** : Chaque service doit implémenter une méthode `.start()` asynchrone
 5. **Méthode stop() optionnelle** : Les services peuvent implémenter `.stop()` pour un arrêt propre (recommandé)
 6. **Restart automatique sur changement de config** : Les services sont automatiquement redémarrés quand leur configuration est sauvegardée
+7. **Gestion des erreurs de démarrage** : Si le démarrage d'un service échoue (mauvais paramètres, matériel absent), un warning est loggé avec le motif précis, et l'application continue de fonctionner. Les services doivent implémenter une gestion d'erreur robuste.
 
 **Injection de dépendances — `IAppConfigProvider` vs `ConfigService` :**
 > **Contexte** : Les services d'application (ex: `RfxComService`) ont besoin d'accéder à leur section de configuration spécifique.
@@ -267,7 +268,7 @@ graph TD
 > - `createRfxComService(eventBus, logger, configProvider: IAppConfigProvider)` — Approche recommandée, typée
 > - `createRfxComServiceWithConfig(eventBus, logger, configService: ConfigService)` — Approche alternative, crée elle-même le provider
 > 
-> **Résolution automatique** : `AppService` essaie d'abord avec `IAppConfigProvider` (créé via `new AppConfigProvider(moduleId, configService)`), puis bascule sur `ConfigService` si nécessaire.
+> **Résolution automatique** : `AppService` crée un `IAppConfigProvider` via `new AppConfigProvider(moduleId, configService)` et l'injecte dans chaque factory. Chaque service d'application reçoit donc un provider typé limitant l'accès à sa propre section de configuration.
 
 ---
 

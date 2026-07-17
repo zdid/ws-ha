@@ -1,8 +1,8 @@
 # Spécifications Techniques d'Implémentation - Module RFXCOM
 
-*Version 1.1 - 16 Juillet 2026*
+*Version 1.2 - 17 Juillet 2026*
 *Intègre la bibliothèque npm `rfxcom` v2.6.2 pour la communication avec le transceiver RFXtrx433*
-*Démarrage automatique via AppService avec reconnexion sur changement de configuration*
+*Démarrage automatique via AppService avec reconnexion sur changement de configuration, injection unifiée d'IAppConfigProvider, et traces détaillées*
 
 ---
 
@@ -847,7 +847,7 @@ Le module RFXCOM nécessite que le champ `rfxcom` soit présent dans la configur
   3. Instancie le service avec les dépendances (eventBus, logger, configProvider ou configService)
   4. Appelle automatiquement `.start()` sur le service
   
-  > **Note sur l'injection** : AppService passe d'abord un `IAppConfigProvider<RfxComConfig>` (approche recommandée). Si la factory attend `ConfigService`, elle peut créer elle-même le provider comme dans `createRfxComServiceWithConfig`.
+  > **Note sur l'injection** : AppService crée et passe toujours un `IAppConfigProvider<RfxComConfig>` (créé via `new AppConfigProvider(moduleId, configService)`) à la factory. Les factories comme `createRfxComService` attendent ce provider typé. La factory `createRfxComServiceWithConfig` est toujours disponible pour simplifier l'instanciation manuelle.
 
 **Séquence détaillée :**
 
@@ -885,7 +885,13 @@ setupEventListeners() - Configuration des listeners EventBus
 RfxComService.start()  [Appelé automatiquement par AppService]
     │
     ▼
+Log INFO: "Démarrage du service RFXCOM..."
+    │
+    ▼
 initializeTransceiver()
+    │
+    ▼
+Log INFO: "Tentative de connexion au transceiver RFXCOM sur {serialPort}..."
     │
     ▼
 new rfxcom.RfxCom(serialPort, options)
@@ -898,6 +904,9 @@ transceiver.initialise(callback)
     │
     ▼ (asynchrone)
     [Si succès:]
+    ▼
+Log INFO: "Transceiver RFXCOM initialisé avec succès sur {serialPort}"
+    │
     ▼
 startDiscovery()
     │

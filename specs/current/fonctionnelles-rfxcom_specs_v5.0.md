@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles - Module RFXCOM
 
-*Version 5.2 - 16 Juillet 2026*
-*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: Détection automatique dans l'onglet Devices, toolbar avec Scanner/Effacer/Rafraîchir, deux listes distinctes (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées temporairement. **Démarrage automatique du service RFXCOM avec reconnexion sur changement de configuration et indicateur de connexion dans l'UI***
+*Version 5.3 - 17 Juillet 2026*
+*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: Détection automatique dans l'onglet Devices, toolbar avec Scanner/Effacer/Rafraîchir, deux listes distinctes (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées temporairement. **Démarrage automatique du service RFXCOM avec reconnexion sur changement de configuration, indicateur de connexion dans l'UI, et traces détaillées côté serveur et client***
 
 ---
 
@@ -510,9 +510,29 @@ Voir fichier `config-rfxcom-devices-v1.0.yaml` à la racine du projet.
 
 ---
 
-## 11. Interface Web et Socket.io
+## 11. Traces et Journalisation
 
-### 11.1 Communication
+**NOUVEAU v5.3 - Traces détaillées pour le démarrage et la connexion :**
+
+### 11.1 Traces côté Serveur
+- **Démarrage du service** : `INFO [RfxComService] Démarrage du service RFXCOM...`
+- **Tentative de connexion** : `INFO [RfxComService] Tentative de connexion au transceiver RFXCOM sur {port}...`
+- **Connexion réussie** : `INFO [RfxComService] Transceiver RFXCOM initialisé avec succès sur {port}`
+- **Échec de connexion** : `WARN [RfxComService] Tentative de connexion RFXCOM échouée - Motif: {erreur}` ou `WARN [RfxComService] Initialisation du transceiver RFXCOM échouée - Motif: {erreur}`
+
+### 11.2 Traces côté Client
+- **État de connexion** : Événement `rfxcom:status` émis avec `{connected: boolean, devicesCount: number, receiversCount: number, lastDiscovery: string}`
+- **Chargement de la config** : Logs disponibles pour le chargement et la sauvegarde de la configuration
+
+### 11.3 Recommandations
+- Les erreurs de connexion (matériel absent, mauvais paramètres) sont normales et ne doivent pas bloquer l'application
+- Les warnings de connexion doivent afficher le motif précis pour aider au diagnostic
+
+---
+
+## 12. Interface Web et Socket.io
+
+### 12.1 Communication
 - **Socket.io** est le canal principal de communication entre UI et serveur
 - **Le fichier YAML peut aussi être édité manuellement** (rechargé automatiquement)
 - La configuration est soumise via `config:save` et déclenche un redémarrage
