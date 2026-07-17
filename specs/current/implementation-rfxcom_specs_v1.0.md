@@ -1,7 +1,8 @@
 # Spécifications Techniques d'Implémentation - Module RFXCOM
 
-*Version 1.0 - 11 Juillet 2026*
+*Version 1.1 - 16 Juillet 2026*
 *Intègre la bibliothèque npm `rfxcom` v2.6.2 pour la communication avec le transceiver RFXtrx433*
+*Démarrage automatique via AppService avec reconnexion sur changement de configuration*
 
 ---
 
@@ -838,17 +839,41 @@ Le module RFXCOM nécessite que le champ `rfxcom` soit présent dans la configur
 
 ### 11.1 Démarrage
 
+**Démarrage automatique via AppService :**
+- AppService détecte les modules dans `src/applications/` et `dist/applications/`
+- Pour chaque module activé, AppService:
+  1. Charge le module dynamiquement
+  2. Cherche une factory de service (`createRfxComService` ou `createRfxComServiceWithConfig`)
+  3. Instancie le service avec les dépendances (eventBus, logger, configProvider ou configService)
+  4. Appelle automatiquement `.start()` sur le service
+  
+  > **Note sur l'injection** : AppService passe d'abord un `IAppConfigProvider<RfxComConfig>` (approche recommandée). Si la factory attend `ConfigService`, elle peut créer elle-même le provider comme dans `createRfxComServiceWithConfig`.
+
+**Séquence détaillée :**
+
 ```
 AppService.start()
     │
     ▼
-Détection des modules
+Détection des modules (detectApplicationModules)
     │
     ▼
-Module RFXCOM détecté (si rfxcom configuré)
+Module RFXCOM détecté (si présent dans applications/)
     │
     ▼
-RfxComService.constructor()
+AppService.startApplicationServices()
+    │
+    ▼
+startApplicationService("rfxcom")
+    │
+    ▼
+Chargement du module rfxcom/domain/index.ts
+    │
+    ▼
+Détection de la factory: createRfxComServiceWithConfig
+    │
+    ▼
+RfxComService.constructor(eventBus, logger, configService)
     │
     ▼
 loadConfig() - Chargement de la configuration RFXCOM
@@ -857,7 +882,7 @@ loadConfig() - Chargement de la configuration RFXCOM
 setupEventListeners() - Configuration des listeners EventBus
     │
     ▼
-RfxComService.start()
+RfxComService.start()  [Appelé automatiquement par AppService]
     │
     ▼
 initializeTransceiver()
@@ -872,11 +897,29 @@ setupTransceiverEventListeners()
 transceiver.initialise(callback)
     │
     ▼ (asynchrone)
+    [Si succès:]
+    ▼
 startDiscovery()
     │
     ▼
 Écoute continue des devices
+    │
+    [Si échec:]
+    ▼
+Log WARNING: "Tentative de connexion RFXCOM échouée - Motif: [erreur]"
+    │
+    ▼
+isConnected = false
+    │
+    ▼
+Application continue (échec normal si matériel absent ou config incorrecte)
 ```
+
+**Comportement en cas d'échec :**
+- Si la connexion au transceiver échoue (port série invalide, matériel absent, etc.), un **WARNING** est loggé (pas une ERROR)
+- Le service RFXCOM reste dans l'état `isConnected = false`
+- L'application principale **ne crash pas** et continue de fonctionner
+- L'indicateur de connexion dans l'UI affiche "Déconnecté"
 
 ### 11.2 Arrêt
 
@@ -895,6 +938,54 @@ isConnected = false
     ▼
 emitStatus()
 ```
+
+### 11.3 Reconnexion Automatique
+
+**Mécanisme :**
+- AppService écoute l'événement `app:module:config:saved` émis quand la configuration d'un module est sauvegardée
+- Quand la configuration RFXCOM est modifiée (ex: changement de `serialPort`, `baudRate`), AppService:
+  1. Arrête le service RFXCOM existant (si démarré)
+  2. Instancie un nouveau service avec la nouvelle configuration
+  3. Démarre le nouveau service
+
+**Séquence de reconnexion :**
+
+```
+Utilisateur modifie config RFXCOM
+    │
+    ▼
+Sauvegarde via UI (app:modules:config:save)
+    │
+    ▼
+AppService reçoit app:module:config:saved
+    │
+    ▼
+AppService.restartApplicationService("rfxcom")
+    │
+    ▼
+AppService.stopApplicationService("rfxcom")
+    │
+    ▼
+RfxComService.stop() [si existe]
+    │
+    ▼
+AppService.startApplicationService("rfxcom")
+    │
+    ▼
+Nouvelle instance RfxComService avec nouvelle config
+    │
+    ▼
+RfxComService.start()
+    │
+    ▼
+Nouvelle tentative de connexion avec les nouveaux paramètres
+```
+
+**Points clés :**
+- La reconnexion est **automatique** et **transparente**
+- Pas besoin de redémarrer l'application complète
+- Les anciennes erreurs de connexion sont oubliées, une nouvelle tentative est effectuée
+- Si la nouvelle connexion échoue aussi, un nouveau WARNING est loggé
 
 ---
 

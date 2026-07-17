@@ -1,9 +1,10 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.4  
-**Date :** 14 Juillet 2026  
+**Version :** 4.5  
+**Date :** 16 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
 
+> **v4.5** : Ajout du **démarrage automatique des services d'application** avec reconnexion sur changement de configuration.
 > **v4.4** : Ajout de la **gestion dynamique d'activation/désactivation** des applications via répertoires `applications/` et `applications_desactivees/`.
 > **v4.3** : Restructuration de la configuration HA avec flags d'activation (`ws_enable`, `mqtt_enable`) et regroupement MQTT sous HA.
 > **v4.2** : Ajout du support **Alpine.js** pour la couche Présentation, tout en conservant TypeScript comme langage principal.
@@ -202,11 +203,17 @@ src/
     └── old_app/                    # Exemple : application désactivée
 ```
 
-**Mécanisme de détection (AppService.ts) :**
-- Le service `AppService.scanApplications()` (lignes 160-279) **scanne uniquement** `src/applications/`
-- Les répertoires dans `src/applications_desactivees/` sont **exclus** de la détection
+**Mécanisme de détection et démarrage automatique (AppService.ts) :**
+- Le service `AppService.detectApplicationModules()` scanne `src/applications/` et `dist/applications/`
+- Les répertoires dans `src/applications_desactivees/` et `dist/applications_desactivees/` sont **exclus** de la détection
+- Pour chaque application détectée qui est **activée** (présente dans les répertoires applications/) :
+  - **Détection des métadonnées** : Chargement de `{APP_NAME}_APP` pour les informations du module
+  - **Détection des événements Socket.io** : Chargement de `{APP_NAME}_SOCKET_EVENTS` pour les événements dynamiques
+  - **Instanciation automatique du service** : Recherche et appel d'une factory (`create*Service` ou `*ServiceFactory`)
+  - **Démarrage automatique** : Appel de `.start()` sur l'instance du service
+  - **Gestion des erreurs** : Si le démarrage échoue (mauvais paramètres, matériel absent), un warning est loggé et l'application continue
 - Seules les applications dans `applications/` sont :
-  - Instanciées au démarrage
+  - Instanciées et démarrées automatiquement au démarrage
   - Visibles dans le menu de l'UI
   - Configurables via les paramètres techniques
 
@@ -244,7 +251,23 @@ graph TD
 **Points d'attention :**
 1. **Nom unique** : Le nom du répertoire doit correspondre à l'`id` déclaré dans `domain/index.ts`
 2. **Structure obligatoire** : Chaque application doit avoir au minimum `domain/index.ts` exportant `{APP_NAME}_APP`
-3. **Restart requis** : Les changements ne sont pris en compte qu'après redémarrage
+3. **Factory de service requise** : Chaque application doit exporter une factory de service (`create*Service` ou `*ServiceFactory`) pour le démarrage automatique
+4. **Méthode start() requise** : Chaque service doit implémenter une méthode `.start()` asynchrone
+5. **Méthode stop() optionnelle** : Les services peuvent implémenter `.stop()` pour un arrêt propre (recommandé)
+6. **Restart automatique sur changement de config** : Les services sont automatiquement redémarrés quand leur configuration est sauvegardée
+
+**Injection de dépendances — `IAppConfigProvider` vs `ConfigService` :**
+> **Contexte** : Les services d'application (ex: `RfxComService`) ont besoin d'accéder à leur section de configuration spécifique.
+> 
+> **Deux approches supportées** :
+> - **`IAppConfigProvider<T>`** : Interface légère, typée, qui expose uniquement `getAppConfig(): T`. C'est l'approche recommandée pour les services métier (couche Domain) car elle respect le principe d'inversion de dépendances et limite l'accès à la configuration spécifique de l'application.
+> - **`ConfigService`** : Service complet qui gère toute la configuration de l'application (toutes sections). Utilisé par la couche Infrastructure.
+> 
+> **Factory pattern** :
+> - `createRfxComService(eventBus, logger, configProvider: IAppConfigProvider)` — Approche recommandée, typée
+> - `createRfxComServiceWithConfig(eventBus, logger, configService: ConfigService)` — Approche alternative, crée elle-même le provider
+> 
+> **Résolution automatique** : `AppService` essaie d'abord avec `IAppConfigProvider` (créé via `new AppConfigProvider(moduleId, configService)`), puis bascule sur `ConfigService` si nécessaire.
 
 ---
 
@@ -1296,7 +1319,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 ---
 
-*Spécifications v4.4 — Ajout de la gestion dynamique d'activation/désactivation des applications. Document à utiliser comme prompt de base pour la génération de chaque application du projet.*
+*Spécifications v4.5 — Ajout du démarrage automatique des services d'application avec reconnexion sur changement de configuration. Document à utiliser comme prompt de base pour la génération de chaque application du projet.*
 
 ---
 
@@ -1304,6 +1327,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **4.5** | 16/07/2026 | Mistral Vibe | Ajout du **démarrage automatique des services d'application** : AppService instancie et démarre automatiquement les services des applications activées via convention de factory (`create*Service`). Reconnection automatique sur changement de configuration via écoute de `app:module:config:saved`. |
 | **4.4** | 14/07/2026 | Mistral Vibe | Ajout §4.3 "Gestion Dynamique des Applications" avec répertoires `applications/` et `applications_desactivees/`. Mécanisme d'activation/désactivation par déplacement de répertoires. |
 | 4.3 | 10/07/2026 | - | Restructuration de la configuration HA avec flags d'activation (`ws_enable`, `mqtt_enable`) et regroupement MQTT sous HA. |
 | 4.2 | - | - | Ajout du support Alpine.js pour la couche Présentation.

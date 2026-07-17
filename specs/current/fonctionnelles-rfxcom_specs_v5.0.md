@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles - Module RFXCOM
 
-*Version 5.1 - 16 Juillet 2026*
-*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: Détection automatique dans l'onglet Devices, toolbar avec Scanner/Effacer/Rafraîchir, deux listes distinctes (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées temporairement*
+*Version 5.2 - 16 Juillet 2026*
+*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: Détection automatique dans l'onglet Devices, toolbar avec Scanner/Effacer/Rafraîchir, deux listes distinctes (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées temporairement. **Démarrage automatique du service RFXCOM avec reconnexion sur changement de configuration et indicateur de connexion dans l'UI***
 
 ---
 
@@ -519,9 +519,21 @@ Voir fichier `config-rfxcom-devices-v1.0.yaml` à la racine du projet.
 
 ### 11.2 Fonctionnalités UI pour RFXCOM
 
-**NOUVEAU v5.1 - Organisation de l'interface :**
+**NOUVEAU v5.2 - Organisation de l'interface :**
 - **Structure en onglets** : Devices | Récepteurs | ~~Scènes~~ (désactivé temporairement)
 - **Associations intégrées aux Récepteurs** : Les appairages (device → récepteur) sont gérés dans l'onglet Récepteurs
+- **Indicateur de connexion RFX433** : Badge dans l'en-tête affichant l'état de connexion au transceiver (🟢 Connecté / 🔴 Déconnecté)
+
+**Indicateur de connexion :**
+| État | Couleur | Texte | Comportement |
+|------|--------|------|-------------|
+| Connecté | Vert (#28a745) | "Connecté" | Transceiver RFX433 opérationnel |
+| Déconnecté | Rouge (#dc3545) | "Déconnecté" | Transceiver non connecté (mauvais paramètres ou matériel absent) |
+
+**Mécanisme :**
+- L'indicateur est mis à jour automatiquement dès qu'un événement `rfxcom:status` est reçu
+- Le statut est demandé automatiquement au chargement de l'écran RFXCOM
+- Le service RFXCOM émet `rfxcom:status` à chaque changement d'état (connexion, déconnexion, erreur)
 
 **Gestion des Devices :**
 1. **Liste des devices détectés** : Affiche tous les devices RFXCOM avec leur sensorId, type, subType
