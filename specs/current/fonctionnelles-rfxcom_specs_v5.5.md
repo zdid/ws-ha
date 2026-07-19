@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles - Module RFXCOM
 
-*Version 5.3 - 17 Juillet 2026*
-*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: Détection automatique dans l'onglet Devices, toolbar avec Scanner/Effacer/Rafraîchir, deux listes distinctes (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées temporairement. **Démarrage automatique du service RFXCOM avec reconnexion sur changement de configuration, indicateur de connexion dans l'UI, et traces détaillées côté serveur et client***
+*Version 5.5 - 18 Juillet 2026*
+*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: **Spécifications Cover avec Lighting2** (états up/down/intermediate, calcul position%, traduction on/off), **Traduction Commandes HA→RFXCOM par type**, **Arborescence des Programmes**, Détection automatique, toolbar Scanner/Effacer/Rafraîchir, Appairages intégrés, Gestion protocoles, Scènes réactivées, transmitToHa, actions MQTT par le socle, indicateur connexion, traces détaillées.*
 
 ---
 
@@ -25,10 +25,12 @@
    - [14.3 Scènes RFXCOM](#143-scènes-rfxcom)
    - [14.4 Commandes Spécifiques aux Récepteurs Dimmables](#144-commandes-spécifiques-aux-récepteurs-dimmables)
    - [14.5 Commandes Spécifiques aux Covers](#145-commandes-spécifiques-aux-covers)
-15. [Tests](#15-tests)
-16. [Limites et Contraintes](#16-limites-et-contraintes)
-17. [Roadmap](#17-roadmap)
-18. [Annexes](#18-annexes)
+16. [Traduction Commandes HA → RFXCOM](#16-traduction-commandes-ha--rfxcom)
+17. [Arborescence des Programmes](#17-arborescence-des-programmes)
+18. [Tests](#18-tests)
+19. [Limites et Contraintes](#19-limites-et-contraintes)
+20. [Roadmap](#20-roadmap)
+21. [Annexes](#21-annexes)
 
 ---
 
@@ -38,9 +40,9 @@
 Ce document décrit les spécifications fonctionnelles du module d'intégration **RFXCOM** pour Home Assistant.
 
 **NOUVEAU v5.0 :**
-- ✅ **Fichier de configuration centralisé** : `config-rfxcom-devices-v1.0.yaml` contient TOUS les devices, récepteurs et associations
+- ✅ **Fichier de configuration centralisé** : `config-rfxcom-devices-v1.0.yaml` contient TOUS les devices, récepteurs et appairages
 - ✅ **primaryEmitter dans chaque récepteur** : Détermine quel device RFXCOM envoie les commandes
-- ✅ **Liste des émetteurs appairés dans le récepteur** : Les associations N↔N sont stockées directement dans la définition du récepteur
+- ✅ **Liste des émetteurs appairés dans le récepteur** : Les appairages N↔N sont stockées directement dans la définition du récepteur
 - ✅ **entity_id et unique_id contiennent TOUJOURS le protocole interne** (`<protocole_interne>_<sensorId>`)
 - ✅ **QUOI = type fonctionnel pur** (ex: "Température", "Humidité", "Courant")
 - ✅ **QUOI auto-déterminé** depuis le subType RFXCOM
@@ -224,10 +226,11 @@ Home Assistant
 | Lighting2 | Bouton | binary_sensor | on, off | `binary_sensor.lighting2_0x02b3` | `lighting2_0x02b3` | `Bouton---Salon` |
 | Lighting4 | Télécommande | binary_sensor | on, off | `binary_sensor.lighting4_0x1001` | `lighting4_0x1001` | `Télécommande---Salon` |
 
-> ⚠️ **CLARIFICATION** : 
-> - Lighting2 peut être configuré comme **variateur** via le fichier de configuration
-> - Dans ce cas, le récepteur associé sera de type `light` (et non `binary_sensor`)
-> - L'information "variateur" **ne vient pas du device lui-même**, mais de la configuration du récepteur (`isDimmable: true`)
+> ⚠️ **CLARIFICATION IMPORTANTE** :
+> - **Lighting2 sont TOUJOURS des binary_sensor dans HA** (ils émettent uniquement on/off)
+> - **Le récepteur associé** peut être configuré comme `light` avec `isDimmable: true` (variateur)
+> - Dans ce cas, la commande **sera traduite en setlevel** avant d'être envoyée par le lighting2
+> - L'information "variateur" **ne vient pas du device Lighting2 lui-même**, mais de la configuration du récepteur
 
 ---
 
@@ -241,7 +244,7 @@ Home Assistant
 | **Émetteur** | Device Lighting1/2/4 qui émet des signaux RF433 | **binary_sensor** (par défaut) | `<protocole>_<sensorId>` | `lighting2_0x02b3` |
 | **Récepteur** | Entité logique déclarée, associée à des émetteurs | switch, light, cover, scene | `recepteur_<seq>` | `recepteur_001` |
 | **primaryEmitter** | Émetteur principal d'un récepteur, utilisé pour envoyer les commandes RF433 | - | `<protocole>_<sensorId>` | `lighting2_0x02b3` |
-| **Association** | Lien entre émetteur et récepteur (**N↔N**) stocké dans le récepteur | - | - | - |
+| **Appairage** | Lien entre émetteur et récepteur (**N↔N**) stocké dans le récepteur | - | - | - |
 
 ### 5.2 Règles Fondamentales (NOUVEAU v5.0)
 
@@ -249,7 +252,7 @@ Home Assistant
 2. **QUOI = type fonctionnel pur** (ex: "Température", "Humidité", "Courant"), pas un endroit
 3. **QUOI auto-déterminé** depuis le subType du message RFXCOM
 4. **Émetteurs Lighting = binary_sensor par défaut** (ils émettent on/off)
-5. **Associations stockées dans le fichier YAML** : dans `config-rfxcom-devices-v1.0.yaml`, chaque récepteur contient sa liste d'émetteurs appairés
+5. **Appairages stockées dans le fichier YAML** : dans `config-rfxcom-devices-v1.0.yaml`, chaque récepteur contient sa liste d'émetteurs appairés
 6. **primaryEmitter obligatoire** : Chaque récepteur a UN émetteur primaire qui détermine quel device RFXCOM envoie les commandes
 7. **Relations N↔N** : 
    - Un récepteur peut avoir **plusieurs émetteurs** associés (dans `emitters[]`)
@@ -266,6 +269,7 @@ Home Assistant
    a. Vérification que QUOI/OÙ sont complets
    b. Module approprié exécute l'action configurée (toggle, on, off, set_level, etc.)
    c. Module met à jour état du récepteur dans HA
+   d. **Envoi de l'état de l'émetteur (binary_sensor)** dans HA si configuré
 ```
 
 ### 5.4 Flux HA → Récepteur → Device RFXCOM (NOUVEAU v5.0)
@@ -397,20 +401,94 @@ rfxcom:
   # Auto-détermination QUOI activée par défaut
   autoDetermineQuoi: true
   
-  # Fichier de configuration des devices/récepteurs/associations
+  # Fichier de configuration des devices/récepteurs/appairages
   devicesConfigFile: "config-rfxcom-devices-v1.0.yaml"
+  
+  # **NOUVEAU v5.4 - Actions MQTT par le socle**
+  # Toutes les actions MQTT sont gérées par le socle HA-MQTT
+  # L'application RFXCOM utilise uniquement les événements EventBus mis à disposition
+  mqttActions:
+    enabled: true
+    useSocleBridge: true
 ```
 
 > ⚠️ **IMPORTANT** : 
-> - Les **devices RFXCOM**, **récepteurs** et **associations** sont dans **`config-rfxcom-devices-v1.0.yaml`** (fichier séparé)
+> - Les **devices RFXCOM**, **récepteurs** et **appairages** sont dans **`config-rfxcom-devices-v1.0.yaml`** (fichier séparé)
 > - Seul le fichier principal `config.yaml` contient les paramètres généraux (port série, MQTT, etc.)
+> - **Les actions MQTT sont gérées par le socle** - RFXCOM n'interagit pas directement avec MQTT mais utilise les services du socle
+
+
+### 8.2 Paramètres Techniques dans l'UI - Gestion des Protocoles
+
+**NOUVEAU v5.4 :**
+> - Les protocoles supportés par le transceiver RFXCOM sont **récupérés dynamiquement** depuis la librairie `rfxcom`
+> - La liste des protocoles dépend du **type de transceiver** configuré (rfxtrx433e, rfxtrx433xl, rfxcom433e)
+> - L'utilisateur peut **activer/désactiver** chaque protocole via une interface de cases à cocher dans les paramètres techniques de RFXCOM
+> - Les protocoles activés déterminent **quels messages RF433 seront traités** par le transceiver
+
+**Exemple de configuration dans l'UI :**
+```
+[ ] Lighting1
+[x] Lighting2
+[x] Lighting4
+[ ] Lighting5
+[ ] Lighting6
+[x] RfxSensor
+[ ] RfxMeter
+... (selon le transceiver)
+```
+
+**Flux :**
+1. Au démarrage du service RFXCOM, récupération automatique des protocoles supportés depuis `rfxcom.protocols`
+2. Envoi de la liste au client via l'événement `rfxcom:protocols:list`
+3. Affichage dans l'UI avec des cases à cocher
+4. Le client envoie les modifications via `rfxcom:protocol:toggle` ou `rfxcom:protocols:update`
+5. Le service applique les filtres au transceiver
+
+**Persistance :**
+> - La liste des protocoles activés est **stockée dans la configuration RFXCOM** (fichier `config.yaml`)
+> - Au démarrage, les protocoles précédemment activés sont **automatiquement restaurés**
+> - Par défaut, **tous les protocoles supportés sont activés**
+
+### 8.3 Actions MQTT par le Socle (NOUVEAU v5.4)
+
+**Principe fondamental :**
+> - **L'application RFXCOM n'interagit PAS directement avec MQTT**
+> - **Toutes les actions MQTT sont gérées par le socle HA-MQTT** via le service `HaMqttIntegrationService`
+> - RFXCOM utilise **uniquement** les événements EventBus mis à disposition par le socle
+
+**Flux MQTT via le socle :**
+1. RFXCOM émet un événement sur l'EventBus (ex: `rfxcom:device:state`)
+2. Le socle `HaMqttIntegrationService` écoute ces événements
+3. Le socle traduit et publie sur les topics MQTT appropriés vers Home Assistant
+4. Pour les commandes HA → RFXCOM : le socle reçoit les messages MQTT et les convertit en événements EventBus
+5. RFXCOM écoute ces événements EventBus et agit en conséquence
+
+**Avantages :**
+- ✅ **Découplage total** entre RFXCOM et MQTT
+- ✅ **Réutilisable** pour d'autres applications
+- ✅ **Maintenance centralisée** dans le socle
+- ✅ **Tests simplifiés** (mock de l'EventBus au lieu de MQTT)
+
+**Événements clés pour RFXCOM :**
+- `rfxcom:device:state` → Publication état device vers HA
+- `rfxcom:receiver:state` → Publication état récepteur vers HA
+- `ha:command` → Réception commandes de HA (converties depuis MQTT par le socle)
+- `rfxcom:discovery` → Envoi des messages de discovery vers HA
 
 ---
 
 ## 9. Gestion des Données QUOI et OÙ
 
-### 9.1 Règle Fondamentale
-**Toute transmission vers HA est conditionnée par QUOI + lieu_principal**
+### 9.1 Règle Fondamentale (MAJ v5.4)
+**Toute transmission vers HA est conditionnée par une case à cocher dans les fenêtres modales**
+
+> ⚠️ **CHANGEMENT IMPORTANT v5.4** :
+> - **PLUS** conditionné par QUOI + lieu_principal
+> - **NOUVEAU** : Une donnée spécifique `transmitToHa: boolean` dans chaque device/recepteur
+> - Si `transmitToHa: true`, le device sera envoyé vers HA
+> - **Dès le démarrage**, TOUS les devices avec `transmitToHa: true` sont **automatiquement envoyés à HA**
+> - Le nommage (QUOI---lieu---...) est toujours utilisé pour les entity_id, mais ne conditionne plus l'envoi
 
 ### 9.2 Auto-détermination du QUOI
 **Algorithme :**
@@ -539,10 +617,11 @@ Voir fichier `config-rfxcom-devices-v1.0.yaml` à la racine du projet.
 
 ### 11.2 Fonctionnalités UI pour RFXCOM
 
-**NOUVEAU v5.2 - Organisation de l'interface :**
-- **Structure en onglets** : Devices | Récepteurs | ~~Scènes~~ (désactivé temporairement)
-- **Associations intégrées aux Récepteurs** : Les appairages (device → récepteur) sont gérés dans l'onglet Récepteurs
+**NOUVEAU v5.4 - Organisation de l'interface :**
+- **Structure en onglets** : Devices | Récepteurs | **Scènes** (réactivées et intégrées)
+- **Appairages intégrés aux Récepteurs** : Les appairages (device → récepteur) sont gérés dans l'onglet Récepteurs (remplace le terme Associations)
 - **Indicateur de connexion RFX433** : Badge dans l'en-tête affichant l'état de connexion au transceiver (🟢 Connecté / 🔴 Déconnecté)
+- **Actions MQTT par le socle** : Toutes les actions MQTT (publication, abonnement) sont gérées par le socle HA-MQTT, l'application RFXCOM utilise uniquement les événements mis à disposition
 
 **Indicateur de connexion :**
 | État | Couleur | Texte | Comportement |
@@ -577,16 +656,16 @@ Voir fichier `config-rfxcom-devices-v1.0.yaml` à la racine du projet.
 2. **Configuration variateur** : Pour Lighting2, cocher "isDimmable" pour activer le mode variateur
 3. **Configuration covers** : Saisie des délais openTimeSec/closeTimeSec **OBLIGATOIRES**
 
-**Gestion des Associations (Appairages) :**
+**Gestion des Appairages (Appairages) :**
 > ⚠️ **Intégrées dans l'onglet Récepteurs** (pas d'onglet séparé)
 >
 1. **Ajout d'émetteurs à un récepteur** : Sélectionner des émetteurs dans la liste des devices détectés
 2. **Définir l'action** : toggle, on, off, set_level (pour light), open, close, stop (pour cover)
 3. **Définir le primaryEmitter** : L'émetteur principal qui enverra les commandes RF433
-4. **Stockage** : Les associations N↔N sont stockées directement dans la définition du récepteur (primaryEmitter + liste des émetteurs appairés)
+4. **Stockage** : Les appairages N↔N sont stockées directement dans la définition du récepteur (primaryEmitter + liste des émetteurs appairés)
 
 **Scènes :**
-> ⚠️ **Fonctionnalité temporairement désactivée** - Mise en commentaire dans l'interface
+> ✅ **Fonctionnalité réactivée v5.4** - Onglet dédié disponible avec création/modification/suppression via UI
 
 ### 11.3 Événements Socket.io
 
@@ -616,7 +695,7 @@ Voir fichier `config-rfxcom-devices-v1.0.yaml` à la racine du projet.
 
 ---
 
-## 12. Scénarios d'Utilisation
+## 13. Scénarios d'Utilisation
 
 ### 12.1 Découverte d'un Capteur (Température)
 ```
@@ -668,7 +747,7 @@ Voir fichier `config-rfxcom-devices-v1.0.yaml` à la racine du projet.
 5. Test: commande HA light.recepteur_001/set → Envoi RF433 à 0x02B3
 ```
 
-### 12.4 Association Multiple (N↔N)
+### 12.4 Appairage Multiple (N↔N)
 ```
 Récepteur recepteur_001 (light) a:
   primaryEmitter: "lighting2_0x02b3"
@@ -685,32 +764,39 @@ Appui sur lighting2_0x02b3:
   → recepteur_002 exécute son action (ex: on)
 ```
 
-### 12.4 Ajout d'un Bouton via Détection Automatique (NOUVEAU v5.1)
+### 12.5 Ajout d'un Bouton via Détection Automatique (MAJ v5.4)
 ```
 Workflow simplifié pour ajouter un nouveau bouton RF433 sans naviguer dans une longue liste :
 
 1. **Onglet Devices** : Utilisateur va dans Applications → RFXCOM → onglet Devices
-2. **Rafraîchir** : Clique sur "🔄 Rafraîchir" → charge la liste des **devices déjà paramétrés**
-3. **Scanner** : Clique sur "🔍 Scanner RF433" → déclenche `rfxcom:scan:start`
-4. **Serveur** : RFXCOM commence la détection RF433
-5. **Notification** : Client reçoit `rfxcom:scan:start` → affiche "Scan en cours..."
-6. **Détection** : Premier device RF433 détecté → serveur émet `rfxcom:device:detected`
-7. **Client** : Reçoit le device → l'ajoute à la liste des **devices en auto-discovery**
-8. **Affichage** : Le device apparaît avec icône "non paramétré" (ex: 📝 ou ⚠️)
-9. **Sélection** : Utilisateur clique sur le device → ouvre **modale de paramétrage**
-10. **Paramétrage** : Utilisateur remplace "[à compléter]" par son OÙ (ex: "Bouton---Salon")
-11. **Validation** : QUOI auto-déterminé depuis subType (ex: "Bouton") + OÙ validé
-12. **Sauvegarde** : Via modale → `rfxcom:device:update` → device passé en "paramétré"
-13. **Rafraîchissement** : Liste mise à jour → device disparaît de "auto-discovery", apparaît dans "paramétrés"
+2. **Effacement** : **NOUVEAU** - Clique sur "🗑️ Effacer non paramétrés" → `rfxcom:devices:clear-unconfigured` → Supprime tous les devices de la liste "auto-discovery" qui n'ont pas été paramétrés
+3. **Rafraîchir** : Clique sur "🔄 Rafraîchir" → charge la liste des **devices déjà paramétrés**
+4. **Scanner** : Clique sur "🔍 Scanner RF433" → déclenche `rfxcom:scan:start`
+5. **Serveur** : RFXCOM commence la détection RF433
+6. **Notification** : Client reçoit `rfxcom:scan:start` → affiche "Scan en cours..."
+7. **Détection** : Premier device RF433 détecté → serveur émet `rfxcom:device:detected`
+8. **Client** : Reçoit le device → l'ajoute à la liste des **devices en auto-discovery**
+9. **Affichage** : Le device apparaît avec icône "non paramétré" (ex: 📝 ou ⚠️)
+10. **Sélection** : Utilisateur clique sur le device → ouvre **modale de paramétrage**
+11. **Paramétrage** : Utilisateur remplace "[à compléter]" par son OÙ (ex: "Bouton---Salon")
+12. **Validation** : QUOI auto-déterminé depuis subType (ex: "Bouton") + OÙ validé
+13. **Sauvegarde** : Via modale → `rfxcom:device:update` → device passé en "paramétré"
+14. **Rafraîchissement** : Liste mise à jour → device disparaît de "auto-discovery", apparaît dans "paramétrés"
 ```
 
-**Nettoyage (optionnel) :**
-- Clique sur "🗑️ Effacer non paramétrés" → `rfxcom:devices:clear-unconfigured`
-- Supprime tous les devices de la liste "auto-discovery" qui n'ont pas été paramétrés
+**Nommage automatique :** 
+- Le formulaire de paramétrage propose automatiquement le QUOI basé sur le subType du message RFXCOM
+- Le OÙ doit être saisi manuellement mais la construction du nom technique (`<protocole>_<sensorId>`) est automatique
+- La construction du name pour HA suit le pattern `QUOI---lieu_precis--lieu--lieu_pere--lieu_grand_pere` avec les séparateurs `---` (majeur) et `--` (mineur)
+
+**Persistance :**
+- Les devices **paramétrés** sont sauvegardés dans `config-rfxcom-devices-v1.0.yaml` avec leur `transmitToHa` par défaut à `false`
+- Seuls les devices avec `transmitToHa: true` sont envoyés vers HA au démarrage
+- Les devices **auto-découverts non paramétrés** ne sont PAS sauvegardés dans le fichier YAML (seulement en mémoire côté serveur pendant la session)
 
 ---
 
-## 13. Gestion des États
+## 14. Gestion des États
 
 ### 13.1 Attributes Communs
 ```json
@@ -730,7 +816,7 @@ Workflow simplifié pour ajouter un nouveau bouton RF433 sans naviguer dans une 
 
 ---
 
-## 14. Commandes
+## 15. Commandes
 
 ### 14.1 Émetteurs Lighting (binary_sensor par défaut)
 | Type | Commandes HA | Signification |
@@ -744,11 +830,15 @@ Workflow simplifié pour ajouter un nouveau bouton RF433 sans naviguer dans une 
 | light | on, off, toggle, set_level | Conversion level 0-100%, envoi au device cible |
 | cover | open, close, stop, set_position | Envoi OPEN/CLOSE/STOP au device cible |
 
-### 14.3 Scènes RFXCOM
-
-> ⚠️ **Fonctionnalité temporairement désactivée dans l'interface (v5.1)** - Les scènes ne sont pas accessibles via l'UI pour l'instant. La gestion des scènes reste implémentée côté serveur et peut être configurée manuellement via le fichier YAML.
+### 14.3 Scènes RFXCOM (RÉACTIVÉES v5.4)
 
 Une **scène** est un ensemble de commandes exécutées simultanément ou séquentiellement sur plusieurs récepteurs.
+
+**NOUVEAU v5.4 :**
+- Les scènes sont **réactivées et pleinement intégrées** dans l'interface
+- Onglet dédié "Scènes" disponible dans RFXCOM
+- Création, modification, suppression via UI
+- Exécution déclenchée par événements Socket.io
 
 #### 14.3.1 Structure des Scènes
 Chaque scène est définie dans `config-rfxcom-devices-v1.0.yaml` avec la structure suivante :
@@ -884,7 +974,75 @@ Pour les récepteurs de type `cover` :
 
 
 
-## 15. Tests
+## 16. Traduction Commandes HA → RFXCOM *(NOUVEAU v5.5)*
+
+### 16.1 Règles Générales
+**Principe :** Chaque type de récepteur (Switch, Light, Cover) **implémente sa propre logique de traduction** en fonction du **type du primaryEmitter**.
+
+**Flux :** HA → EventBus → RfxComService → ReceiverManager → Receiver*.translateHaCommand() → Commande RFXCOM
+
+### 16.2 Récepteurs Switch
+| Commande HA | Commande RFXCOM |
+|-------------|------------------|
+| `turn_on` | `on` |
+| `turn_off` | `off` |
+| `toggle` | `on`/`off` (inverse) |
+
+### 16.3 Récepteurs Light
+**A. NON dimmable** → Comme Switch  
+**B. Dimmable** : Lighting5/6 → `set_level(value)`, Lighting2 → `on`/`off`
+
+| Commande | Lighting2 | Lighting5/6 |
+|----------|-----------|--------------|
+| `turn_on` | `on` | `set_level(last||100)` |
+| `turn_off` | `off` | `set_level(0)` |
+
+### 16.4 Récepteurs Cover avec Lighting2
+**États :** `up` (100%), `down` (0%), `intermediate` (0%<pos<100%)
+
+**Calcul :** `position = startPos ± (elapsedMs/timeSec*100)`
+
+| État | Commande | Action | Résultat |
+|------|----------|--------|----------|
+| `up` | `open` | Ignoré | 100% |
+| `up` | `close` | `off` | Début descente |
+| `down` | `open` | `on` | Début montée |
+| `intermediate` | `open`/`close`/`stop` | `on`/`off`/dernière | Arrêt |
+
+### 16.5 Récepteurs Cover avec Blinds1/Curtain1
+| Commande HA | Commande RFXCOM |
+|-------------|------------------|
+| `open` | `open` (duration) |
+| `close` | `close` (duration) |
+| `stop` | `stop` |
+
+---
+
+## 17. Arborescence des Programmes *(NOUVEAU v5.5)*
+
+```
+applications/rfxcom/
+├── index.ts, package.json, tsconfig.json
+├── domain/
+│   ├── types.ts, config-schema.ts, socket-events.ts
+│   ├── RfxComService.ts              # Orchestrateur
+│   ├── yaml/ConfigFileManager.ts     # Gestion YAML
+│   ├── devices/DeviceManager.ts      # Registry devices
+│   │   └── handlers/[RfxSensor|Lighting]Handler.ts
+│   ├── receivers/ReceiverManager.ts   # Orchestre récepteurs
+│   │   ├── base/BaseReceiver.ts      # Classe abstraite
+│   │   ├── switch/ReceiverSwitch.ts   # on/off/toggle
+│   │   ├── light/ReceiverLight.ts    # dimmable/non
+│   │   └── cover/ReceiverCover.ts    # Lighting2/Blinds1
+│   └── scenes/[SceneManager|Executor].ts
+└── presentation/[index.ts|tsconfig.json|ts/app.ts|index.html]
+```
+
+**Règles :** Max 400 lignes/fichier, découplage total, polymorphisme via BaseReceiver
+
+---
+
+## 18. Tests
 
 | ID | Description | Type |
 |----|-------------|------|
@@ -892,14 +1050,14 @@ Pour les récepteurs de type `cover` :
 | RFX-002 | Génération entity_id/unique_id avec protocole | Unitaire |
 | RFX-003 | QUOI = type fonctionnel pur (pas d'endroit) | Unitaire |
 | RFX-004 | Lighting = binary_sensor par défaut | Unitaire |
-| RFX-005 | Association N↔N émetteurs/récepteurs | Intégration |
+| RFX-005 | Appairage N↔N émetteurs/récepteurs | Intégration |
 | RFX-006 | Configuration variateur via fichier YAML | Intégration |
 | RFX-007 | Validation QUOI/OÙ obligatoire | Unitaire |
 | RFX-008 | primaryEmitter utilisé pour les commandes HA→RFXCOM | Intégration |
 
 ---
 
-## 16. Limites et Contraintes
+## 19. Limites et Contraintes
 
 | Limite | Impact | Solution |
 |--------|--------|----------|
@@ -910,7 +1068,7 @@ Pour les récepteurs de type `cover` :
 
 ---
 
-## 17. Roadmap
+## 20. Roadmap
 
 ### V4 (Terminé)
 - [x] Correction noms techniques
@@ -918,25 +1076,38 @@ Pour les récepteurs de type `cover` :
 - [x] QUOI pur, entity_id avec protocole pour TOUS
 - [x] Auto-détermination QUOI depuis subType
 
-### V5 (En Cours)
+### V5 (Terminé)
 - [x] **Fichier de configuration centralisé** (`config-rfxcom-devices-v1.0.yaml`)
 - [x] **primaryEmitter dans chaque récepteur** pour les commandes HA→RFXCOM
-- [x] **Liste des émetteurs appairés dans le récepteur** (associations N↔N)
+- [x] **Liste des émetteurs appairés dans le récepteur** (appairages N↔N, remplace Associations)
 - [x] **Attributs_taxonomie validé pour HA**
-- [ ] Implémentation complète
+- [x] **Gestion des protocoles autorisés dans les paramètres techniques** (v5.4)
+- [x] **Envoi conditionnel vers HA via transmitToHa** dans les fenêtres modales (v5.4)
+- [x] **Scènes réactivées et intégrées** avec onglet dédié (v5.4)
+- [x] **Actions MQTT gérées par le socle** - RFXCOM utilise uniquement EventBus (v5.4)
+- [x] **Workflow devices complet** : détection, paramétrage, effacement non-paramétrés (v5.4)
+- [x] **Clarification Lighting2** : TOUJOURS binary_sensor, récepteur peut être variateur (v5.4)
+- [x] **Nommage automatique** avec séparateurs --- et -- (v5.4)
+- [x] **Implémentation complète**
+
+### V5.5 (Terminé - 18 Juillet 2026)
+- [x] **Spécifications Cover avec Lighting2** : calcul position %, états up/down/intermediate, traduction on/off→montée/descente/stop
+- [x] **Traduction Commandes HA→RFXCOM par type** : Switch, Light dimmable/non-dimmable, Cover avec différents émetteurs
+- [x] **Arborescence des Programmes** : structure modulaire (Switch/Light/Cover séparés)
 - [ ] Tests d'intégration
 
 ---
 
-## 18. Annexes
+## 21. Annexes
 
-### 18.1 Références
+### 20.1 Références
 - [Spécification de Nommage **OBLIGATOIRE**](spec-nommage-v1.0.md) ⭐
 - [Spécifications Récepteurs/Émetteurs](specs-recepteurs-emetteurs-rfxcom-v5.0.md)
 - [Spécifications Techniques Socle HA-MQTT **OBLIGATOIRE**](specs-techniques-socle-ha-mqtt.md) ⭐
 - [Fichier de configuration centralisé](config-rfxcom-devices-v1.0.yaml)
+- [Documentation librairie npm rfxcom](https://www.npmjs.com/package/rfxcom) - Utilisée pour la gestion des protocoles RF433
 
-### 18.2 Glossaire
+### 20.2 Glossaire
 | Terme | Définition |
 |-------|------------|
 | QUOI | **Type fonctionnel pur** (ex: "Température", "Humidité", "Bouton") |
@@ -944,16 +1115,21 @@ Pour les récepteurs de type `cover` :
 | entity_id | `<domain>.<protocole>_<sensorId>` |
 | unique_id | `<protocole>_<sensorId>` |
 | primaryEmitter | Émetteur principal d'un récepteur, utilisé pour envoyer les commandes RF433 |
+| Appairage | **Remplace Association** - Lien entre un émetteur et un récepteur (N↔N) |
+| transmitToHa | Case à cocher dans les fenêtres modales pour autoriser l'envoi du device vers HA |
+| Protocoles autorisés | Liste des protocoles RF433 activés dans les paramètres techniques, récupérés depuis la librairie rfxcom |
 
-### 18.3 Historique
+### 20.3 Historique
 | Version | Date | Auteur | Changements |
 |---------|------|--------|------------|
 | 1.0 | 2026-07-05 | Mistral Vibe | Version initiale |
 | 2.0 | 2026-07-07 | Mistral Vibe | Intégration spec nommage.md |
 | 3.0 | 2026-07-08 | Mistral Vibe | Correction noms techniques, clarification émetteurs/récepteurs |
-| 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, associations N↔N via UI |
+| 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, appairages N↔N via UI |
 | 5.0 | 2026-07-09 | Mistral Vibe | **Fichier YAML centralisé, primaryEmitter, émetteurs dans récepteur, attributs_taxonomie validé** |
-| 5.1 | 2026-07-16 | Mistral Vibe | **Détection automatique dans onglet Devices, toolbar Scanner/Effacer/Rafraîchir, deux listes devices (paramétrés vs auto-discovery), Associations intégrées aux Récepteurs, Scènes désactivées** |
+| 5.1 | 2026-07-16 | Mistral Vibe | **Détection automatique dans onglet Devices, toolbar Scanner/Effacer/Rafraîchir, deux listes devices (paramétrés vs auto-discovery), Appairages intégrées aux Récepteurs** |
+| 5.4 | 2026-07-17 | Mistral Vibe | **Gestion des protocoles, transmitToHa, scènes réactivées, actions MQTT par le socle, workflow devices complet, nommage automatique ---/--, Lighting2 clarifié (binary_sensor), appairage remplace association** |
+| 5.5 | 2026-07-18 | Mistral Vibe | **Spécifications Cover avec Lighting2 (états up/down/intermediate, calcul position%, traduction on/off), Traduction Commandes HA→RFXCOM par type, Arborescence des Programmes modulaire** |
 
 ---
 

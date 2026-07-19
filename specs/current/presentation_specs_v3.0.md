@@ -108,6 +108,51 @@ UI (app.ts)  ←──── Socket.io ────→  server.ts
 2. L'UI émet des commandes via Socket.io (`config:save:requested`, etc.)
 3. **AUCUN** appel direct entre UI et couches Métier/HA/Infrastructure
 
+#### 2.3.1 Événements persistants (v3.1)
+
+Le `SocketBridge` supporte les **événements persistants** qui sont automatiquement envoyés à l'UI lors de la connexion Socket.io, sans nécessiter d'interrogation explicite.
+
+**Comportement :**
+- Lorsqu'une application déclare un événement comme persistant, le `SocketBridge` stocke sa dernière valeur
+- À chaque nouvelle connexion client, le `SocketBridge` envoie automatiquement tous les événements persistants avec leur dernière valeur
+- L'UI reçoit ainsi immédiatement l'état courant (ex: statut de connexion d'une application)
+
+**Exemple d'utilisation côté UI :**
+```typescript
+// L'UI se connecte et reçoit automatiquement :
+// - Événements du core :
+//   * config:current (configuration actuelle)
+//   * app:status (statut de l'application)
+//   * app:modules:list (liste des modules)
+//   * mqtt:connected (statut MQTT)
+//   * ha:status (statut HA)
+// - Événements des applications :
+//   * rfxcom:status (dernier statut connu)
+//   * rfxcom:devices:list (dernière liste connue)
+// etc...
+// TOUT CES ÉVÉNEMENTS SONT REÇUS AUTOMATIQUEMENT SANS INTERROGATION
+
+// Exemple : réception du statut MQTT
+socket.on('mqtt:connected', (status: boolean) => {
+  updateMqttStatus(status);
+});
+
+// Exemple : réception de la configuration
+socket.on('config:current', (config: TechnicalConfig) => {
+  populateConfigForm(config);
+});
+
+// Exemple : réception du statut RFXCOM
+socket.on('rfxcom:status', (status: { connected: boolean; devicesCount: number }) => {
+  updateRfxcomStatus(status.connected);
+});
+```
+
+**Avantages :**
+- ✅ Meilleure UX (affichage immédiat du statut)
+- ✅ Réduction du trafic réseau
+- ✅ Robustesse aux reconnexions
+
 ---
 
 ## 📁 3. Structure des Répertoires
@@ -712,7 +757,7 @@ const projectRoot = process.cwd();
 const srcPaths = [
   'src/presentation/general',
   'src/presentation/server',
-  'src/applications'
+  'applications'
 ];
 
 const extensions = ['.html', '.css', '.js', '.png', '.jpg'];

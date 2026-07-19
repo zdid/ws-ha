@@ -106,8 +106,8 @@ Ce document décrit l'implémentation technique du module RFXCOM utilisant la bi
 
 | Composant | Fichier | Responsabilité |
 |-----------|---------|----------------|
-| `RfxComService` | `src/applications/rfxcom/domain/RfxComService.ts` | Orchestration principale |
-| `RfxComConfigService` | `src/applications/rfxcom/domain/RfxComConfigService.ts` | Gestion de la configuration RFXCOM |
+| `RfxComService` | `applications/rfxcom/domain/RfxComService.ts` | Orchestration principale |
+| `RfxComConfigService` | `applications/rfxcom/domain/RfxComConfigService.ts` | Gestion de la configuration RFXCOM |
 | `rfxcom.d.ts` | `src/types/rfxcom.d.ts` | Déclarations TypeScript pour la bibliothèque |
 
 ### 2.3 Flux de Données
@@ -159,7 +159,7 @@ npm install rfxcom
 
 ### 3.2 Import et Typage
 
-**Fichier**: `src/applications/rfxcom/domain/RfxComService.ts`
+**Fichier**: `applications/rfxcom/domain/RfxComService.ts`
 
 ```typescript
 // Import de la bibliothèque
@@ -771,7 +771,7 @@ rfxcom:
   # Récepteurs (configurés via UI ou fichier centralisé)
   receivers: []
   scenes: []
-  associations: []
+  appairages: []
 ```
 
 ### 9.2 Récepteur RFXCOM
@@ -840,7 +840,7 @@ Le module RFXCOM nécessite que le champ `rfxcom` soit présent dans la configur
 ### 11.1 Démarrage
 
 **Démarrage automatique via AppService :**
-- AppService détecte les modules dans `src/applications/` et `dist/applications/`
+- AppService détecte les modules dans `applications/` et `dist/applications/`
 - Pour chaque module activé, AppService:
   1. Charge le module dynamiquement
   2. Cherche une factory de service (`createRfxComService` ou `createRfxComServiceWithConfig`)
@@ -1023,7 +1023,7 @@ Vérifie que :
 - `transceiverType` est dans la liste autorisée
 - `receivers` est un tableau valide
 - `scenes` est un tableau valide
-- `associations` est un tableau valide
+- `appairages` est un tableau valide
 
 ---
 

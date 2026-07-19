@@ -262,7 +262,7 @@ getHaWsClient(): HaWsClient | undefined  // Retourne le client
 Le module RFXCOM avait `requiredHaWs: true` alors qu'il n'utilise que MQTT (pas WebSocket).
 
 ### 4.2 Correction
-Dans `src/applications/rfxcom/domain/index.ts` :
+Dans `applications/rfxcom/domain/index.ts` :
 ```typescript
 export const RFXCOM_APP: ApplicationModule = {
   id: 'rfxcom',

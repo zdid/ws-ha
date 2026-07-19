@@ -1,10 +1,11 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.5  
-**Date :** 16 Juillet 2026  
+**Version :** 4.6  
+**Date :** 19 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
 
-> **v4.5** : Ajout du **démarrage automatique des services d'application** avec reconnexion sur changement de configuration.
+> **v4.6** : **Restructuration complète de l'arborescence** : Déplacement de `src/applications/` et `src/applications_desactivees/` vers `applications/` et `applications_desactivees/` à la racine du projet. Chaque application (y compris le core) est maintenant autonome avec ses propres `package.json`, `tsconfig.json`, et `dist/`. **Le core ne peut pas être désactivé**. Mise à jour des mécanismes de détection et d'activation/désactivation via `AppService`.
+> **v4.5** : Ajout du **démarrage automatique des services d'application** avec reconnexion sur changement de configuration. **Traces obligatoires** au démarrage et gestion des erreurs de connexion (matériel absent, mauvais paramètres).
 > **v4.4** : Ajout de la **gestion dynamique d'activation/désactivation** des applications via répertoires `applications/` et `applications_desactivees/`.
 > **v4.3** : Restructuration de la configuration HA avec flags d'activation (`ws_enable`, `mqtt_enable`) et regroupement MQTT sous HA.
 > **v4.2** : Ajout du support **Alpine.js** pour la couche Présentation, tout en conservant TypeScript comme langage principal.
@@ -125,58 +126,66 @@ projet/
     └── app.log            # Logs rotatifs
 ```
 
-### 4.2 Sources TypeScript
+### 4.2 Structure des Répertoires
 
+**Structure à la racine du projet :**
 ```
-src/
-├── index.ts                          # Bootstrap : instancie et câble toutes les couches
+├── src/                              # Code source du cœur (core) de l'application
+│   ├── index.ts                      # Bootstrap : instancie et câble toutes les couches
+│   ├── types/                        # Interfaces partagées — accessibles par toutes les couches
+│   │   ├── config.ts                 # AppConfig, MqttConfig, HaSyncConfig, WebConfig
+│   │   ├── ha.ts                     # HaEntity, HaDomain, HaState
+│   │   └── events.ts                 # AppEvent, SocketEvent, EventPayloads
+│   ├── infrastructure/
+│   │   ├── config/
+│   │   │   ├── schema.ts             # Schéma Zod — source de vérité de la config
+│   │   │   ├── loader.ts             # Lecture + validation Zod de config.yaml
+│   │   │   ├── writer.ts             # Écriture atomique (tmp → rename) de config.yaml
+│   │   │   └── ConfigService.ts      # Service centralisé d'accès à la config (injection de dépendances)
+│   │   ├── transport/
+│   │   │   ├── HaWsTransport.ts      # Client WebSocket bas niveau (connexion HA port 8123)
+│   │   │   └── MqttTransport.ts      # Client MQTT bas niveau (utilisé par la couche HA, mode intégration)
+│   │   └── logger/
+│   │       └── index.ts              # Winston : console + fichier rotatif
+│   ├── ha/                            # COUCHE HA — seul point de contact avec Home Assistant
+│   │   ├── sync/                     # A) Synchronisation référentiel — via Web Service (WS)
+│   │   │   ├── HaWsClient.ts         # Auth, souscriptions, routage des messages WS HA
+│   │   │   ├── HaStateRegistry.ts    # États bruts des entités (Map<entity_id, HaRawEntity>)
+│   │   │   ├── HaStructureRegistry.ts # Référentiel structuré area → QUOI → entités
+│   │   │   └── HaClassifier.ts       # Interface IHaClassifier — implémentation à venir (module dédié)
+│   │   ├── command/
+│   │   │   └── HaCommandService.ts   # Envoi de commandes vers HA (call_service via WS)
+│   │   ├── integration/              # B) Modules d'intégration — via MQTT
+│   │   │   └── [module]/             # Un sous-dossier par module d'intégration MQTT spécifique
+│   │   └── types/
+│   │       ├── ha-ws.ts              # Types protocole WebSocket HA (messages, events)
+│   │       ├── ha-entity.ts          # HaRawEntity, HaEntityState, HaDeviceClass
+│   │       ├── ha-structure.ts       # HaArea, HaDevice, HaQuoi, HaStructuredRegistry
+│   │       └── ha-command.ts         # HaCommand, HaServiceCall, HaCommandResult
+│   └── application/
+│       ├── AppService.ts             # Cycle de vie, coordination des modules
+│       ├── EventBus.ts               # EventEmitter typé — canal inter-couches
+│       ├── SocketBridge.ts           # Traduit EventBus → émissions Socket.io
+│       └── RestartManager.ts         # process.exit(0) différé après sauvegarde config
 │
-├── types/                            # Interfaces partagées — accessibles par toutes les couches
-│   ├── config.ts                     # AppConfig, MqttConfig, HaSyncConfig, WebConfig
-│   ├── ha.ts                         # HaEntity, HaDomain, HaState
-│   └── events.ts                     # AppEvent, SocketEvent, EventPayloads
-│
-├── infrastructure/
-│   ├── config/
-│   │   ├── schema.ts                 # Schéma Zod — source de vérité de la config
-│   │   ├── loader.ts                 # Lecture + validation Zod de config.yaml
-│   │   ├── writer.ts                 # Écriture atomique (tmp → rename) de config.yaml
-│   │   └── ConfigService.ts          # Service centralisé d'accès à la config (injection de dépendances)
-│   ├── transport/
-│   │   ├── HaWsTransport.ts          # Client WebSocket bas niveau (connexion HA port 8123)
-│   │   └── MqttTransport.ts          # Client MQTT bas niveau (utilisé par la couche HA, mode intégration)
-│   └── logger/
-│       └── index.ts                  # Winston : console + fichier rotatif
-│
-├── ha/                                # COUCHE HA — seul point de contact avec Home Assistant
-│   ├── sync/                         # A) Synchronisation référentiel — via Web Service (WS)
-│   │   ├── HaWsClient.ts             # Auth, souscriptions, routage des messages WS HA
-│   │   ├── HaStateRegistry.ts        # États bruts des entités (Map<entity_id, HaRawEntity>)
-│   │   ├── HaStructureRegistry.ts    # Référentiel structuré area → QUOI → entités
-│   │   └── HaClassifier.ts           # Interface IHaClassifier — implémentation à venir (module dédié)
-│   ├── command/
-│   │   └── HaCommandService.ts       # Envoi de commandes vers HA (call_service via WS)
-│   ├── integration/                  # B) Modules d'intégration — via MQTT
-│   │   └── [module]/                 # Un sous-dossier par module d'intégration MQTT spécifique
-│   └── types/
-│       ├── ha-ws.ts                  # Types protocole WebSocket HA (messages, events)
-│       ├── ha-entity.ts              # HaRawEntity, HaEntityState, HaDeviceClass
-│       ├── ha-structure.ts           # HaArea, HaDevice, HaQuoi, HaStructuredRegistry
-│       └── ha-command.ts             # HaCommand, HaServiceCall, HaCommandResult
-│
-├── application/
-│   ├── AppService.ts                 # Cycle de vie, coordination des modules
-│   ├── EventBus.ts                   # EventEmitter typé — canal inter-couches
-│   ├── SocketBridge.ts               # Traduit EventBus → émissions Socket.io
-│   └── RestartManager.ts             # process.exit(0) différé après sauvegarde config
-│
-├── applications/                     # Toutes les applications — chacune dans son répertoire
-│   └── [app-name]/                  # Ex: rfxcom, zigbee2mqtt
-│       ├── domain/                 # Couche Métier de l'application
+├── applications/                     # Applications ACTIVÉES — chacune dans son répertoire autonome
+│   └── [app-name]/                  # Ex: rfxcom, zigbee2mqtt, core
+│       ├── package.json             # Dépendances npm spécifiques à l'application
+│       ├── tsconfig.json            # Configuration TypeScript de l'application
+│       ├── dist/                    # Build compilé de l'application
+│       ├── domain/                  # Couche Métier de l'application
 │       │   └── [feature]/
 │       │       ├── [Feature]Service.ts       # Logique métier — consomme HaStructureRegistry via EventBus
 │       │       └── [Feature]Rules.ts         # Transformations et règles pures
 │       └── presentation/            # Couche Présentation de l'application
+│
+├── applications_desactivees/        # Applications DÉSACTIVÉES — ignorées par le cœur
+│   └── [app-name]/                  # Ex: old_app
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── dist/
+│       ├── domain/
+│       └── presentation/
 │
 └── presentation/
     ├── server.ts                     # Création Express + attache Socket.io + /health
@@ -189,42 +198,51 @@ src/
         └── app.ts                    # Logique UI TypeScript — Socket.io client + Alpine.js
 ```
 
-### 4.3 Gestion Dynamique des Applications (NOUVEAU v4.4)
+### 4.3 Gestion Dynamique des Applications
 
-**Structure étendue des répertoires applications :**
+**Structure des répertoires applications (à la racine du projet) :**
 ```
-src/
 ├── applications/                     # Applications ACTIVÉES (chargées au démarrage)
+│   ├── core/                        # CORE - **NE PEUT PAS ÊTRE DÉSACTIVÉ**
 │   ├── rfxcom/
 │   ├── zigbee2mqtt/
-│   └── tartenpion/                # Dynamique - apparaît après activation
+│   └── tartenpion/                  # Dynamique - apparaît après activation
 │
-└── applications_desactivees/      # Applications DÉSACTIVÉES (ignorées par le cœur)
-    └── old_app/                    # Exemple : application désactivée
+└── applications_desactivees/        # Applications DÉSACTIVÉES (ignorées par le cœur)
+    └── old_app/                      # Exemple : application désactivée
 ```
 
 **Mécanisme de détection et démarrage automatique (AppService.ts) :**
-- Le service `AppService.detectApplicationModules()` scanne `src/applications/` et `dist/applications/`
-- Les répertoires dans `src/applications_desactivees/` et `dist/applications_desactivees/` sont **exclus** de la détection
-- Pour chaque application détectée qui est **activée** (présente dans les répertoires applications/) :
+- Le service `AppService.detectApplicationModules()` scanne `applications/` et `dist/applications/` à la racine du projet
+- Les répertoires dans `applications_desactivees/` et `dist/applications_desactivees/` sont **exclus** de la détection
+- **Exception** : Le répertoire `core/` dans `applications/` **ne peut pas être déplacé** vers `applications_desactivees/` — il est toujours chargé
+- Pour chaque application détectée qui est **activée** (présente dans les répertoires applications/) et **n'est pas le core** :
   - **Détection des métadonnées** : Chargement de `{APP_NAME}_APP` pour les informations du module
   - **Détection des événements Socket.io** : Chargement de `{APP_NAME}_SOCKET_EVENTS` pour les événements dynamiques
   - **Instanciation automatique du service** : Recherche et appel d'une factory (`create*Service` ou `*ServiceFactory`)
   - **Démarrage automatique** : Appel de `.start()` sur l'instance du service
   - **Gestion des erreurs** : Si le démarrage échoue (mauvais paramètres, matériel absent), un warning est loggé et l'application continue
+  - **Traces obligatoires** : Chaque service DOIT logger son démarrage avec niveau INFO et ses erreurs avec niveau WARN/ERROR
+    - Exemple : `[INFO] [RfxComService] Démarrage du service RFXCOM...`
+    - Exemple : `[INFO] [RfxComService] Transceiver RFXCOM initialisé avec succès sur /dev/ttyUSB0`
+    - Exemple : `[WARN] [RfxComService] Tentative de connexion RFXCOM échouée - Motif: {erreur}`
 - Seules les applications dans `applications/` sont :
   - Instanciées et démarrées automatiquement au démarrage
   - Visibles dans le menu de l'UI
   - Configurables via les paramètres techniques
 
 **Processus d'activation/désactivation :**
+> **Accès UI** : L'activation et la désactivation des applications se font via un **sous-menu des Paramètres Techniques** dans l'interface utilisateur.
+
 1. **Backend API (recommandé) :**
    - `POST /api/applications/{id}/enable` → déplace `{id}/` de `applications_desactivees/` vers `applications/`
    - `POST /api/applications/{id}/disable` → déplace `{id}/` de `applications/` vers `applications_desactivees/`
+   - **Exception** : L'API **rejecte** toute tentative de désactivation du `core/` avec une erreur 400
    - **Déclenche automatiquement un restart** via `RestartManager.ts`
 
 2. **Filesystem (manuel) :**
    - Déplacement manuel du répertoire entre les deux dossiers
+   - **Le répertoire `core/` ne doit JAMAIS être déplacé** vers `applications_desactivees/`
    - **Restart obligatoire** pour prise en compte (`docker restart` ou `pm2 restart`)
 
 **Flux complet :**
@@ -249,13 +267,15 @@ graph TD
 | Détection automatique | Scan exclusif de `applications/` | `AppService.ts` lignes 160-175 |
 
 **Points d'attention :**
-1. **Nom unique** : Le nom du répertoire doit correspondre à l'`id` déclaré dans `domain/index.ts`
-2. **Structure obligatoire** : Chaque application doit avoir au minimum `domain/index.ts` exportant `{APP_NAME}_APP`
-3. **Factory de service requise** : Chaque application doit exporter une factory de service (`create*Service` ou `*ServiceFactory`) pour le démarrage automatique
-4. **Méthode start() requise** : Chaque service doit implémenter une méthode `.start()` asynchrone
-5. **Méthode stop() optionnelle** : Les services peuvent implémenter `.stop()` pour un arrêt propre (recommandé)
-6. **Restart automatique sur changement de config** : Les services sont automatiquement redémarrés quand leur configuration est sauvegardée
-7. **Gestion des erreurs de démarrage** : Si le démarrage d'un service échoue (mauvais paramètres, matériel absent), un warning est loggé avec le motif précis, et l'application continue de fonctionner. Les services doivent implémenter une gestion d'erreur robuste.
+1. **Core non désactivable** : Le répertoire `applications/core/` **ne peut pas être désactivé**. Toute tentative (API ou manuelle) est rejetée. Le core est toujours chargé et démarré.
+2. **Nom unique** : Le nom du répertoire doit correspondre à l'`id` déclaré dans `domain/index.ts`
+3. **Structure obligatoire** : Chaque application doit avoir au minimum `domain/index.ts` exportant `{APP_NAME}_APP`
+4. **Factory de service requise** : Chaque application doit exporter une factory de service (`create*Service` ou `*ServiceFactory`) pour le démarrage automatique
+5. **Méthode start() requise** : Chaque service doit implémenter une méthode `.start()` asynchrone
+6. **Méthode stop() optionnelle** : Les services peuvent implémenter `.stop()` pour un arrêt propre (recommandé)
+7. **Restart automatique sur changement de config** : Les services sont automatiquement redémarrés quand leur configuration est sauvegardée
+8. **Gestion des erreurs de démarrage** : Si le démarrage d'un service échoue (mauvais paramètres, matériel absent), un warning est loggé avec le motif précis, et l'application continue de fonctionner. Les services doivent implémenter une gestion d'erreur robuste.
+9. **Processus reproductible** : Le démarrage automatique (au boot et sur changement de params) doit être **reproductible pour toute nouvelle application** sans modification du cœur
 
 **Injection de dépendances — `IAppConfigProvider` vs `ConfigService` :**
 > **Contexte** : Les services d'application (ex: `RfxComService`) ont besoin d'accéder à leur section de configuration spécifique.
@@ -315,7 +335,7 @@ Ces événements sont émis par toutes les applications sans exception.
 
 ### 5.4 Événements Socket.io — Extension par application
 
-Chaque application déclare ses propres événements dans `src/presentation/socket/events.ts`.
+Chaque application déclare ses propres événements dans `applications/[app-name]/presentation/socket/events.ts`.
 Elle les émet exclusivement via l'EventBus (jamais en appelant Socket.io directement depuis le domaine).
 
 **Concernant MQTT :** chaque application décide librement quels messages MQTT elle relaie à l'UI.
@@ -324,7 +344,7 @@ et les retransmet au(x) client(s) Socket.io connectés.
 
 Exemple de déclaration dans une application dérivée :
 ```typescript
-// src/presentation/socket/events.ts (application spécifique)
+// applications/[app-name]/presentation/socket/events.ts (application spécifique)
 export const SOCKET_EVENTS = {
   // Hérités du socle
   ...SOCLE_SOCKET_EVENTS,
@@ -333,6 +353,62 @@ export const SOCKET_EVENTS = {
   AUTOMATION_TRIGGERED: 'automation:triggered',
 } as const;
 ```
+
+#### 5.4.1 Événements persistants — Diffusion automatique aux nouveaux clients
+
+Le `SocketBridge` supporte les **événements persistants**, qui sont automatiquement envoyés à tout nouveau client Socket.io lors de sa connexion, sans nécessiter d'interrogation explicite.
+
+**Mécanisme :**
+1. Une application déclare quels événements sont persistants lors de l'enregistrement de ses événements Socket.io
+2. Le `SocketBridge` stocke la dernière valeur de ces événements
+3. Lorsqu'un nouveau client se connecte, le `SocketBridge` lui envoie automatiquement tous les événements persistants avec leur dernière valeur connue
+
+**Format d'enregistrement :**
+```typescript
+// Émission par l'application lors de son initialisation
+this.eventBus.emit('app:socket-events:registered', {
+  appId: 'rfxcom',
+  socketEvents: {
+    STATUS: 'rfxcom:status',
+    DEVICES_LIST: 'rfxcom:devices:list'
+  },
+  persistentEvents: ['rfxcom:status']  // ✅ Événements à envoyer automatiquement aux nouveaux clients
+});
+```
+
+**Exemple pour le socle (core) :**
+```typescript
+// Dans AppService, lors du démarrage
+this.eventBus.emit('app:socket-events:registered', {
+  appId: 'core',
+  socketEvents: SOCLE_SOCKET_EVENTS,  // Tous les événements du socle
+  persistentEvents: [
+    'app:status',       // Statut global de l'application
+    'config:current',   // Configuration actuelle
+    'mqtt:connected',   // Statut MQTT
+    'mqtt:disconnected',
+    'app:modules:list', // Liste des modules disponibles
+    'ha:status'         // Statut HA
+  ]
+});
+```
+
+**Comportement :**
+- Le client reçoit automatiquement `rfxcom:status` avec la dernière valeur lors de la connexion
+- Si le statut change après la connexion, le client reçoit la mise à jour normalement
+- Le client n'a **pas besoin** d'interroger explicitement le statut
+
+**Cas d'usage typiques :**
+- Statut de connexion d'une application (connecté/déconnecté)
+- État global (nombre de devices, version, etc.)
+- Configuration actuelle
+- Derniers résultats de scan/découverte
+
+**Avantages :**
+- ✅ Réduction du trafic réseau (pas d'interrogation systématique)
+- ✅ Meilleure UX (statut affiché immédiatement)
+- ✅ Robustesse aux reconnexions
+- ✅ Simplification du code client
 
 ### 5.5 Flux de sauvegarde de la configuration
 
@@ -1307,9 +1383,9 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 - [ ] **v4.3** Si l'application est une **intégration** : activer `ha.mqtt_enable: true` et configurer `ha.mqtt`,
       créer `src/ha/integration/[module]/`, et documenter ses topics spécifiques
 - [ ] Étendre le schéma Zod avec les sections config métier supplémentaires
-- [ ] Créer `src/applications/[app-name]/domain/[feature]/` — logique métier pure, consommant `HaStructureRegistry`
+- [ ] Créer `applications/[app-name]/domain/[feature]/` — logique métier pure, consommant `HaStructureRegistry`
       et envoyant ses commandes via `EventBus.emit('ha:command:send', ...)`
-- [ ] Déclarer les événements Socket.io spécifiques dans `src/presentation/socket/events.ts`
+- [ ] Déclarer les événements Socket.io spécifiques dans `applications/[app-name]/presentation/socket/events.ts`
 - [ ] Configurer le `SocketBridge` pour relayer les événements EventBus souhaités (métier et,
       le cas échéant, événements d'intégration MQTT — au choix de l'application)
 - [ ] Ajouter les pages UI spécifiques sans modifier les pages du socle
@@ -1328,7 +1404,8 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
-| **4.5** | 16/07/2026 | Mistral Vibe | Ajout du **démarrage automatique des services d'application** : AppService instancie et démarre automatiquement les services des applications activées via convention de factory (`create*Service`). Reconnection automatique sur changement de configuration via écoute de `app:module:config:saved`. |
+| **4.6** | 19/07/2026 | Mistral Vibe | **Restructuration complète de l'arborescence** : Déplacement de `src/applications/` et `src/applications_desactivees/` vers `applications/` et `applications_desactivees/` à la racine du projet. Chaque application (y compris le core) est maintenant autonome avec ses propres `package.json`, `tsconfig.json`, et `dist/`. **Le core ne peut pas être désactivé**. Activation/désactivation via sous-menu Paramètres Techniques. Mise à jour des mécanismes de détection et d'activation/désactivation via `AppService`. |
+| **4.5** | 17/07/2026 | Mistral Vibe | Ajout du **démarrage automatique des services d'application** : AppService instancie et démarre automatiquement les services des applications activées via convention de factory (`create*Service`). Reconnection automatique sur changement de configuration via écoute de `app:module:config:saved`. **Traces obligatoires** au démarrage et gestion des erreurs de connexion (matériel absent, mauvais paramètres) avec logging WARN/ERROR et motif précis. Processus reproductible pour toute nouvelle application. |
 | **4.4** | 14/07/2026 | Mistral Vibe | Ajout §4.3 "Gestion Dynamique des Applications" avec répertoires `applications/` et `applications_desactivees/`. Mécanisme d'activation/désactivation par déplacement de répertoires. |
 | 4.3 | 10/07/2026 | - | Restructuration de la configuration HA avec flags d'activation (`ws_enable`, `mqtt_enable`) et regroupement MQTT sous HA. |
 | 4.2 | - | - | Ajout du support Alpine.js pour la couche Présentation.

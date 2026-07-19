@@ -1,5 +1,9 @@
 # PROMPT PROJET - Règles de Développement
 
+**Version : 1.2**
+**Date : 19 Juillet 2026**
+**Dernière mise à jour : Restructuration de l'arborescence (applications/ à la racine) + précisions sur l'activation/désactivation + ajout sections Gestion des Spécifications (redondances et liste des specs nécessaires)**
+
 ## 📚 Table des Matières
 1. [Règles Fondamentales](#-règles-fondamentales)
 2. [Conventions de Nommage](#-conventions-de-nommage)
@@ -7,8 +11,9 @@
 4. [Sauvegardes](#-sauvegardes)
 5. [Intégration Git](#-intégration-git)
 6. [Procédures Types](#-procédures-types)
-7. [Cas Particuliers](#-cas-particuliers)
-8. [Templates et Scripts](#-templates-et-scripts)
+7. [Gestion des Spécifications](#-gestion-des-spécifications)
+8. [Cas Particuliers](#-cas-particuliers)
+9. [Templates et Scripts](#-templates-et-scripts)
 
 ---
 
@@ -197,30 +202,83 @@ diff -r original/ backups/original_backup_2026-07-12/
 
 ```
 projet/
-├── specs/                          # Spécifications
-│   ├── current/                    # Version actuelle
-│   │   ├── api_specs_v2.0.0.md
-│   │   └── database_schema_v3.1.0.sql
-│   ├── archives/                   # Versions obsolètes
-│   │   ├── v1.0/
-│   │   │   └── api_specs_v1.0.0.md
-│   │   └── v2.0/
-│   │       └── api_specs_v2.0.0.md
-│   └── CHANGELOG.md                # Historique des spécifications
-├── src/                            # Code source
-├── backups/                        # Sauvegardes
+├── specs/                  # Spécifications (toujours conservées)
+│   ├── current/            # Version actuelle
+│   │   ├── architectural-patterns_specs-v1.0.md
+│   │   ├── classification-rfxcom_specs_v1.0.md
+│   │   ├── erreurs_specs_v1.0.md
+│   │   ├── fonctionnelles-rfxcom_specs_v5.5.md
+│   │   ├── implementation-rfxcom_specs_v1.2.md
+│   │   ├── integrationbridge-mqtt-auto_specs_v1.0.md
+│   │   ├── nommage_specs_v1.0.md
+│   │   ├── presentation_specs_v3.2.md
+│   │   ├── recepteurs-emetteurs-rfxcom_specs_v5.0.md
+│   │   └── techniques-socle-ha-mqtt_specs_v4.6.md
+│   ├── archives/           # Versions obsolètes
+│   │   └── vX.Y.Z/
+│   │       └── [fichiers archivés]
+│   └── CHANGELOG.md        # Historique des spécifications
+│
+├── applications/           # ⭐ NOUVEAU v1.1: TOUTES LES APPLICATIONS ACTIVÉES (y compris le core)
+│   ├── core/              # ⭐ Le socle est une application (NE PEUT PAS ÊTRE DÉSACTIVÉ)
+│   │   ├── package.json   # Dépendances spécifiques au core
+│   │   ├── tsconfig.json
+│   │   ├── dist/          # Binaire compilé
+│   │   └── src/           # Sources TypeScript
+│   │       ├── index.ts   # Bootstrap
+│   │       ├── types/    # Interfaces partagées
+│   │       ├── infrastructure/ # Config, Logger, Transport
+│   │       ├── ha/       # Couche HA (WS + MQTT)
+│   │       ├── application/ # AppService, EventBus, SocketBridge
+│   │       └── presentation/ # UI du core
+│   │
+│   ├── rfxcom/           # Application RFXCOM (exemple)
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   ├── dist/
+│   │   └── src/
+│   │       ├── domain/  # RfxComService, ReceiverModules
+│   │       └── presentation/ # UI spécifique
+│   │
+│   └── [autre-app]/      # Autres applications activées
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── dist/
+│       └── src/
+│
+├── applications_desactivees/ # ⭐ NOUVEAU v1.1: APPLICATIONS DÉSACTIVÉES
+│   └── [app-desactivee]/ # Exemple : application désactivée
+│       ├── package.json
+│       ├── tsconfig.json
+│       ├── dist/
+│       └── src/
+│
+├── data/                  # Données persistantes
+│   ├── config.yaml       # Configuration globale (socle + paramètres communs)
+│   └── [app-name]/       # Données spécifiques par application
+│
+├── logs/                  # Logs
+│   └── [app-name].log    # Logs par application ou globaux
+│
+├── backups/               # Sauvegardes des programmes
 │   ├── programme1_backup_2026-07-12/
-│   │   └── ...
-│   ├── programme1_backup_2026-07-13/
 │   │   └── ...
 │   └── archives/                   # Archives anciennes
 │       └── programme1_backup_2025-12-01/
-│           └── ...
-├── scripts/                        # Scripts utilitaires
+│
+├── scripts/               # Scripts utilitaires
 │   └── backup.sh
-├── .gitignore
+│
 └── README.md
 ```
+
+> **⚠️ RÈGLES CRITIQUES V1.1 :**
+> - **Le core (dans `applications/core/`) NE PEUT PAS être désactivé.**
+> - L'activation/désactivation des applications se fait **exclusivement** via le sous-menu **"Paramètres Techniques > Gestion des applications"** dans l'UI, ou via déplacement manuel entre `applications/` et `applications_desactivees/`.
+> - Chaque application est **autonome** : elle contient ses propres `package.json`, `tsconfig.json`, et `dist/`.
+> - La détection des applications est effectuée par `AppService` qui scanne **uniquement** le répertoire `applications/`.
+
+---
 
 ---
 
@@ -245,6 +303,73 @@ projet/
 1. Vérifier l'intégrité : `diff -r current/ backups/nom_backup/`
 2. Copier les fichiers nécessaires
 3. Documenter la restauration dans `CHANGELOG.md`
+
+---
+
+## 📚 Gestion des Spécifications
+
+### 10. **Redondances dans les Spécifications**
+
+**Objectif :** Éviter la duplication de contenu entre les documents de spécification.
+
+#### 🔴 Redondances Majeures (À Centraliser)
+
+| **Thème** | **Fichiers Concernés** | **Fichier de Référence** | **Action** |
+|----------|----------------------|--------------------------|------------|
+| Définition EventBus | `erreurs_specs`, `presentation_specs`, `techniques-socle` | `techniques-socle-ha-mqtt_specs` | Centraliser dans le socle, autres = références |
+| Architecture 5 Couches | `guide-nouvelle-application`, `presentation_specs`, `architectural-patterns` | `techniques-socle-ha-mqtt_specs` | Une seule définition complète dans le socle |
+| Gestion des Erreurs | `techniques-socle`, `erreurs_specs` | `techniques-socle-ha-mqtt_specs` | Fusionner ou spécialiser `erreurs_specs` pour RFXCOM uniquement |
+| Cycle de vie AppService | `techniques-socle`, `guide-nouvelle-application`, `integrationbridge-mqtt-auto` | `techniques-socle-ha-mqtt_specs` | Documentation principale dans le socle |
+| Configuration & Zod | `techniques-socle`, `guide-nouvelle-application`, `fonctionnelles-rfxcom` | `techniques-socle-ha-mqtt_specs` | Socle = référence, autres = exemples |
+| Événements Socket.io | `techniques-socle`, `presentation_specs`, `guide-nouvelle-application` | `techniques-socle-ha-mqtt_specs` | Centraliser dans le socle |
+| MQTT (généralités) | `techniques-socle`, `integrationbridge-mqtt-auto`, `fonctionnelles-rfxcom` | `techniques-socle-ha-mqtt_specs` | Socle = généralités, autres = implémentations |
+
+#### 🟡 Règles de Référencement
+- **✅ TOUJOURS** lier vers le document de référence (`techniques-socle-ha-mqtt_specs`) pour les concepts communs
+- **❌ JAMAIS** dupliquer une explication complète si elle existe déjà dans le socle
+- **✅ Utiliser** des références croisées : `[Voir §X dans techniques-socle-ha-mqtt_specs_v4.6.md](#)`
+
+---
+
+### 11. **Spécifications Nécessaires par Type de Développement**
+
+#### 📌 Pour TOUTE Nouvelle Application
+
+| **N°** | **Spécification** | **Version** | **Rôle** | **Obligatoire** |
+|--------|-------------------|-------------|----------|----------------|
+| 1 | `PROMPT_PROJET.md` | v1.1+ | Règles de développement et gestion des specs | ✅ Oui |
+| 2 | `techniques-socle-ha-mqtt_specs_v4.6.md` | v4.6+ | **Socle Commun** : Architecture 5 couches, EventBus, Socket.io, MQTT, AppService, RestartManager | ✅ Oui |
+| 3 | `nommage_specs_v1.0.md` | v1.0 | Conventions de nommage (QUOI/OÙ, taxonomie) | ✅ Oui |
+| 4 | `guide-nouvelle-application_specs_v1.3.md` | v1.3 | Guide pratique étape par étape | ✅ Oui |
+
+#### 📌 Pour Applications Spécifiques
+
+| **Type d'Application** | **Spécifications Additionnelles** | **Cas d'Usage** |
+|------------------------|----------------------------------|-----------------|
+| **Intégration MQTT** (RFXCOM, Zigbee2MQTT, etc.) | `integrationbridge-mqtt-auto_specs_v1.0.md` | Applications intégrant du matériel via MQTT |
+| **Application RFXCOM** | `fonctionnelles-rfxcom_specs_v5.5.md` + `recepteurs-emetteurs-rfxcom_specs_v5.0.md` + `classification-rfxcom_specs_v1.0.md` + `implementation-rfxcom_specs_v1.0.md` | **Maintenance et développement** spécifique RFXCOM |
+| **UI Avancée** | `presentation_specs_v3.0.md` | Applications avec interface complexe |
+| **Gestion d'erreurs fine** | `erreurs_specs_v1.0.md` | Applications nécessitant une gestion d'erreur spécifique |
+| **Patterns Architecturaux** | `architectural-patterns_specs-v1.0.md` | Pour comprendre les patterns MQTT/WS globaux |
+
+#### ⚡ Ordre de Lecture Recommandé
+
+```
+1️⃣  PROMPT_PROJET.md → Règles de développement
+     ↓
+2️⃣  techniques-socle-ha-mqtt_specs_v4.6.md → Socle Commun (OBLIGATOIRE)
+     ↓
+3️⃣  nommage_specs_v1.0.md → Conventions de nommage
+     ↓
+4️⃣  guide-nouvelle-application_specs_v1.3.md → Guide pratique
+     ↓
+5️⃣  [Spécs Spécifiques] → Selon type d'application
+```
+
+#### 🔍 Localisation des Spécifications
+- **Spécifications actuelles** : `specs/current/`
+- **Versions archivées** : `specs/archives/`
+- **Historique des changements** : `specs/CHANGELOG.md`
 
 ---
 
@@ -366,59 +491,8 @@ ls -la "$DEST_DIR"
 - **Ne jamais** modifier les fichiers dans `backups/`
 - **Conserver** au minimum 3 versions de chaque programme
 - **Valider** les sauvegardes avec `diff` avant toute modification
-
----
-
-*Ce fichier doit être lu et respecté avant tout travail sur un projet.*
-
----
-
-## 📁 Structure Recommandée
-
-```
-projet/
-├── specs/                  # Spécifications (toujours conservées)
-│   ├── v1.0/              # Version 1.0 des specs
-│   │   └── api_specs_v1.0.0.md
-│   ├── v2.0/              # Version 2.0 des specs
-│   │   └── api_specs_v2.0.0.md
-│   └── current/           # Spécifications actuelles (symlink ou copie)
-├── src/                   # Code source
-├── backups/               # Sauvegardes des programmes
-│   ├── programme1_backup_2026-07-12/
-│   │   └── ...
-│   ├── programme1_backup_2026-07-13/
-│   │   └── ...
-│   └── programme2_backup_2026-07-12/
-│       └── ...
-└── README.md
-```
-
----
-
-## 🔧 Procédures Types
-
-### 🔹 Avant toute modification importante
-
-1. **Vérifier** s'il existe des spécifications concernées
-2. **Créer une sauvegarde** si modification de masse
-3. **Documenter** le changement dans un fichier `CHANGELOG.md` ou commit
-4. **Tester** les modifications avant validation
-
-### 🔹 Pour demander une sauvegarde
-
-```
-"Vibe, sauvegarde le répertoire [nom_répertoire] avec la date du jour."
-```
-
----
-
-## ⚠️ Points Critiques
-
-- **Ne jamais** supprimer `specs/` ou son contenu
-- **Toujours** versionner les fichiers de spécifications
-- **Vérifier** les sauvegardes avant de modifier
-- **Documenter** chaque sauvegarde (pourquoi, quand, par qui)
+- **Le core (applications/core/) NE PEUT PAS être désactivé**
+- **L'activation/désactivation des applications se fait via le sous-menu "Paramètres Techniques > Gestion des applications" dans l'UI**
 
 ---
 

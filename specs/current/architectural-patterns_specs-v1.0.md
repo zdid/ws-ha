@@ -40,11 +40,11 @@ Ce document définit **deux patterns distincts** pour l'intégration des modules
 #### **2.2.1 Configuration**
 - **Fichier dédié** : `config-<module>-devices-v1.0.yaml` (ex: `config-rfxcom-devices-v1.0.yaml`).
 - **Format** : YAML strict, versionné.
-- **Contenu** : Tous les devices, récepteurs, et associations du module.
+- **Contenu** : Tous les devices, récepteurs, et appairages du module.
 
 **Exemple** (`config-rfxcom-devices-v1.0.yaml`) :
 ```yaml
-# Configuration RFXCOM - Devices, Récepteurs et Associations
+# Configuration RFXCOM - Devices, Récepteurs et Appairages
 rfxcom_devices:
   # Capteurs
   rfxsensor_0xa5b3:
@@ -248,7 +248,7 @@ La couche **HA** est divisée en **deux sous-composants distincts** (conforme à
 
 | **Étape** | **Action** | **Priorité** | **Fichier** | **Statut** |
 |-----------|------------|--------------|-------------|------------|
-| 1 | Corriger `requiredHaWs: false` pour RFXCOM | 🔴 Haute | `src/applications/rfxcom/domain/index.ts` | ✅ Terminé |
+| 1 | Corriger `requiredHaWs: false` pour RFXCOM | 🔴 Haute | `applications/rfxcom/domain/index.ts` | ✅ Terminé |
 | 2 | Intégrer MQTT dans le bootstrap | 🟡 Moyenne | `src/index.ts` ou `AppService.ts` | ⏳ En cours |
 | 3 | Implémenter un module WS (ex: IA) | 🟢 Faible | À venir | ⏳ À venir |
 

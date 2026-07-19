@@ -30,9 +30,9 @@
 Ce document **complète** les [spécifications principales](specs-fonctionnelles-rfxcom-v5.0.md) en détaillant la gestion des **récepteurs logiques** et **émetteurs physiques RFXCOM**, avec les clarifications suivantes pour la v5.0 :
 
 **NOUVEAU v5.0 :**
-- ✅ **Fichier de configuration centralisé** : `config-rfxcom-devices-v1.0.yaml` contient TOUS les devices, récepteurs et associations
+- ✅ **Fichier de configuration centralisé** : `config-rfxcom-devices-v1.0.yaml` contient TOUS les devices, récepteurs et appairages
 - ✅ **primaryEmitter dans chaque récepteur** : Émetteur principal qui détermine le device RFXCOM cible pour les commandes HA
-- ✅ **Liste des émetteurs appairés dans le récepteur** : Les associations N↔N sont stockées directement dans `rfxcom_receivers[].emitters[]`
+- ✅ **Liste des émetteurs appairés dans le récepteur** : Les appairages N↔N sont stockées directement dans `rfxcom_receivers[].emitters[]`
 - ✅ **entity_id et unique_id contiennent TOUJOURS le protocole interne** (`<protocole>_<sensorId>`) pour TOUS les devices
 - ✅ **QUOI = type fonctionnel pur** (ex: "Température", "Humidité", "Courant", "Bouton"), PAS un endroit
 - ✅ **QUOI auto-déterminé** depuis subType RFXCOM (Temperature → Température, Current → Courant)
@@ -45,7 +45,7 @@ Ce document **complète** les [spécifications principales](specs-fonctionnelles
 |--------|--------|
 | Récepteurs déclarés via fichier YAML | Gestion matériel RFXCOM |
 | Émetteurs (devices Lighting1/2/4) | Implémentation bas niveau |
-| Association émetteurs ↔ récepteurs (N↔N) | Configuration manuelle des émetteurs |
+| Appairage émetteurs ↔ récepteurs (N↔N) | Configuration manuelle des émetteurs |
 | Intégration spec-nommage-v1.0.md | Implémentation UI |
 | Auto-détermination QUOI | Persistance |
 
@@ -131,7 +131,7 @@ recepteur_<numéro_séquence>
 | **Émetteur** | Device **Lighting1/2/4** qui **émet** des signaux RF433 | **binary_sensor** (par défaut) | `<protocole>_<sensorId>` | `lighting2_0x02b3` |
 | **Récepteur** | Entité **logique** déclarée dans le fichier YAML, **associée à des émetteurs** | switch, light, cover, scene | `recepteur_<seq>` | `recepteur_001` |
 | **primaryEmitter** | **Émetteur principal** d'un récepteur, utilisé pour envoyer les commandes RF433 | - | `<protocole>_<sensorId>` | `lighting2_0x02b3` |
-| **Association** | Lien entre émetteur et récepteur (**N↔N**), stocké dans `rfxcom_receivers[].emitters[]` | - | - | - |
+| **Appairage** | Lien entre émetteur et récepteur (**N↔N**), stocké dans `rfxcom_receivers[].emitters[]` | - | - | - |
 
 ### 3.2 Règles Fondamentales (v5.0) ⭐
 
@@ -139,7 +139,7 @@ recepteur_<numéro_séquence>
 2. **QUOI = type fonctionnel pur** : "Température", "Humidité", "Courant", "Bouton" (PAS "Température Salon")
 3. **QUOI auto-déterminé** depuis subType : Temperature → "Température", Current → "Courant"
 4. **Émetteurs Lighting = binary_sensor par défaut** : ils émettent on/off
-5. **Associations dans le fichier YAML** : chaque récepteur contient sa liste d'émetteurs dans `emitters[]`
+5. **Appairages dans le fichier YAML** : chaque récepteur contient sa liste d'émetteurs dans `emitters[]`
 6. **primaryEmitter obligatoire** : Chaque récepteur a UN émetteur principal qui détermine le device RFXCOM cible pour les commandes HA
 7. **Relations N↔N** :
    - Un récepteur peut avoir **plusieurs émetteurs** associés (dans `emitters[]`)
@@ -199,7 +199,7 @@ const SUBTYPE_TO_QUOI: Record<string, string> = {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Mapping N↔N (Associations)
+### 4.2 Mapping N↔N (Appairages)
 
 **Structure en mémoire (chargée depuis config-rfxcom-devices-v1.0.yaml) :**
 ```typescript
@@ -210,7 +210,7 @@ class RfxComService {
   // Récepteurs configurés - chargés depuis rfxcom_receivers
   private receivers: Map<string, ReceiverConfig>;   // clé = recepteur_<seq>
   
-  // Pas besoin de mapping séparé : les associations sont dans receivers[].emitters[]
+  // Pas besoin de mapping séparé : les appairages sont dans receivers[].emitters[]
 }
 
 // Structure d'un récepteur avec ses émetteurs associés
@@ -256,7 +256,7 @@ rfxcom_receivers:
 **Ce fichier est LA source de vérité pour :**
 1. Tous les **devices RFXCOM physiques** (capteurs + émetteurs)
 2. Tous les **récepteurs logiques**
-3. Toutes les **associations N↔N** entre émetteurs et récepteurs
+3. Toutes les **appairages N↔N** entre émetteurs et récepteurs
 
 **Structure complète :**
 
@@ -690,8 +690,8 @@ Les événements ci-dessous **complètent** ceux définis dans [`specs-technique
 | `rfxcom:receiver:create` | `{ config: ReceiverConfig }` | Créer un nouveau récepteur | App → Module |
 | `rfxcom:receiver:update` | `{ receiverId, config: Partial<ReceiverConfig> }` | Mettre à jour un récepteur | App → Module |
 | `rfxcom:receiver:delete` | `{ receiverId }` | Supprimer un récepteur | App → Module |
-| `rfxcom:association:create` | `{ receiverId, emitterId, action, value? }` | Créer une nouvelle association | App → Module |
-| `rfxcom:association:delete` | `{ receiverId, emitterId }` | Supprimer une association | App → Module |
+| `rfxcom:appairage:create` | `{ receiverId, emitterId, action, value? }` | Créer une nouvelle appairage | App → Module |
+| `rfxcom:appairage:delete` | `{ receiverId, emitterId }` | Supprimer une appairage | App → Module |
 
 #### 8.4.3 Événements d'Erreur RFXCOM
 | Événement | Payload | Description | Direction |
@@ -699,7 +699,7 @@ Les événements ci-dessous **complètent** ceux définis dans [`specs-technique
 | `rfxcom:error` | `AppError` (voir [`specs-erreurs-v1.0.md`](specs-erreurs-v1.0.md)) | Erreur RFXCOM (ex: transceiver non disponible) | Module → App |
 | `rfxcom:command:error` | `{ commandId, error: AppError }` | Échec d'une commande RFXCOM | Module → App |
 | `rfxcom:command:result` | `{ commandId, success: boolean, error?: AppError }` | Résultat d'une commande RFXCOM | Module → App |
-| `rfxcom:association:error` | `{ receiverId, emitterId, error: AppError }` | Erreur d'association (ex: protocoles incompatibles) | Module → App |
+| `rfxcom:appairage:error` | `{ receiverId, emitterId, error: AppError }` | Erreur d'appairage (ex: protocoles incompatibles) | Module → App |
 
 ---
 
@@ -1041,7 +1041,7 @@ Serveur → Sauvegarde dans config-rfxcom-devices-v1.0.yaml et publie Discovery 
 | 1.0 | 2026-07-07 | Mistral Vibe | Version initiale |
 | 2.0 | 2026-07-07 | Mistral Vibe | Intégration spec nommage.md |
 | 3.0 | 2026-07-08 | Mistral Vibe | Correction noms techniques |
-| 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, associations N↔N via UI |
+| 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, appairages N↔N via UI |
 | 5.0 | 2026-07-09 | Mistral Vibe | **Fichier YAML centralisé, primaryEmitter, émetteurs dans récepteur, attributs_taxonomie validé** |
 
 ---
