@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOMMAGE - Gestion des Conventions de Nommage</title>
+  
+  <!-- Charte graphique commune (depuis le core) -->
+  <link rel="stylesheet" href="/styles/main.css">
+  
+  <!-- Styles spécifiques -->
+  <style>
+    .nommage-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .nommage-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .nommage-header h1 {
+      color: var(--color-accent);
+      font-size: 2em;
+    }
+    
+    .nommage-header .description {
+      color: var(--color-text-muted);
+      margin-top: 10px;
+    }
+    
+    .status-card {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .status-card h2 {
+      margin-top: 0;
+      color: var(--color-text);
+      border-bottom: 1px solid var(--color-primary);
+      padding-bottom: 10px;
+    }
+    
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .status-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .status-item .label {
+      font-size: 0.85em;
+      color: var(--color-text-muted);
+      margin-bottom: 5px;
+    }
+    
+    .status-item .value {
+      font-size: 1.1em;
+      color: var(--color-text);
+    }
+    
+    .status-item .value.connected {
+      color: var(--color-success);
+    }
+    
+    .status-item .value.disconnected {
+      color: var(--color-error);
+    }
+    
+    .status-item .value.warning {
+      color: var(--color-warning);
+    }
+    
+    .discovery-topics {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 15px;
+      margin-top: 20px;
+    }
+    
+    .discovery-topics h3 {
+      margin-top: 0;
+      color: var(--color-text);
+    }
+    
+    .topics-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .topic-tag {
+      background: var(--color-primary);
+      color: var(--color-text);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-family: monospace;
+    }
+    
+    .parsed-messages {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 15px;
+      margin-top: 20px;
+    }
+    
+    .parsed-messages h3 {
+      margin-top: 0;
+      color: var(--color-text);
+    }
+    
+    .counter {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: var(--color-accent);
+    }
+    
+    .last-parsed {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: var(--color-text-muted);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--color-text-muted);
+    }
+    
+    .loading::after {
+      content: '';
+      animation: loading-dots 1.5s infinite;
+    }
+    
+    @keyframes loading-dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+    
+    .error {
+      color: var(--color-error);
+      background: rgba(244, 67, 54, 0.1);
+      border: 1px solid var(--color-error);
+      border-radius: var(--radius);
+      padding: 15px;
+      margin: 20px 0;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+      background: var(--color-accent);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--color-accent);
+      opacity: 0.9;
+    }
+    
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-primary);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--color-primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="nommage-container">
+    <!-- En-tête -->
+    <div class="nommage-header">
+      <h1>🏷️ NOMMAGE</h1>
+      <p class="description">
+        Application de gestion des conventions de nommage et taxonomie
+      </p>
+    </div>
+    
+    <!-- Conteneur principal -->
+    <div id="main-container">
+      <!-- Statut -->
+      <div class="status-card" id="status-card" style="display: none;">
+        <h2>📡 Statut de Connexion</h2>
+        <div class="status-grid" id="status-grid">
+          <div class="status-item">
+            <span class="label">Application</span>
+            <span class="value" id="app-status">Déconnecté</span>
+          </div>
+          <div class="status-item">
+            <span class="label">MQTT</span>
+            <span class="value" id="mqtt-status">Déconnecté</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Messages Parsés</span>
+            <span class="value" id="parsed-count">0</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Dernier Parsing</span>
+            <span class="value" id="last-parsed">--</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Topics de découverte -->
+      <div class="discovery-topics" id="discovery-topics" style="display: none;">
+        <h3>📋 Topics de Découverte MQTT</h3>
+        <div class="topics-list" id="topics-list"></div>
+      </div>
+      
+      <!-- Messages parsés -->
+      <div class="parsed-messages" id="parsed-messages" style="display: none;">
+        <h3>📊 Statistiques de Parsing</h3>
+        <div class="counter" id="messages-counter">0</div>
+        <div class="last-parsed" id="last-parsed-detail">
+          Aucun message parsed pour l'instant
+        </div>
+      </div>
+      
+      <!-- Erreur -->
+      <div class="error" id="error" style="display: none;"></div>
+      
+      <!-- Chargement -->
+      <div class="loading" id="loading">
+        Chargement de l'application NOMMAGE
+      </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="actions" id="actions" style="display: none;">
+      <button class="btn btn-primary" onclick="refreshStatus()">
+        ✅ Rafraîchir le Statut
+      </button>
+      <button class="btn btn-secondary" onclick="getTaxonomy()">
+        📋 Voir la Taxonomie
+      </button>
+    </div>
+  </div>
+  
+  <!-- Script de l'application -->
+  <script src="/applications/nommage/ts/app.js"></script>
+  
+  <!-- Commentaire de date (obligatoire selon PROMPT_PROJET.md) -->
+  <!-- Derniere modification: 2026-07-19 15:30:00 - Création de l'application NOMMAGE avec UI minimale -->
+</body>
+</html>

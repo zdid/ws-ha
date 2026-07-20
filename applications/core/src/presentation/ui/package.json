@@ -1,0 +1,18 @@
+{
+  "name": "ha-mqtt-ui",
+  "version": "1.0.0",
+  "description": "UI Layer for HA/MQTT Socle - TypeScript + Web Components",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.ui.json",
+    "watch": "tsc -p tsconfig.ui.json --watch",
+    "start": "npm run watch"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.6.1"
+  },
+  "devDependencies": {
+    "@types/socket.io-client": "^1.4.36",
+    "typescript": "^5.3.3"
+  }
+}

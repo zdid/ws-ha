@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOMMAGE - Configuration</title>
+  
+  <!-- Charte graphique commune -->
+  <link rel="stylesheet" href="/styles/main.css">
+  
+  <!-- Styles spécifiques -->
+  <style>
+    .config-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .config-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .config-header h1 {
+      color: var(--color-accent);
+      font-size: 1.8em;
+    }
+    
+    .config-header .description {
+      color: var(--color-text-muted);
+      margin-top: 10px;
+    }
+    
+    .config-form {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 25px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .config-form h2 {
+      margin-top: 0;
+      color: var(--color-text);
+      border-bottom: 2px solid var(--color-primary);
+      padding-bottom: 15px;
+    }
+    
+    .form-section {
+      margin-bottom: 25px;
+    }
+    
+    .form-section h3 {
+      margin-top: 0;
+      color: var(--color-text);
+      font-size: 1.1em;
+      margin-bottom: 10px;
+    }
+    
+    .form-section .description {
+      color: var(--color-text-muted);
+      font-size: 0.9em;
+      margin-bottom: 15px;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--color-text);
+      font-weight: 500;
+    }
+    
+    .form-group .hint {
+      font-size: 0.8em;
+      color: var(--color-text-muted);
+      margin-top: 3px;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius);
+      background: var(--color-background);
+      color: var(--color-text);
+      font-size: 0.95em;
+    }
+    
+    .form-control:focus {
+      outline: none;
+      border-color: var(--color-accent);
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+    
+    .select-control {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius);
+      background: var(--color-background);
+      color: var(--color-text);
+      cursor: pointer;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-size: 0.95em;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+      background: var(--color-accent);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--color-accent);
+      opacity: 0.9;
+    }
+    
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-primary);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--color-primary);
+    }
+    
+    .btn-danger {
+      background: var(--color-error);
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: var(--color-error);
+      opacity: 0.9;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .alert {
+      padding: 15px;
+      border-radius: var(--radius);
+      margin: 15px 0;
+      display: none;
+    }
+    
+    .alert-success {
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid var(--color-success);
+      color: var(--color-success);
+    }
+    
+    .alert-error {
+      background: rgba(244, 67, 54, 0.1);
+      border: 1px solid var(--color-error);
+      color: var(--color-error);
+    }
+    
+    .alert-info {
+      background: rgba(33, 150, 243, 0.1);
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: var(--color-text-muted);
+    }
+    
+    .field-array {
+      margin-top: 10px;
+    }
+    
+    .field-array .array-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    
+    .field-array input {
+      flex: 1;
+    }
+    
+    .field-array .btn-remove {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-error);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .btn-add {
+      margin-top: 10px;
+      background: var(--color-success);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      cursor: pointer;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      margin-left: 10px;
+    }
+    
+    .status-badge.connected {
+      background: var(--color-success);
+      color: white;
+    }
+    
+    .status-badge.disconnected {
+      background: var(--color-error);
+      color: white;
+    }
+    
+    .card {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .card h4 {
+      margin-top: 0;
+      color: var(--color-text);
+    }
+  </style>
+</head>
+<body>
+  <div class="config-container">
+    <!-- En-tête -->
+    <div class="config-header">
+      <h1>🏷️ Configuration NOMMAGE</h1>
+      <p class="description">
+        Configuration des paramètres MQTT, Home Assistant et des options de logging
+      </p>
+    </div>
+
+    <!-- Alertes -->
+    <div class="alert alert-success" id="success-alert"></div>
+    <div class="alert alert-error" id="error-alert"></div>
+    <div class="alert alert-info" id="info-alert">
+      <strong>ℹ️</strong> Modifiez les paramètres et cliquez sur "Enregistrer" pour appliquer les changements.
+    </div>
+
+    <!-- Statut de connexion -->
+    <div class="card" id="status-card">
+      <h4>📡 Statut des Connexions <span class="status-badge" id="connection-status">Déconnecté</span></h4>
+      <div id="status-details"></div>
+    </div>
+
+    <!-- Formulaire de configuration -->
+    <form class="config-form" id="config-form" novalidate>
+      
+      <!-- Section MQTT -->
+      <div class="form-section">
+        <h3>📡 Configuration MQTT</h3>
+        <p class="description">Paramètres de connexion au broker MQTT pour écouter les messages de découverte</p>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="mqtt-host">Hôte MQTT *</label>
+            <input type="text" id="mqtt-host" class="form-control" required placeholder="192.168.1.100">
+            <span class="hint">Adresse IP ou nom d'hôte du broker MQTT</span>
+          </div>
+          <div class="form-group">
+            <label for="mqtt-port">Port MQTT *</label>
+            <input type="number" id="mqtt-port" class="form-control" required min="1" max="65535" placeholder="1883">
+            <span class="hint">Port du serveur MQTT</span>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="mqtt-username">Utilisateur MQTT</label>
+            <input type="text" id="mqtt-username" class="form-control" placeholder="user">
+            <span class="hint">Nom d'utilisateur pour l'authentification (facultatif)</span>
+          </div>
+          <div class="form-group">
+            <label for="mqtt-password">Mot de passe MQTT</label>
+            <input type="password" id="mqtt-password" class="form-control" placeholder="password">
+            <span class="hint">Mot de passe pour l'authentification (facultatif)</span>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="mqtt-clientId">Client ID MQTT *</label>
+            <input type="text" id="mqtt-clientId" class="form-control" required placeholder="nommage-app">
+            <span class="hint">Identifiant unique du client MQTT</span>
+          </div>
+          <div class="form-group">
+            <label for="mqtt-qos">QoS</label>
+            <select id="mqtt-qos" class="select-control">
+              <option value="0">0 - Au maximum une fois</option>
+              <option value="1" selected>1 - Au moins une fois</option>
+              <option value="2">2 - Exactement une fois</option>
+            </select>
+            <span class="hint">Niveau de Qualité de Service</span>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="mqtt-topicPrefix">Préfixe des Topics *</label>
+            <input type="text" id="mqtt-topicPrefix" class="form-control" required placeholder="ha/" value="ha/">
+            <span class="hint">Préfixe du premier terme des topics (ex: "ha/" ou "homeassistant/")</span>
+          </div>
+          <div class="form-group">
+            <label for="mqtt-retain">Conserver les messages retain</label>
+            <div class="checkbox-group">
+              <input type="checkbox" id="mqtt-retain" checked>
+              <label for="mqtt-retain" style="margin: 0; cursor: pointer;">Activer le retain</label>
+            </div>
+            <span class="hint">Recevoir les messages MQTT retain</span>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="mqtt-discoveryTopics">Topics de Découverte *</label>
+          <div id="discovery-topics-container" class="field-array">
+            <div class="array-item">
+              <input type="text" class="form-control" placeholder="ha/+/+/config">
+              <button type="button" class="btn-remove" onclick="removeTopic(this)">✕</button>
+            </div>
+          </div>
+          <button type="button" class="btn-add" onclick="addTopic()">+ Ajouter un topic</button>
+          <span class="hint">Liste des topics MQTT à écouter pour la découverte (séparés par des virgules). Ex: ha/+/+/config, homeassistant/+/+/config</span>
+        </div>
+        
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="mqtt-useTls">
+            <label for="mqtt-useTls" style="margin: 0; cursor: pointer;">Utiliser TLS (mqtts://)</label>
+          </div>
+          <span class="hint">Activer la connexion MQTT sécurisée</span>
+        </div>
+      </div>
+      
+      <!-- Section Home Assistant -->
+      <div class="form-section">
+        <h3>🏠 Configuration Home Assistant</h3>
+        <p class="description">Options pour la transmission des structures parsées vers Home Assistant</p>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ha-autoTransmit">Transmission Automatique</label>
+            <div class="checkbox-group">
+              <input type="checkbox" id="ha-autoTransmit" checked>
+              <label for="ha-autoTransmit" style="margin: 0; cursor: pointer;">Transmettre automatiquement</label>
+            </div>
+            <span class="hint">Transmettre automatiquement les structures parsées à HA</span>
+          </div>
+          <div class="form-group">
+            <label for="ha-autoCreateAreas">Créer les Areas automatiquement</label>
+            <div class="checkbox-group">
+              <input type="checkbox" id="ha-autoCreateAreas" checked>
+              <label for="ha-autoCreateAreas" style="margin: 0; cursor: pointer;">Créer les Areas</label>
+            </div>
+            <span class="hint">Créer automatiquement les Areas dans HA si elles n'existent pas</span>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ha-defaultComponent">Composant par défaut</label>
+            <input type="text" id="ha-defaultComponent" class="form-control" placeholder="sensor" value="sensor">
+            <span class="hint">Composant HA par défaut pour les entités créées</span>
+          </div>
+          <div class="form-group">
+            <label for="ha-defaultDomain">Domaine par défaut</label>
+            <input type="text" id="ha-defaultDomain" class="form-control" placeholder="sensor" value="sensor">
+            <span class="hint">Domaine HA par défaut</span>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="ha-objectIdPrefix">Préfixe Object ID</label>
+          <input type="text" id="ha-objectIdPrefix" class="form-control" placeholder="nommage_" value="nommage_">
+          <span class="hint">Préfixe pour les object_id HA générés</span>
+        </div>
+        
+        <div class="form-group">
+          <div class="checkbox-group">
+            <input type="checkbox" id="ha-injectTaxonomyAttributes" checked>
+            <label for="ha-injectTaxonomyAttributes" style="margin: 0; cursor: pointer;">Injecter les attributs de taxonomie</label>
+          </div>
+          <span class="hint">Ajouter les attributs de taxonomie aux entités HA</span>
+        </div>
+      </div>
+      
+      <!-- Section Logging -->
+      <div class="form-section">
+        <h3>📝 Configuration du Logging</h3>
+        <p class="description">Niveau de logging et options de débogage</p>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="logging-level">Niveau de Log</label>
+            <select id="logging-level" class="select-control">
+              <option value="debug">Debug</option>
+              <option value="info" selected>Info</option>
+              <option value="warn">Warning</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <div class="checkbox-group">
+              <input type="checkbox" id="logging-showRawMessages">
+              <label for="logging-showRawMessages" style="margin: 0; cursor: pointer;">Afficher les messages MQTT bruts</label>
+            </div>
+            <span class="hint">Afficher les messages MQTT bruts dans les logs</span>
+          </div>
+          <div class="form-group">
+            <div class="checkbox-group">
+              <input type="checkbox" id="logging-showParsedMessages">
+              <label for="logging-showParsedMessages" style="margin: 0; cursor: pointer;">Afficher les messages parsés</label>
+            </div>
+            <span class="hint">Afficher les messages parsés dans les logs</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="resetConfig()">
+          🔄 Réinitialiser
+        </button>
+        <button type="button" class="btn btn-primary" onclick="saveConfig()">
+          💾 Enregistrer la Configuration
+        </button>
+      </div>
+    </form>
+
+    <!-- Chargement -->
+    <div class="loading" id="loading">
+      Chargement de la configuration...
+    </div>
+  </div>
+
+  <!-- Script de configuration -->
+  <script src="/applications/nommage/presentation/nommage/config-app.js"></script>
+  
+  <!-- Derniere modification -->
+  <!-- Derniere modification: 2026-07-19 16:00:00 - Creation page configuration NOMMAGE -->
+</body>
+</html>

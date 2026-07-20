@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOMMAGE - Messages de Découverte</title>
+  
+  <!-- Charte graphique commune -->
+  <link rel="stylesheet" href="/styles/main.css">
+  
+  <!-- Styles spécifiques -->
+  <style>
+    .discovery-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .discovery-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .discovery-header h1 {
+      color: var(--color-accent);
+      font-size: 1.8em;
+    }
+    
+    .discovery-header .description {
+      color: var(--color-text-muted);
+      margin-top: 10px;
+    }
+    
+    .stats-card {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+    }
+    
+    .stat-item {
+      text-align: center;
+      padding: 10px;
+      background: var(--color-background);
+      border-radius: var(--radius);
+    }
+    
+    .stat-item .label {
+      font-size: 0.85em;
+      color: var(--color-text-muted);
+      display: block;
+    }
+    
+    .stat-item .value {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: var(--color-accent);
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+      background: var(--color-accent);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--color-accent);
+      opacity: 0.9;
+    }
+    
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-primary);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--color-primary);
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+      max-width: 400px;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius);
+      background: var(--color-background);
+      color: var(--color-text);
+      font-size: 0.95em;
+    }
+    
+    .messages-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .messages-table th {
+      background: var(--color-primary);
+      color: var(--color-text);
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    
+    .messages-table td {
+      padding: 12px;
+      border-top: 1px solid var(--color-background);
+      color: var(--color-text);
+    }
+    
+    .messages-table tr:hover {
+      background: var(--color-background);
+    }
+    
+    .message-topic {
+      font-family: monospace;
+      font-size: 0.85em;
+      background: var(--color-background);
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 250px;
+    }
+    
+    .message-raw-name {
+      font-family: monospace;
+      font-size: 0.9em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+    
+    .quoi-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--color-accent);
+      color: white;
+      font-size: 0.85em;
+      font-weight: 500;
+    }
+    
+    .ou-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--color-success);
+      color: white;
+      font-size: 0.85em;
+      font-weight: 500;
+      margin-left: 5px;
+    }
+    
+    .timestamp {
+      font-size: 0.85em;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+    
+    .parsed-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    
+    .parsed-indicator.parsed {
+      background: var(--color-success);
+    }
+    
+    .parsed-indicator.failed {
+      background: var(--color-error);
+    }
+    
+    .parsed-indicator.pending {
+      background: var(--color-warning);
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .pagination button {
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-primary);
+      background: var(--color-surface);
+      color: var(--color-text);
+      cursor: pointer;
+    }
+    
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination button.active {
+      background: var(--color-accent);
+      color: white;
+      border-color: var(--color-accent);
+    }
+    
+    .alert {
+      padding: 15px;
+      border-radius: var(--radius);
+      margin: 15px 0;
+      display: none;
+    }
+    
+    .alert-info {
+      background: rgba(33, 150, 243, 0.1);
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+    }
+    
+    .alert-warning {
+      background: rgba(255, 193, 7, 0.1);
+      border: 1px solid var(--color-warning);
+      color: var(--color-warning);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--color-text-muted);
+    }
+    
+    .filter-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    
+    .filter-chip {
+      padding: 6px 12px;
+      background: var(--color-background);
+      border: 1px solid var(--color-primary);
+      border-radius: 20px;
+      color: var(--color-text);
+      font-size: 0.85em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .filter-chip:hover {
+      background: var(--color-primary);
+    }
+    
+    .filter-chip.active {
+      background: var(--color-accent);
+      color: white;
+      border-color: var(--color-accent);
+    }
+    
+    .message-detail {
+      cursor: pointer;
+      color: var(--color-accent);
+      text-decoration: underline;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+    
+    .modal-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 25px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--color-primary);
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      color: var(--color-text);
+    }
+    
+    .detail-section {
+      margin-bottom: 15px;
+    }
+    
+    .detail-section h4 {
+      color: var(--color-text-muted);
+      margin-bottom: 5px;
+      font-size: 0.9em;
+    }
+    
+    .detail-content {
+      background: var(--color-background);
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-size: 0.85em;
+    }
+    
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--color-error);
+      color: white;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="discovery-container">
+    <!-- En-tête -->
+    <div class="discovery-header">
+      <h1>📡 Messages de Découverte NOMMAGE</h1>
+      <p class="description">
+        Liste des messages MQTT de découverte reçus et leur statut de parsing
+      </p>
+    </div>
+
+    <!-- Alertes -->
+    <div class="alert alert-info" id="info-alert">
+      <strong>ℹ️</strong> Écoute des messages sur les topics: <span id="active-topics"></span>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="stats-card">
+      <h3 style="margin-top: 0; color: var(--color-text);">📊 Statistiques</h3>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="label">Total Reçu</span>
+          <span class="value" id="total-received">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Parsés</span>
+          <span class="value" id="total-parsed">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Erreurs</span>
+          <span class="value" id="total-errors">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Dernier</span>
+          <span class="value" id="last-received">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contrôles -->
+    <div class="controls">
+      <input type="text" class="search-box" id="search-input" placeholder="🔍 Rechercher dans les messages...">
+      <div class="filter-chips">
+        <span class="filter-chip active" onclick="toggleFilter('all')">Tous</span>
+        <span class="filter-chip" onclick="toggleFilter('parsed')">Parsés</span>
+        <span class="filter-chip" onclick="toggleFilter('failed')">Échecs</span>
+        <span class="filter-chip" onclick="toggleFilter('recent')">Récents</span>
+      </div>
+      <button class="btn btn-secondary" onclick="refreshMessages()">
+        ✅ Rafraîchir
+      </button>
+      <button class="btn btn-secondary" onclick="clearMessages()">
+        🗑️ Effacer tout
+      </button>
+    </div>
+
+    <!-- Tableau des messages -->
+    <table class="messages-table" id="messages-table">
+      <thead>
+        <tr>
+          <th style="width: 60px;">Statut</th>
+          <th>Timestamp</th>
+          <th>Topic</th>
+          <th>Nom Brut</th>
+          <th>Analyse QUOI/OÙ</th>
+          <th style="width: 80px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="messages-body">
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+            Aucune donnée disponible. L'application est en attente de messages de découverte...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+
+    <!-- Chargement -->
+    <div class="loading" id="loading" style="display: none;">
+      Chargement des messages...
+    </div>
+  </div>
+
+  <!-- Modal de détail -->
+  <div class="modal" id="detail-modal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeModal()">✕</button>
+      <div class="modal-header">
+        <h3>Détail du Message</h3>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Connexion Socket.io
+    const socket = io();
+    
+    // État
+    let messages = [];
+    let filteredMessages = [];
+    let currentPage = 1;
+    const messagesPerPage = 20;
+    let currentFilter = 'all';
+    let searchQuery = '';
+    
+    // Initialisation
+    function init() {
+      // Écouter les événements
+      socket.on('nommage:discovery:raw', (data) => {
+        addMessage(data);
+      });
+      
+      socket.on('nommage:discovery:parsed', (data) => {
+        updateMessageAsParsed(data);
+      });
+      
+      socket.on('nommage:status', (status) => {
+        updateActiveTopics(status.discoveryTopics);
+      });
+      
+      // Demander les données initiales
+      socket.emit('nommage:discovery:history');
+      socket.emit('nommage:status:get');
+      
+      // Configurer la recherche
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase();
+        filterMessages();
+      });
+    }
+    
+    function addMessage(data) {
+      const existingIndex = messages.findIndex(m => 
+        m.topic === data.topic && 
+        m.rawName === data.rawName && 
+        m.timestamp === data.timestamp
+      );
+      
+      if (existingIndex === -1) {
+        messages.unshift({
+          ...data,
+          parsed: false,
+          parsedAt: null,
+          parsedData: null,
+          id: Date.now() + Math.random()
+        });
+      }
+      
+      filterMessages();
+      updateStats();
+    }
+    
+    function updateMessageAsParsed(data) {
+      const index = messages.findIndex(m => 
+        m.topic === data.rawMessage.topic && 
+        m.rawName === data.rawMessage.rawName
+      );
+      
+      if (index !== -1) {
+        messages[index].parsed = true;
+        messages[index].parsedAt = data.timestamp;
+        messages[index].parsedData = data.parsedTaxonomy;
+        
+        // Mettre à jour l'affichage si le message est visible
+        renderMessages();
+        updateStats();
+      }
+    }
+    
+    function updateActiveTopics(topics) {
+      const topicsEl = document.getElementById('active-topics');
+      if (topicsEl && topics && topics.length > 0) {
+        topicsEl.textContent = topics.join(', ');
+      }
+    }
+    
+    function filterMessages() {
+      switch (currentFilter) {
+        case 'parsed':
+          filteredMessages = messages.filter(m => m.parsed);
+          break;
+        case 'failed':
+          filteredMessages = messages.filter(m => !m.parsed);
+          break;
+        case 'recent':
+          const oneHourAgo = new Date();
+          oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+          filteredMessages = messages.filter(m => new Date(m.timestamp) > oneHourAgo);
+          break;
+        default:
+          filteredMessages = [...messages];
+      }
+      
+      if (searchQuery) {
+        filteredMessages = filteredMessages.filter(m => 
+          m.topic.toLowerCase().includes(searchQuery) ||
+          m.rawName.toLowerCase().includes(searchQuery) ||
+          (m.parsedData && JSON.stringify(m.parsedData).toLowerCase().includes(searchQuery))
+        );
+      }
+      
+      currentPage = 1;
+      renderMessages();
+    }
+    
+    function toggleFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      filterMessages();
+    }
+    
+    function renderMessages() {
+      const tbody = document.getElementById('messages-body');
+      const start = (currentPage - 1) * messagesPerPage;
+      const end = start + messagesPerPage;
+      const pageMessages = filteredMessages.slice(start, end);
+      
+      if (pageMessages.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+              Aucun message trouvé
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tbody.innerHTML = pageMessages.map(msg => `
+        <tr>
+          <td>
+            <span class="parsed-indicator ${msg.parsed ? 'parsed' : msg.error ? 'failed' : 'pending'}"></span>
+            ${msg.parsed ? '✓' : msg.error ? '✕' : '⏳'}
+          </td>
+          <td class="timestamp">${new Date(msg.timestamp).toLocaleString('fr-FR')}</td>
+          <td class="message-topic" title="${escapeHtml(msg.topic)}">${escapeHtml(msg.topic)}</td>
+          <td class="message-raw-name" title="${escapeHtml(msg.rawName)}">${escapeHtml(msg.rawName)}</td>
+          <td>
+            ${msg.parsed ? `
+              <span class="quoi-badge">${escapeHtml(msg.parsedData.quoi.raw)}</span>
+              <span class="ou-badge">${escapeHtml(msg.parsedData.ou.lieu || msg.parsedData.ou.pere || '?')}</span>
+            ` : '--'}
+          </td>
+          <td>
+            <span class="message-detail" onclick='showDetail(${JSON.stringify(msg).replace(/'/g, "&#39;")})'>
+              🔍 Détails
+            </span>
+          </td>
+        </tr>
+      `).join('');
+      
+      renderPagination();
+    }
+    
+    function renderPagination() {
+      const totalPages = Math.ceil(filteredMessages.length / messagesPerPage);
+      const paginationEl = document.getElementById('pagination');
+      
+      if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+      }
+      
+      let html = '';
+      
+      // Bouton précédent
+      html += `
+        <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+          ← Précédent
+        </button>
+      `;
+      
+      // Numéros de page
+      const maxButtons = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+      let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+      
+      if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        html += `
+          <button onclick="changePage(${i})" class="${i === currentPage ? 'active' : ''}">
+            ${i}
+          </button>
+        `;
+      }
+      
+      // Bouton suivant
+      html += `
+        <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+          Suivant →
+        </button>
+      `;
+      
+      paginationEl.innerHTML = html;
+    }
+    
+    function changePage(page) {
+      const totalPages = Math.ceil(filteredMessages.length / messagesPerPage);
+      if (page < 1 || page > totalPages) return;
+      
+      currentPage = page;
+      renderMessages();
+      
+      // Scroll vers le haut
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    function updateStats() {
+      const totalReceived = messages.length;
+      const totalParsed = messages.filter(m => m.parsed).length;
+      const totalErrors = messages.filter(m => m.error).length;
+      
+      const lastReceived = messages.length > 0 ? 
+        new Date(Math.max(...messages.map(m => new Date(m.timestamp)))).toLocaleString('fr-FR') : '--';
+      
+      document.getElementById('total-received').textContent = totalReceived;
+      document.getElementById('total-parsed').textContent = totalParsed;
+      document.getElementById('total-errors').textContent = totalErrors;
+      document.getElementById('last-received').textContent = lastReceived;
+    }
+    
+    function showDetail(message) {
+      const modal = document.getElementById('detail-modal');
+      const modalBody = document.getElementById('modal-body');
+      
+      let html = `
+        <div class="detail-section">
+          <h4>📋 Informations de base</h4>
+          <div class="detail-content">
+Topic: ${escapeHtml(message.topic)}
+Timestamp: ${new Date(message.timestamp).toLocaleString('fr-FR')}
+Nom brut: ${escapeHtml(message.rawName)}
+          </div>
+        </div>
+      `;
+      
+      if (message.parsed) {
+        html += `
+          <div class="detail-section">
+            <h4>✅ Analyse Parsée</h4>
+            <div class="detail-content">
+${JSON.stringify(message.parsedData, null, 2)}
+            </div>
+          </div>
+          <div class="detail-section">
+            <h4>⏱️ Timing</h4>
+            <div class="detail-content">
+Reçu: ${new Date(message.timestamp).toLocaleString('fr-FR')}
+Parsé: ${new Date(message.parsedAt).toLocaleString('fr-FR')}
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="detail-section">
+            <h4>⚠️ Non parsee encore</h4>
+            <div class="detail-content">
+Ce message n'a pas encore été parsé ou une erreur est survenue.
+            </div>
+          </div>
+        `;
+      }
+      
+      if (message.payload) {
+        html += `
+          <div class="detail-section">
+            <h4>📦 Payload brut</h4>
+            <div class="detail-content">
+${JSON.stringify(message.payload, null, 2)}
+            </div>
+          </div>
+        `;
+      }
+      
+      modalBody.innerHTML = html;
+      modal.style.display = 'block';
+    }
+    
+    function closeModal() {
+      document.getElementById('detail-modal').style.display = 'none';
+    }
+    
+    function refreshMessages() {
+      socket.emit('nommage:discovery:history');
+    }
+    
+    function clearMessages() {
+      if (confirm('Êtes-vous sûr de vouloir effacer tous les messages?')) {
+        messages = [];
+        filteredMessages = [];
+        currentPage = 1;
+        renderMessages();
+        updateStats();
+      }
+    }
+    
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    // Fermer le modal en cliquant à l'extérieur
+    window.onclick = function(event) {
+      const modal = document.getElementById('detail-modal');
+      if (event.target === modal) {
+        closeModal();
+      }
+    }
+    
+    // Fermer avec la touche Escape
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    });
+    
+    // Initialisation au chargement
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+  
+  <!-- Derniere modification -->
+  <!-- Derniere modification: 2026-07-19 16:00:00 - Creation page messages de decouverte NOMMAGE -->
+</body>
+</html>

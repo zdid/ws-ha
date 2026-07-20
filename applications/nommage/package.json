@@ -1,0 +1,20 @@
+{
+  "name": "nommage",
+  "version": "1.0.0",
+  "description": "Application de gestion des conventions de nommage et taxonomie pour Home Assistant via MQTT Discovery",
+  "main": "dist/domain/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "mqtt": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/mqtt": "^2.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

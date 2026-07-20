@@ -39,3 +39,6 @@ sauvealpine/
 .pnp
 .pnp.js
 specs/archives/
+
+git-backup-*
+

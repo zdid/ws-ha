@@ -1,0 +1,348 @@
+/**
+ * Manager de configuration technique
+ * Gère toute la configuration HA, MQTT, Web, Logging
+ */
+
+interface TechnicalConfig {
+  ha: {
+    ws_enable: boolean;
+    mqtt_enable: boolean;
+    ws: {
+      host: string;
+      port: number;
+      token: string;
+      reconnect_delay: number;
+    };
+    mqtt: {
+      host: string;
+      port: number;
+      client_id: string;
+      username: string;
+      password: string;
+      keepalive: number;
+      reconnect_delay: number;
+    };
+    structure: {
+      include_unassigned: boolean;
+      unassigned_label: string;
+    };
+  };
+  web: {
+    port: number;
+    host: string;
+  };
+  logging: {
+    level: 'debug' | 'info' | 'warn' | 'error';
+    rotate: {
+      max_size_mb: number;
+      max_files: number;
+    };
+  };
+}
+
+interface ValidationError {
+  path: string;
+  message: string;
+  type: string;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationError[];
+  requiredMissing: string[];
+}
+
+export class TechnicalConfigManager {
+  private config: TechnicalConfig;
+  private socket: any;
+  public validationResult: ValidationResult = {
+    valid: false,
+    errors: [],
+    warnings: [],
+    requiredMissing: []
+  };
+  public saveInProgress: boolean = false;
+  public isLoading: boolean = true;
+  public isHaConnected: boolean | null = null;
+  public uptime: number = 0;
+  
+  /**
+   * Configuration par défaut
+   */
+  private getDefaultConfig(): TechnicalConfig {
+    return {
+      ha: {
+        ws_enable: false,
+        mqtt_enable: false,
+        ws: {
+          host: '',
+          port: 8123,
+          token: '',
+          reconnect_delay: 5
+        },
+        mqtt: {
+          host: '',
+          port: 1883,
+          client_id: 'ha-app-unique-id',
+          username: '',
+          password: '',
+          keepalive: 60,
+          reconnect_delay: 5
+        },
+        structure: {
+          include_unassigned: false,
+          unassigned_label: 'Non assigné'
+        }
+      },
+      web: {
+        port: 8080,
+        host: '0.0.0.0'
+      },
+      logging: {
+        level: 'info',
+        rotate: {
+          max_size_mb: 10,
+          max_files: 5
+        }
+      }
+    };
+  }
+  
+  constructor(socket: any) {
+    this.socket = socket;
+    this.config = this.getDefaultConfig();
+    this.setupSocketListeners();
+  }
+  
+  /**
+   * Configure les écouteurs Socket.io
+   */
+  private setupSocketListeners(): void {
+    // Connexion
+    this.socket.on('connect', () => {
+      this.isLoading = false;
+      // Note: config:current est un événement persistant, reçu automatiquement
+      // Pas besoin de socket.emit('config:get')
+      window.dispatchEvent(new CustomEvent('socket:connected'));
+    });
+    
+    // Configuration actuelle
+    this.socket.on('config:current', (partialConfig: Partial<TechnicalConfig>) => {
+      this.config = this.mergeDeep({ ...this.config }, partialConfig);
+      this.isLoading = false;
+      this.notifyConfigUpdated();
+    });
+    
+    // Résultat de validation
+    this.socket.on('config:validation:result', (result: ValidationResult) => {
+      this.validationResult = result;
+      this.notifyValidationUpdated();
+    });
+    
+    // Connexion HA
+    this.socket.on('ha:connected', () => {
+      this.isHaConnected = true;
+      this.notifyHaStatusChanged();
+    });
+    
+    this.socket.on('ha:disconnected', () => {
+      this.isHaConnected = false;
+      this.notifyHaStatusChanged();
+    });
+    
+    // Application démarrée
+    this.socket.on('app:started', () => {
+      this.uptime = Date.now();
+    });
+    
+    // Liste des modules
+    this.socket.on('app:modules:list', (data: { modules: any[] }) => {
+      window.dispatchEvent(new CustomEvent('app-modules-loaded', {
+        detail: { modules: data.modules }
+      }));
+    });
+  }
+  
+  /**
+   * Fusion profonde de deux objets
+   */
+  private mergeDeep<T>(target: T, source: Partial<T>): T {
+    const result = { ...target };
+    
+    for (const key in source) {
+      if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        if (!result[key]) {
+          result[key] = {} as any;
+        }
+        result[key] = this.mergeDeep(result[key] as any, source[key] as any);
+      } else {
+        result[key] = source[key] as any;
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Retourne la configuration complète
+   */
+  getConfig(): TechnicalConfig {
+    return { ...this.config };
+  }
+  
+  /**
+   * Met à jour une partie de la configuration
+   * @param partial - Configuration partielle à fusionner
+   * @param silent - Si true, n'émet pas config:updated (pour éviter les boucles avec ConfigForm)
+   */
+  updateConfig(partial: Partial<TechnicalConfig>, silent: boolean = false): void {
+    this.config = this.mergeDeep(this.config, partial);
+    if (!silent) {
+      this.notifyConfigUpdated();
+    }
+  }
+  
+  /**
+   * Sauvegarde la configuration
+   */
+  saveConfig(): void {
+    console.log('[TechnicalConfigManager] Envoi de config:save au serveur');
+    console.log('[TechnicalConfigManager] Config envoyée:', JSON.stringify(this.config, null, 2));
+    
+    this.saveInProgress = true;
+    this.socket.emit('config:save', this.config);
+    
+    // Reset après un délai
+    setTimeout(() => {
+      this.saveInProgress = false;
+    }, 1000);
+  }
+  
+  /**
+   * Récupère la valeur d'un champ de configuration
+   */
+  getFieldValue(fieldPath: string): any {
+    const parts = fieldPath.split('.');
+    let current: any = this.config;
+    
+    for (const part of parts) {
+      if (current && current[part] !== undefined) {
+        current = current[part];
+      } else {
+        return undefined;
+      }
+    }
+    
+    return current;
+  }
+  
+  /**
+   * Met à jour la valeur d'un champ de configuration
+   */
+  setFieldValue(fieldPath: string, value: any): void {
+    const parts = fieldPath.split('.');
+    let current: any = this.config;
+    
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!current[parts[i]]) {
+        current[parts[i]] = {};
+      }
+      current = current[parts[i]];
+    }
+    
+    current[parts[parts.length - 1]] = value;
+    this.notifyConfigUpdated();
+  }
+  
+  /**
+   * Valide un champ spécifique
+   */
+  validateField(fieldPath: string): { isValid: boolean; errorMessage: string } {
+    const error = this.validationResult.errors?.find(e => e.path === fieldPath);
+    return {
+      isValid: !error,
+      errorMessage: error ? error.message : ''
+    };
+  }
+  
+  /**
+   * Retourne la classe CSS pour le statut d'un champ
+   */
+  getFieldStatusClass(fieldPath: string): string {
+    return this.validateField(fieldPath).isValid ? '' : 'field-invalid';
+  }
+  
+  /**
+   * Formate le temps de fonctionnement (uptime)
+   */
+  formatUptime(ts: number = this.uptime): string {
+    if (!ts) return '0s';
+    const sec = Math.floor((Date.now() - ts) / 1000);
+    if (sec < 60) return `${sec}s`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m ${sec % 60}s`;
+    const h = Math.floor(min / 60);
+    return `${h}h ${min % 60}m`;
+  }
+  
+  /**
+   * Retourne le label d'une section
+   */
+  getSectionLabel(section: string): string {
+    const labels: Record<string, string> = {
+      global: 'Global',
+      ha: 'Web-Services',
+      mqtt: 'MQTT',
+      web: 'Web',
+      logging: 'Logging'
+    };
+    return labels[section] || section;
+  }
+  
+  // ======================================================================
+  // NOTIFICATIONS
+  // ======================================================================
+  
+  private notifyConfigUpdated(): void {
+    window.dispatchEvent(new CustomEvent('config:updated', {
+      detail: { config: this.config }
+    }));
+  }
+  
+  private notifyValidationUpdated(): void {
+    window.dispatchEvent(new CustomEvent('config:validation:updated', {
+      detail: this.validationResult
+    }));
+  }
+  
+  private notifyHaStatusChanged(): void {
+    window.dispatchEvent(new CustomEvent('ha:status:changed', {
+      detail: { isConnected: this.isHaConnected }
+    }));
+  }
+  
+  // ======================================================================
+  // UTILITAIRES
+  // ======================================================================
+  
+  /**
+   * Scroll vers une section
+   */
+  scrollToSection(sectionId: string): void {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+  
+  /**
+   * Scroll vers un champ spécifique
+   */
+  scrollToField(fieldPath: string): void {
+    const field = document.querySelector(`[data-field="${fieldPath}"]`);
+    if (field) {
+      field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}

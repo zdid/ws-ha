@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "../../dist/applications/nommage",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "../../../../*": ["../../core/src/*"],
+      "../../../../types/*": ["../../core/src/types/*"],
+      "../../../../application/*": ["../../core/src/application/*"],
+      "../../../../infrastructure/*": ["../../core/src/infrastructure/*"],
+      "../../../../ha/*": ["../../core/src/ha/*"],
+      "../../../../ui/*": ["../../core/src/presentation/*"]
+    },
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": [
+    "domain/**/*",
+    "ha/**/*",
+    "presentation/ts/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

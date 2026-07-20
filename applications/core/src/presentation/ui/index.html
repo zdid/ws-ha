@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="HA WS/MQTT Application - Configuration Interface">
+  <title>HA/MQTT</title>
+  <link rel="icon" type="image/png" href="/images/maisonsouriante.png">
+  
+  <!-- Styles - Chargés depuis des fichiers externes -->
+  <link rel="stylesheet" href="/styles/general.css">
+  <link rel="stylesheet" href="/styles/alert-banner.css">
+  <link rel="stylesheet" href="/styles/config-form.css">
+  <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+  <!-- ====================================================================== -->
+  <!-- BARRE LATÉRALE -->
+  <!-- ====================================================================== -->
+  <app-sidebar></app-sidebar>
+
+  <!-- ====================================================================== -->
+  <!-- CONTENU PRINCIPAL -->
+  <!-- ====================================================================== -->
+  <main class="main-content">
+    <!-- Sections de contenu - masquées par défaut -->
+    <div id="section-ha" class="content-section" style="display: none;">
+      <app-config-form></app-config-form>
+    </div>
+    
+    <div id="section-mqtt" class="content-section" style="display: none;">
+      <app-config-form data-section="mqtt"></app-config-form>
+    </div>
+    
+    <div id="section-web" class="content-section" style="display: none;">
+      <app-config-form data-section="web"></app-config-form>
+    </div>
+    
+    <div id="section-logging" class="content-section" style="display: none;">
+      <app-config-form data-section="logging"></app-config-form>
+    </div>
+    
+    <div id="section-applications-manager" class="content-section" style="display: none;">
+      <app-applications-manager></app-applications-manager>
+    </div>
+    
+    <!-- Container pour les modules dynamiques -->
+    <div id="modules-container" class="content-section" style="display: none;">
+      <app-module-container></app-module-container>
+    </div>
+  </main>
+
+  <!-- ====================================================================== -->
+  <!-- MODALE DES LOGS -->
+  <!-- ====================================================================== -->
+  <app-logs-modal></app-logs-modal>
+
+  <!-- ====================================================================== -->
+  <!-- SCRIPTS - Tous externes, chargement différé -->
+  <!-- ====================================================================== -->
+  
+  <!-- Socket.io - Chargé en premier depuis CDN -->
+  <script defer src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  
+  <!-- Bundle TypeScript compilé - Chargé après Socket.io -->
+  <script type="module" src="/js/ts/app.js"></script>
+</body>
+</html>

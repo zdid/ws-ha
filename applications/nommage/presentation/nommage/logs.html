@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOMMAGE - Logs</title>
+  
+  <!-- Charte graphique commune -->
+  <link rel="stylesheet" href="/styles/main.css">
+  
+  <!-- Styles spécifiques -->
+  <style>
+    .logs-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .logs-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .logs-header h1 {
+      color: var(--color-accent);
+      font-size: 1.8em;
+    }
+    
+    .logs-header .description {
+      color: var(--color-text-muted);
+      margin-top: 10px;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-size: 0.9em;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+      background: var(--color-accent);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: var(--color-accent);
+      opacity: 0.9;
+    }
+    
+    .btn-secondary {
+      background: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-primary);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--color-primary);
+    }
+    
+    .btn-danger {
+      background: var(--color-error);
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: var(--color-error);
+      opacity: 0.9;
+    }
+    
+    .filter-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .filter-chip {
+      padding: 6px 12px;
+      background: var(--color-background);
+      border: 1px solid var(--color-primary);
+      border-radius: 20px;
+      color: var(--color-text);
+      font-size: 0.85em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .filter-chip:hover {
+      background: var(--color-primary);
+    }
+    
+    .filter-chip.active {
+      background: var(--color-accent);
+      color: white;
+      border-color: var(--color-accent);
+    }
+    
+    .search-box {
+      flex: 1;
+      min-width: 250px;
+      max-width: 400px;
+    }
+    
+    .search-box input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius);
+      background: var(--color-background);
+      color: var(--color-text);
+      font-size: 0.95em;
+    }
+    
+    .logs-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .logs-table th {
+      background: var(--color-primary);
+      color: var(--color-text);
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+    }
+    
+    .logs-table td {
+      padding: 12px;
+      border-top: 1px solid var(--color-background);
+      color: var(--color-text);
+    }
+    
+    .logs-table tr:hover {
+      background: var(--color-background);
+    }
+    
+    .log-level {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+    
+    .log-level.debug {
+      background: #90a4ae;
+      color: white;
+    }
+    
+    .log-level.info {
+      background: var(--color-accent);
+      color: white;
+    }
+    
+    .log-level.warn {
+      background: var(--color-warning);
+      color: black;
+    }
+    
+    .log-level.error {
+      background: var(--color-error);
+      color: white;
+    }
+    
+    .log-timestamp {
+      font-size: 0.85em;
+      color: var(--color-text-muted);
+      white-space: nowrap;
+    }
+    
+    .log-source {
+      font-family: monospace;
+      font-size: 0.85em;
+      background: var(--color-background);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    
+    .log-message {
+      font-family: monospace;
+      font-size: 0.9em;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    
+    .log-raw {
+      font-family: monospace;
+      font-size: 0.8em;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 8px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 400px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .pagination button {
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-primary);
+      background: var(--color-surface);
+      color: var(--color-text);
+      cursor: pointer;
+    }
+    
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination button.active {
+      background: var(--color-accent);
+      color: white;
+      border-color: var(--color-accent);
+    }
+    
+    .stats-card {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+    }
+    
+    .stat-item {
+      text-align: center;
+      padding: 10px;
+      background: var(--color-background);
+      border-radius: var(--radius);
+    }
+    
+    .stat-item .label {
+      font-size: 0.85em;
+      color: var(--color-text-muted);
+      display: block;
+    }
+    
+    .stat-item .value {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: var(--color-accent);
+    }
+    
+    .alert {
+      padding: 15px;
+      border-radius: var(--radius);
+      margin: 15px 0;
+      display: none;
+    }
+    
+    .alert-info {
+      background: rgba(33, 150, 243, 0.1);
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--color-text-muted);
+    }
+    
+    .log-actions {
+      white-space: nowrap;
+    }
+    
+    .log-actions button {
+      padding: 4px 8px;
+      font-size: 0.8em;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+    }
+    
+    .modal-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 25px;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--color-primary);
+    }
+    
+    .modal-header h3 {
+      margin: 0;
+      color: var(--color-text);
+    }
+    
+    .detail-content {
+      background: var(--color-background);
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.85em;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--color-error);
+      color: white;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="logs-container">
+    <!-- En-tête -->
+    <div class="logs-header">
+      <h1>📜 Logs NOMMAGE</h1>
+      <p class="description">
+        Journaux d'activité de l'application NOMMAGE - Parsing, MQTT et transmission HA
+      </p>
+    </div>
+
+    <!-- Alertes -->
+    <div class="alert alert-info" id="info-alert">
+      <strong>ℹ️</strong> Utilisez les filtres pour afficher uniquement les logs qui vous intéressent
+    </div>
+
+    <!-- Statistiques -->
+    <div class="stats-card">
+      <h3 style="margin-top: 0; color: var(--color-text);">📊 Statistiques des Logs</h3>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="label">Total</span>
+          <span class="value" id="total-logs">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Debug</span>
+          <span class="value" id="debug-count">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Info</span>
+          <span class="value" id="info-count">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Warnings</span>
+          <span class="value" id="warn-count">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Erreurs</span>
+          <span class="value" id="error-count">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">Dernier</span>
+          <span class="value" id="last-log">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contrôles -->
+    <div class="controls">
+      <input type="text" class="search-box" id="search-input" placeholder="🔍 Rechercher dans les logs...">
+      <div class="filter-chips">
+        <span class="filter-chip active" onclick="toggleFilter('all')">Tous</span>
+        <span class="filter-chip" onclick="toggleFilter('debug')">Debug</span>
+        <span class="filter-chip" onclick="toggleFilter('info')">Info</span>
+        <span class="filter-chip" onclick="toggleFilter('warn')">Warnings</span>
+        <span class="filter-chip" onclick="toggleFilter('error')">Erreurs</span>
+        <span class="filter-chip" onclick="toggleFilter('mqtt')">MQTT</span>
+        <span class="filter-chip" onclick="toggleFilter('parsing')">Parsing</span>
+        <span class="filter-chip" onclick="toggleFilter('ha')">HA</span>
+      </div>
+      <button class="btn btn-secondary" onclick="refreshLogs()">
+        ✅ Rafraîchir
+      </button>
+      <button class="btn btn-secondary" onclick="clearLogs()">
+        🗑️ Effacer
+      </button>
+      <button class="btn btn-secondary" onclick="exportLogs()">
+        💾 Exporter
+      </button>
+    </div>
+
+    <!-- Tableau des logs -->
+    <table class="logs-table" id="logs-table">
+      <thead>
+        <tr>
+          <th style="width: 80px;">Niveau</th>
+          <th style="width: 150px;">Timestamp</th>
+          <th style="width: 150px;">Source</th>
+          <th>Message</th>
+          <th style="width: 120px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="logs-body">
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+            Chargement des logs...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+
+    <!-- Chargement -->
+    <div class="loading" id="loading" style="display: none;">
+      Chargement des logs...
+    </div>
+  </div>
+
+  <!-- Modal de détail -->
+  <div class="modal" id="detail-modal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closeModal()">✕</button>
+      <div class="modal-header">
+        <h3>Détail du Log</h3>
+      </div>
+      <div class="detail-content" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // Connexion Socket.io
+    const socket = io();
+    
+    // État
+    let logs = [];
+    let filteredLogs = [];
+    let currentPage = 1;
+    const logsPerPage = 25;
+    let currentFilter = 'all';
+    let searchQuery = '';
+    
+    // Initialisation
+    function init() {
+      // Écouter les événements de logs
+      socket.on('nommage:log', (logEntry) => {
+        addLog(logEntry);
+      });
+      
+      // Demander les logs initiaux
+      socket.emit('nommage:logs:get', { limit: 100 });
+      
+      // Configurer la recherche
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase();
+        filterLogs();
+      });
+      
+      // Demander les stats
+      socket.emit('nommage:logs:stats');
+    }
+    
+    function addLog(logEntry) {
+      logs.unshift(logEntry);
+      
+      // Limiter à 500 logs en mémoire
+      if (logs.length > 500) {
+        logs = logs.slice(0, 500);
+      }
+      
+      filterLogs();
+      updateStats();
+    }
+    
+    function filterLogs() {
+      filteredLogs = logs.filter(log => {
+        // Filtre par niveau
+        if (currentFilter !== 'all' && currentFilter !== 'mqtt' && currentFilter !== 'parsing' && currentFilter !== 'ha') {
+          if (log.level !== currentFilter) return false;
+        }
+        
+        // Filtre par catégorie
+        if (currentFilter === 'mqtt' && !log.message.toLowerCase().includes('mqtt')) return false;
+        if (currentFilter === 'parsing' && !log.message.toLowerCase().includes('parsing') && 
+            !log.message.toLowerCase().includes('parsed') && 
+            !log.message.toLowerCase().includes('quoi') &&
+            !log.message.toLowerCase().includes('ou')) return false;
+        if (currentFilter === 'ha' && !log.message.toLowerCase().includes('ha') &&
+            !log.message.toLowerCase().includes('home assistant')) return false;
+        
+        // Filtre par recherche
+        if (searchQuery) {
+          if (!log.message.toLowerCase().includes(searchQuery) &&
+              !log.source.toLowerCase().includes(searchQuery) &&
+              !log.timestamp.toLowerCase().includes(searchQuery)) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
+      
+      currentPage = 1;
+      renderLogs();
+    }
+    
+    function toggleFilter(filter) {
+      currentFilter = filter;
+      
+      document.querySelectorAll('.filter-chip').forEach(chip => {
+        chip.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      filterLogs();
+    }
+    
+    function renderLogs() {
+      const tbody = document.getElementById('logs-body');
+      const start = (currentPage - 1) * logsPerPage;
+      const end = start + logsPerPage;
+      const pageLogs = filteredLogs.slice(start, end);
+      
+      if (pageLogs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
+              Aucun log trouvé
+            </td>
+          </tr>
+        `;
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+      
+      tbody.innerHTML = pageLogs.map(log => {
+        const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString('fr-FR') : '--';
+        const level = log.level || 'info';
+        const source = log.source || 'nommage';
+        const message = log.message || '';
+        
+        // Tronquer le message pour l'affichage
+        const shortMessage = message.length > 100 ? message.substring(0, 100) + '...' : message;
+        
+        // Tronquer la source
+        const shortSource = source.length > 20 ? source.substring(0, 20) + '...' : source;
+        
+        return `
+          <tr>
+            <td>
+              <span class="log-level ${level}">${level.toUpperCase()}</span>
+            </td>
+            <td class="log-timestamp">${timestamp}</td>
+            <td class="log-source" title="${escapeHtml(source)}">${escapeHtml(shortSource)}</td>
+            <td class="log-message" title="${escapeHtml(message)}">${escapeHtml(shortMessage)}</td>
+            <td class="log-actions">
+              <button class="btn btn-secondary" onclick='showDetail(${JSON.stringify(log).replace(/'/g, "&#39;")})' title="Voir détail">
+                🔍
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      renderPagination();
+    }
+    
+    function renderPagination() {
+      const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+      const paginationEl = document.getElementById('pagination');
+      
+      if (totalPages <= 1) {
+        paginationEl.innerHTML = '';
+        return;
+      }
+      
+      let html = '';
+      
+      // Bouton précédent
+      html += `
+        <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+          ← Précédent
+        </button>
+      `;
+      
+      // Numéros de page
+      const maxButtons = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+      let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+      
+      if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        html += `
+          <button onclick="changePage(${i})" class="${i === currentPage ? 'active' : ''}">
+            ${i}
+          </button>
+        `;
+      }
+      
+      // Bouton suivant
+      html += `
+        <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+          Suivant →
+        </button>
+      `;
+      
+      paginationEl.innerHTML = html;
+    }
+    
+    function changePage(page) {
+      const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+      if (page < 1 || page > totalPages) return;
+      
+      currentPage = page;
+      renderLogs();
+      
+      // Scroll vers le haut
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    function updateStats() {
+      const total = logs.length;
+      const debug = logs.filter(l => l.level === 'debug').length;
+      const info = logs.filter(l => l.level === 'info').length;
+      const warn = logs.filter(l => l.level === 'warn').length;
+      const error = logs.filter(l => l.level === 'error').length;
+      
+      const lastLog = logs.length > 0 ? 
+        new Date(Math.max(...logs.map(l => new Date(l.timestamp || 0)))).toLocaleString('fr-FR') : '--';
+      
+      document.getElementById('total-logs').textContent = total;
+      document.getElementById('debug-count').textContent = debug;
+      document.getElementById('info-count').textContent = info;
+      document.getElementById('warn-count').textContent = warn;
+      document.getElementById('error-count').textContent = error;
+      document.getElementById('last-log').textContent = lastLog;
+    }
+    
+    function showDetail(log) {
+      const modal = document.getElementById('detail-modal');
+      const modalBody = document.getElementById('modal-body');
+      
+      const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString('fr-FR') : '--';
+      
+      modalBody.innerHTML = `
+Level: ${log.level || 'info'}
+Timestamp: ${timestamp}
+Source: ${log.source || 'nommage'}
+
+Message:
+${log.message || 'Aucun message'}
+
+${log.stack ? `\nStack Trace:\n${log.stack}` : ''}
+${log.data ? `\nData:\n${JSON.stringify(log.data, null, 2)}` : ''}
+      `;
+      
+      modal.style.display = 'block';
+    }
+    
+    function closeModal() {
+      document.getElementById('detail-modal').style.display = 'none';
+    }
+    
+    function refreshLogs() {
+      socket.emit('nommage:logs:get', { limit: 100 });
+    }
+    
+    function clearLogs() {
+      if (confirm('Êtes-vous sûr de vouloir effacer tous les logs? Cette action est irréversible.')) {
+        logs = [];
+        filteredLogs = [];
+        currentPage = 1;
+        renderLogs();
+        updateStats();
+        
+        // Envoyer au serveur pour effacer aussi côté backend
+        socket.emit('nommage:logs:clear');
+      }
+    }
+    
+    function exportLogs() {
+      if (logs.length === 0) return;
+      
+      const dataStr = JSON.stringify(logs, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nommage-logs-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      
+      URL.revokeObjectURL(url);
+    }
+    
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    // Fermer le modal en cliquant à l'extérieur
+    window.onclick = function(event) {
+      const modal = document.getElementById('detail-modal');
+      if (event.target === modal) {
+        closeModal();
+      }
+    }
+    
+    // Fermer avec la touche Escape
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    });
+    
+    // Initialisation au chargement
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+  
+  <!-- Derniere modification -->
+  <!-- Derniere modification: 2026-07-19 16:00:00 - Creation page logs NOMMAGE -->
+</body>
+</html>

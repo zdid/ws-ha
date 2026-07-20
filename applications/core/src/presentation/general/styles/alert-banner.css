@@ -1,0 +1,151 @@
+/* src/presentation/general/styles/alert-banner.css */
+/* Styles pour la bannière d'alerte des paramètres manquants */
+/* Conforme à specs-presentation-v2.0.md §5.7 */
+
+.alert-banner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+.alert-banner.alert-error {
+  background-color: var(--color-error);
+  color: white;
+  border-bottom: 2px solid var(--color-error);
+}
+
+.alert-banner.alert-warning {
+  background-color: var(--color-warning);
+  color: var(--color-text-inverse);
+  border-bottom: 2px solid var(--color-warning);
+}
+
+.alert-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.alert-icon {
+  font-size: 1.5rem;
+}
+
+.alert-errors,
+.alert-warnings {
+  margin: var(--spacing-sm) 0;
+}
+
+.alert-errors ul,
+.alert-warnings ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.alert-errors li,
+.alert-warnings li {
+  padding: var(--spacing-xs) 0;
+  padding-left: var(--spacing-md);
+  border-left: 3px solid;
+  margin-bottom: var(--spacing-xs);
+}
+
+.alert-errors li {
+  border-left-color: rgba(255, 255, 255, 0.5);
+}
+
+.alert-errors li:last-child {
+  margin-bottom: 0;
+}
+
+.alert-warnings li {
+  border-left-color: var(--color-text-inverse);
+  opacity: 0.9;
+}
+
+.alert-warnings li:last-child {
+  margin-bottom: 0;
+}
+
+.error-item,
+.warning-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.error-locator {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-left: auto;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  transition: background-color var(--transition-fast);
+}
+
+.alert-banner.alert-warning .error-locator {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-text-inverse);
+}
+
+.error-locator:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.alert-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.alert-actions .btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+.alert-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+}
+
+.alert-banner.alert-warning .alert-actions .btn-secondary {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-text-inverse);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Transition pour Alpine.js x-transition */
+[x-cloak] {
+  display: none !important;
+}
+
+.centering {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

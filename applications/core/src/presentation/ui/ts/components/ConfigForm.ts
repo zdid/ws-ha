@@ -1,0 +1,625 @@
+import { ConfigField } from '../types';
+
+/**
+ * Composant ConfigForm - Formulaire de configuration technique
+ * Web Component pour afficher et éditer les paramètres
+ */
+
+interface ConfigSection {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  fields: ConfigField[];
+}
+
+// Sections de configuration techniques
+const configSections: ConfigSection[] = [
+  {
+    id: 'ha',
+    title: 'Web-Services',
+    icon: '⚙️',
+    description: 'Configuration de la connexion à Home Assistant',
+    fields: [
+      { name: 'ha.ws_enable', label: 'Activer Web-Services', type: 'boolean' },
+      { name: 'ha.ws.host', label: 'Hôte', type: 'text', required: true, placeholder: '192.168.1.x' },
+      { name: 'ha.ws.port', label: 'Port', type: 'number', min: 1, max: 65535, placeholder: '8123' },
+      { name: 'ha.ws.token', label: 'Long-Lived Access Token', type: 'text', required: true, hint: 'Token très long - saisir en clair' },
+      { name: 'ha.ws.reconnect_delay', label: 'Délai de reconnexion (secondes)', type: 'number', min: 0, max: 60, hint: 'Backoff exponentiel, plafond à 60s' },
+    ]
+  },
+  {
+    id: 'mqtt',
+    title: 'MQTT (Broker Externe)',
+    icon: '📡',
+    description: 'Configurer uniquement si cette application est de type "intégration"',
+    fields: [
+      { name: 'ha.mqtt_enable', label: 'Activer MQTT', type: 'boolean' },
+      { name: 'ha.mqtt.host', label: 'Hôte', type: 'text', required: true, placeholder: '192.168.1.x' },
+      { name: 'ha.mqtt.port', label: 'Port', type: 'number', min: 1, max: 65535, placeholder: '1883' },
+      { name: 'ha.mqtt.client_id', label: 'Client ID', type: 'text', required: true, placeholder: 'ha-app-unique-id', hint: 'Doit être unique par application' },
+      { name: 'ha.mqtt.username', label: 'Identifiant (optionnel)', type: 'text', autocomplete: 'off' },
+      { name: 'ha.mqtt.password', label: 'Mot de passe (optionnel)', type: 'password', autocomplete: 'off' },
+      { name: 'ha.mqtt.keepalive', label: 'Keepalive (secondes)', type: 'number', min: 0, placeholder: '60' },
+      { name: 'ha.mqtt.reconnect_delay', label: 'Délai de reconnexion (secondes)', type: 'number', min: 0, max: 60 },
+    ]
+  },
+  {
+    id: 'web',
+    title: 'Serveur Web',
+    icon: '🌐',
+    description: 'Configuration du serveur HTTP',
+    fields: [
+      { name: 'web.port', label: 'Port', type: 'number', min: 1, max: 65535, placeholder: '8080' },
+      { name: 'web.host', label: 'Hôte', type: 'text', placeholder: '0.0.0.0' },
+    ]
+  },
+  {
+    id: 'logging',
+    title: 'Journalisation',
+    icon: '📝',
+    description: 'Configuration des logs',
+    fields: [
+      { name: 'logging.level', label: 'Niveau de log', type: 'select', options: [
+        { value: 'debug', label: 'Debug' },
+        { value: 'info', label: 'Info' },
+        { value: 'warn', label: 'Warning' },
+        { value: 'error', label: 'Error' }
+      ] },
+      { name: 'logging.rotate.max_size_mb', label: 'Taille max par fichier (Mo)', type: 'number', min: 1, placeholder: '10' },
+      { name: 'logging.rotate.max_files', label: 'Nombre max de fichiers', type: 'number', min: 1, max: 100, placeholder: '5' },
+    ]
+  }
+];
+
+// Template HTML pour le Shadow DOM
+const createTemplate = (): HTMLTemplateElement => {
+  const template = document.createElement('template');
+  template.innerHTML = `
+    <style>
+      .config-form {
+        padding: 20px;
+      }
+      
+      .config-section {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: #2c3e50;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        color: #ecf0f1;
+      }
+      
+      .config-section h3 {
+        margin: 0 0 15px 0;
+        color: #ecf0f1;
+        font-size: 1.2rem;
+      }
+      
+      .section-description {
+        margin: 0 0 20px 0;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+      }
+      
+      .config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        max-width: 1200px;
+      }
+      
+      .form-group {
+        margin-bottom: 15px;
+      }
+      
+      .form-group label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+        color: #ecf0f1;
+      }
+      
+      .required-badge {
+        background-color: #e74c3c;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        margin-left: 8px;
+      }
+      
+      .form-group input[type="text"],
+      .form-group input[type="number"],
+      .form-group input[type="password"],
+      .form-group select,
+      .form-group textarea {
+        width: calc(100% - 15px);
+        padding: 8px 12px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        transition: border-color 0.2s;
+        word-break: break-all;
+      }
+      
+      /* Limiter la largeur pour les formulaires de modules uniquement */
+      .module-config-form .form-group input[type="text"],
+      .module-config-form .form-group input[type="number"],
+      .module-config-form .form-group input[type="password"],
+      .module-config-form .form-group select,
+      .module-config-form .form-group textarea {
+        max-width: 500px;
+      }
+        white-space: normal;
+        background: #34495e;
+        color: #ecf0f1;
+      }
+      
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #3498db;
+      }
+
+      .form-group select {
+        background: #34495e;
+        color: #ecf0f1;
+      }
+
+      .form-group input::placeholder {
+        color: #95a5a6;
+      }
+
+      .form-group select option {
+        background: #2c3e50;
+        color: #ecf0f1;
+      }
+      
+      .form-group input[type="checkbox"] {
+        width: auto;
+        margin-right: 10px;
+      }
+      
+      .field-hint {
+        font-size: 0.8rem;
+        color: #bdc3c7;
+        margin-top: 5px;
+      }
+      
+      .field-feedback {
+        font-size: 0.8rem;
+        color: #e74c3c;
+        margin-top: 5px;
+      }
+      
+      .field-invalid {
+        border-color: #e74c3c !important;
+      }
+      
+      .section-actions {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+      }
+      
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      
+      .btn-primary {
+        background-color: #3498db;
+        color: white;
+      }
+      
+      .btn-primary:hover {
+        background-color: #2980b9;
+      }
+      
+      .btn-primary:disabled {
+        background-color: #bdc3c7;
+        cursor: not-allowed;
+      }
+    </style>
+    
+    <div class="config-form" id="config-form">
+      <!-- Les sections seront insérées ici dynamiquement -->
+    </div>
+  `;
+  return template;
+};
+
+export class ConfigForm extends HTMLElement {
+  private config: any = {};
+  private saveInProgress: boolean = false;
+  private validationErrors: Record<string, string> = {};
+  private moduleId: string | null = null;
+  private moduleConfigFormHtml: string = '';
+  
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    
+    const template = createTemplate();
+    this.shadowRoot!.appendChild(template.content.cloneNode(true));
+  }
+  
+  connectedCallback() {
+    this.setupEventListeners();
+    this.render();
+  }
+  
+  static get observedAttributes() {
+    return ['data-section'];
+  }
+  
+  attributeChangedCallback(name: string, oldValue: string, newValue: string): void {
+    if (name === 'data-section' && oldValue !== newValue) {
+      console.log(`[ConfigForm] data-section changé de ${oldValue} à ${newValue}`);
+      // Si on change de section statique, réinitialiser le mode module
+      const staticSections = ['ha', 'mqtt', 'web', 'logging', 'applications-manager'];
+      if (staticSections.includes(newValue)) {
+        console.log('[ConfigForm] Réinitialisation du mode module (section statique détectée)');
+        this.moduleId = null;
+        this.moduleConfigFormHtml = '';
+        this.render();
+      }
+    }
+  }
+  
+  private setupEventListeners(): void {
+    // Écouter les mises à jour de configuration
+    window.addEventListener('config:updated', (e: CustomEvent) => {
+      this.config = { ...e.detail.config };
+      this.render();
+    });
+    
+    // Écouter les validations
+    window.addEventListener('config:validation:updated', (e: CustomEvent) => {
+      this.validationErrors = {};
+      e.detail.errors?.forEach((error: any) => {
+        this.validationErrors[error.path] = error.message;
+      });
+      this.render();
+    });
+    
+    // Écouter l'affichage de la config d'un module
+    window.addEventListener('module:config:show', ((e: Event) => {
+      const customEvent = e as CustomEvent;
+      console.log('[ConfigForm] Événement module:config:show reçu:', customEvent.detail);
+      this.moduleId = customEvent.detail?.moduleId || null;
+      this.loadModuleConfigForm();
+    }) as EventListener);
+    
+    // Écouter les changements de section pour réinitialiser le mode module
+    window.addEventListener('scroll-to-section', ((e: Event) => {
+      const customEvent = e as CustomEvent;
+      const sectionId = customEvent.detail?.sectionId;
+      console.log('[ConfigForm] Changement de section détecté:', sectionId);
+      // Si on change de section et qu'on était en mode module, réinitialiser
+      if (this.moduleId && sectionId && !sectionId.startsWith('module-')) {
+        console.log('[ConfigForm] Réinitialisation du mode module');
+        this.moduleId = null;
+        this.moduleConfigFormHtml = '';
+        this.render();
+      }
+    }) as EventListener);
+  }
+  
+  private async loadModuleConfigForm(): Promise<void> {
+    if (!this.moduleId || !window.app?.moduleManager) {
+      console.log('[ConfigForm] moduleManager non disponible');
+      return;
+    }
+    
+    try {
+      const metadata = window.app.moduleManager.getModuleUiMetadata(this.moduleId);
+      console.log('[ConfigForm] Métadonnées UI pour module', this.moduleId, ':', metadata);
+      
+      if (metadata) {
+        // Générer le formulaire HTML via ModuleManager
+        this.moduleConfigFormHtml = window.app.moduleManager.generateModuleConfigForm(this.moduleId);
+        console.log('[ConfigForm] Formulaire généré pour module', this.moduleId);
+        this.render();
+      } else {
+        console.log('[ConfigForm] Aucune métadonnées UI trouvées pour module', this.moduleId);
+        this.moduleConfigFormHtml = `<div class="error-hint">Pas de configuration UI disponible pour ${this.moduleId}</div>`;
+        this.render();
+      }
+    } catch (error) {
+      console.error('[ConfigForm] Erreur de chargement de la config du module:', error);
+      this.moduleConfigFormHtml = `<div class="error-hint">Erreur de chargement: ${error}</div>`;
+      this.render();
+    }
+  }
+  
+  private render(): void {
+    const container = this.shadowRoot!.getElementById('config-form');
+    if (!container) return;
+    
+    container.innerHTML = this.buildFormSections();
+    this.setupFormListeners();
+  }
+  
+  private get activeSection(): string {
+    return this.getAttribute('data-section') || 'ha';
+  }
+  
+  private buildFormSections(): string {
+    // Si on affiche la config d'un module, retourner le formulaire généré
+    if (this.moduleId && this.moduleConfigFormHtml) {
+      console.log('[ConfigForm] buildFormSections - Affichage du formulaire pour module:', this.moduleId);
+      
+      return `
+        <div class="config-section" id="config-section-module-${this.moduleId}">
+          ${this.moduleConfigFormHtml}
+        </div>
+      `;
+    }
+    
+    // Sinon, afficher la section statique normale
+    const activeSectionId = this.activeSection;
+    const section = configSections.find(s => s.id === activeSectionId);
+    
+    if (!section) {
+      // Si section non trouvée, afficher la première (ha)
+      return this.buildSection(configSections[0]);
+    }
+    
+    return this.buildSection(section);
+  }
+  
+  private buildSection(section: ConfigSection): string {
+    return `
+      <div class="config-section" id="config-section-${section.id}">
+        <h3>${section.icon} ${section.title}</h3>
+        <p class="section-description">${section.description}</p>
+        <div class="config-grid">
+          ${section.fields.map(field => this.buildFieldHtml(field)).join('')}
+        </div>
+      </div>
+      ${this.buildSaveButton()}
+    `;
+  }
+  
+  private buildFieldHtml(field: ConfigField): string {
+    const value = this.getFieldValue(`${field.name}`);
+    const fieldId = `field-${field.name.replace('.', '-')}`;
+    const isInvalid = this.validationErrors[field.name];
+    const statusClass = isInvalid ? 'field-invalid' : '';
+    
+    let html = `
+      <div class="form-group" id="${fieldId}">
+        <label for="${fieldId}">
+          ${field.label}
+          ${field.required ? '<span class="required-badge">Requis</span>' : ''}
+        </label>
+    `;
+    
+    // Générer l'input en fonction du type
+    switch (field.type) {
+      case 'text':
+        html += `
+          <input 
+            type="text" 
+            id="${fieldId}"
+            value="${this.escapeHtml(value || '')}"
+            data-field="${field.name}"
+            class="${statusClass}"
+            placeholder="${field.placeholder || ''}"
+          />
+          ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
+          ${isInvalid ? `<div class="field-feedback">${this.escapeHtml(this.validationErrors[field.name])}</div>` : ''}
+        `;
+        break;
+        
+      case 'number':
+        html += `
+          <input 
+            type="number" 
+            id="${fieldId}"
+            value="${value || ''}"
+            data-field="${field.name}"
+            class="${statusClass}"
+            ${field.min !== undefined ? `min="${field.min}"` : ''}
+            ${field.max !== undefined ? `max="${field.max}"` : ''}
+            ${field.step !== undefined ? `step="${field.step}"` : ''}
+            placeholder="${field.placeholder || ''}"
+          />
+          ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
+          ${isInvalid ? `<div class="field-feedback">${this.escapeHtml(this.validationErrors[field.name])}</div>` : ''}
+        `;
+        break;
+        
+      case 'boolean':
+        html += `
+          <input 
+            type="checkbox" 
+            id="${fieldId}"
+            ${value ? 'checked' : ''}
+            data-field="${field.name}"
+            data-type="boolean"
+          />
+          ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
+        `;
+        break;
+        
+      case 'select':
+        html += `
+          <select 
+            id="${fieldId}"
+            data-field="${field.name}"
+            class="${statusClass}"
+          >
+            ${field.options?.map(opt => `
+              <option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>
+            `).join('') || ''}
+          </select>
+          ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
+          ${isInvalid ? `<div class="field-feedback">${this.escapeHtml(this.validationErrors[field.name])}</div>` : ''}
+        `;
+        break;
+        
+      case 'password':
+        html += `
+          <input 
+            type="password" 
+            id="${fieldId}"
+            value="${this.escapeHtml(value || '')}"
+            data-field="${field.name}"
+            class="${statusClass}"
+            autocomplete="off"
+            placeholder="${field.placeholder || ''}"
+          />
+          ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
+          ${isInvalid ? `<div class="field-feedback">${this.escapeHtml(this.validationErrors[field.name])}</div>` : ''}
+        `;
+        break;
+    }
+    
+    html += '</div>';
+    return html;
+  }
+  
+  private buildSaveButton(): string {
+    return `
+      <div class="section-actions">
+        <button 
+          type="button"
+          id="save-btn"
+          class="btn btn-primary"
+          ${this.saveInProgress ? 'disabled' : ''}
+        >
+          ${this.saveInProgress ? 'Sauvegarde en cours...' : 'Sauvegarder'}
+        </button>
+      </div>
+    `;
+  }
+
+  private setupFormListeners(): void {
+    const saveBtn = this.shadowRoot!.getElementById('save-btn');
+    saveBtn?.addEventListener('click', () => {
+      this.saveConfig();
+    });
+    
+    // Écouter les changements sur tous les inputs
+    this.shadowRoot!.querySelectorAll('input, select').forEach(input => {
+      const field = input.getAttribute('data-field');
+      const module = input.getAttribute('data-module');
+      
+      if (field) {
+        // Si le champ appartient à un module, préfixer avec le module
+        const fieldPath = module ? `${module}.${field}` : field;
+        
+        input.addEventListener('input', (e) => {
+          this.handleFieldChange(e, fieldPath);
+        });
+        
+        input.addEventListener('change', (e) => {
+          this.handleFieldChange(e, fieldPath);
+        });
+      }
+    });
+  }
+  
+  private handleFieldChange(event: Event, field: string): void {
+    const target = event.target as HTMLInputElement | HTMLSelectElement;
+    let value: any;
+    
+    if (target.type === 'checkbox') {
+      value = (target as HTMLInputElement).checked;
+    } else if (target.type === 'number') {
+      value = parseFloat(target.value || '0') || 0;
+    } else {
+      value = target.value || '';
+    }
+    
+    this.updateField(field, value);
+  }
+
+  
+  private updateField(fieldPath: string, value: any): void {
+    const parts = fieldPath.split('.');
+    let current: any = this.config;
+    
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!current[parts[i]]) {
+        current[parts[i]] = {};
+      }
+      current = current[parts[i]];
+    }
+    
+    current[parts[parts.length - 1]] = value;
+    
+    // Mettre à jour TechnicalConfigManager pour les sauvegardes (sans déclencher config:updated pour éviter la boucle)
+    if (window.app?.configManager) {
+      const partialConfig: any = {};
+      let partialCurrent: any = partialConfig;
+      for (let i = 0; i < parts.length - 1; i++) {
+        partialCurrent[parts[i]] = partialCurrent[parts[i]] || {};
+        partialCurrent = partialCurrent[parts[i]];
+      }
+      partialCurrent[parts[parts.length - 1]] = value;
+      window.app.configManager.updateConfig(partialConfig, true);
+    }
+  }
+  
+  private saveConfig(): void {
+    if (this.saveInProgress) return;
+    
+    const currentSection = this.getAttribute('data-section') || 'inconnu';
+    console.log('[ConfigForm] Sauvegarde demandée - section:', currentSection);
+    console.log('[ConfigForm] Config à sauvegarder:', JSON.stringify(this.config, null, 2));
+    
+    this.saveInProgress = true;
+    const saveBtn = this.shadowRoot!.getElementById('save-btn');
+    if (saveBtn) {
+      saveBtn.setAttribute('disabled', 'true');
+      saveBtn.textContent = 'Sauvegarde en cours...';
+    }
+    
+    window.app.configManager.saveConfig();
+    
+    // Reset après un délai
+    setTimeout(() => {
+      this.saveInProgress = false;
+      if (saveBtn) {
+        saveBtn.removeAttribute('disabled');
+        saveBtn.textContent = 'Sauvegarder';
+      }
+    }, 1000);
+  }
+  
+  private getFieldValue(fieldPath: string): any {
+    const parts = fieldPath.split('.');
+    let current: any = this.config;
+    
+    for (const part of parts) {
+      if (current && current[part] !== undefined) {
+        current = current[part];
+      } else {
+        return undefined;
+      }
+    }
+    
+    return current;
+  }
+  
+  /**
+   * Échappe les caractères HTML pour éviter XSS
+   */
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+}
+
+// Enregistrer le composant
+customElements.define('app-config-form', ConfigForm);
