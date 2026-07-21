@@ -171,6 +171,14 @@ ${this.formatLogMessage(info)}
   onLog(callback: LogCallback): void {
     this.logCallbacks.push(callback);
   }
+
+  /**
+   * Met à jour le niveau de log dynamiquement
+   * @param newLevel - Nouveau niveau de log (debug, info, warn, error)
+   */
+  setLevel(newLevel: 'debug' | 'info' | 'warn' | 'error'): void {
+    this.winstonLogger.level = newLevel;
+  }
 }
 
 // =============================================================================
