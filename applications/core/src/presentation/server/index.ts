@@ -33,7 +33,7 @@ export class PresentationServer {
     this.app = express();
     this.logger = logger;
     this.port = port;
-    this.projectRoot = process.env.PROJECT_ROOT || path.resolve(path.join(__dirname, '../../../../'));
+    this.projectRoot = process.env.PROJECT_ROOT || path.resolve(path.join(__dirname, '../../../../..'));
     
     // Créer le serveur HTTP
     this.httpServer = this.app.listen(port, () => {
@@ -50,6 +50,8 @@ export class PresentationServer {
     this.configureErrorHandling();
   }
 
+
+
   /**
    * Configure le middleware Express
    */
@@ -61,9 +63,10 @@ export class PresentationServer {
     this.app.use('/js/ts', (req: Request, res: Response, next: NextFunction) => {
       console.log('[ES-MODULE-MIDDLEWARE] ENTREE avec path:', req.path);
       const fs = require('fs');
-      const basePath = path.resolve(this.projectRoot, 'dist/presentation/ui/js/ts');
+      const coreRoot = path.join(process.env.PROJECT_ROOT || this.projectRoot, 'applications', 'core');
+      const basePath = path.resolve(coreRoot, 'dist/presentation/ui/js/ts');
       console.log('[ES-MODULE-MIDDLEWARE] basePath:', basePath);
-      const filePath = basePath+ req.path;
+      const filePath = basePath + req.path;
       console.log('[ES-MODULE-MIDDLEWARE] ENTREE avec complet filepath:', filePath);
       const filePathWithJs = basePath + req.path + '.js';
 
@@ -90,29 +93,30 @@ export class PresentationServer {
     
     // Servir les fichiers statiques (UI)
     // D'abord essayer dist/presentation/ui/, puis src/presentation/ui/
-    this.app.use(express.static(path.join(this.projectRoot, 'dist/presentation/ui')));
-    this.app.use(express.static(path.join(this.projectRoot, 'src/presentation/ui')));
+    const coreRoot = path.join(process.env.PROJECT_ROOT || this.projectRoot, 'applications', 'core');
+    this.app.use(express.static(path.join(coreRoot, 'dist/presentation/ui')));
+    this.app.use(express.static(path.join(coreRoot, 'src/presentation/ui')));
     
     // Servir les images depuis /images
-    this.app.use('/images', express.static(path.join(this.projectRoot, 'dist/presentation/ui')));
-    this.app.use('/images', express.static(path.join(this.projectRoot, 'src/presentation/ui')));
+    this.app.use('/images', express.static(path.join(coreRoot, 'dist/presentation/ui')));
+    this.app.use('/images', express.static(path.join(coreRoot, 'src/presentation/ui')));
     
     // Servir les styles communs depuis /styles
     // D'abord essayer dist/presentation/general/styles/, puis src/presentation/general/styles/
-    this.app.use('/styles', express.static(path.join(this.projectRoot, 'dist/presentation/general/styles')));
-    this.app.use('/styles', express.static(path.join(this.projectRoot, 'src/presentation/general/styles')));
+    this.app.use('/styles', express.static(path.join(coreRoot, 'dist/presentation/general/styles')));
+    this.app.use('/styles', express.static(path.join(coreRoot, 'src/presentation/general/styles')));
     
     // Servir les styles spécifiques UI depuis /styles
-    this.app.use('/styles', express.static(path.join(this.projectRoot, 'dist/presentation/ui/styles')));
-    this.app.use('/styles', express.static(path.join(this.projectRoot, 'src/presentation/ui/styles')));
+    this.app.use('/styles', express.static(path.join(coreRoot, 'dist/presentation/ui/styles')));
+    this.app.use('/styles', express.static(path.join(coreRoot, 'src/presentation/ui/styles')));
     
     // Servir le reste des applications
-    this.app.use('/applications', express.static(path.join(this.projectRoot, 'dist/applications')));
-    this.app.use('/applications', express.static(path.join(this.projectRoot, 'src/applications')));
+    this.app.use('/applications', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'dist/applications')));
+    this.app.use('/applications', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'src/applications')));
     
     // Servir les pages spécifiques des applications sous leur propre chemin (ex: /nommage/*)
-    this.app.use('/nommage', express.static(path.join(this.projectRoot, 'src/applications/nommage/presentation/nommage')));
-    this.app.use('/nommage', express.static(path.join(this.projectRoot, 'dist/applications/nommage/presentation/nommage')));
+    this.app.use('/nommage', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'src/applications/nommage/presentation')));
+    this.app.use('/nommage', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'dist/applications/nommage/presentation')));
 
     // CORS - À configurer pour la production
     this.app.use((req: Request, res: Response, next: NextFunction) => {
@@ -140,8 +144,9 @@ export class PresentationServer {
 
     // Route racine - Redirige vers index.html pour une SPA
     this.app.get('/', (req: Request, res: Response) => {
-      const distPath = path.join(this.projectRoot, 'dist/presentation/ui');
-      const srcPath = path.join(this.projectRoot, 'src/presentation/ui');
+      const coreRoot = path.join(process.env.PROJECT_ROOT || this.projectRoot, 'applications', 'core');
+      const distPath = path.join(coreRoot, 'dist/presentation/ui');
+      const srcPath = path.join(coreRoot, 'src/presentation/ui');
       
       res.sendFile('index.html', { 
         root: distPath,

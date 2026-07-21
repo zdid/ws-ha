@@ -110,6 +110,9 @@ export class HaWsClient {
   private isAuthenticated = false;
   private isReady = false;
   
+  // Configuration actuelle pour reconfigure
+  private currentConfig: HaWsConfig;
+  
   // ID des requêtes
   private nextId = 1;
   private pendingRequests: Map<number, { resolve: (data: any) => void; reject: (error: Error) => void }> = new Map();
@@ -134,6 +137,9 @@ export class HaWsClient {
     transport?: HaWsTransport,
     logger?: Logger
   ) {
+    // Stocker la config actuelle
+    this.currentConfig = config;
+    
     this.transport = transport || new HaWsTransport({
       host: config.host,
       port: config.port,
@@ -590,5 +596,58 @@ export class HaWsClient {
 
   getIsReady(): boolean {
     return this.isReady;
+  }
+
+  /**
+   * Compare deux configurations WebSocket
+   */
+  private areConfigsEqual(c1: HaWsConfig, c2: HaWsConfig): boolean {
+    return (
+      c1.host === c2.host &&
+      c1.port === c2.port &&
+      c1.token === c2.token &&
+      c1.reconnect_delay === c2.reconnect_delay
+    );
+  }
+
+  /**
+   * Reconfigure la connexion WebSocket avec une nouvelle configuration.
+   * - Si déconnecté : connecte avec la nouvelle config
+   * - Si connecté : compare, déconnecte et reconnecte si la config a changé
+   */
+  reconfigure(newConfig: HaWsConfig): void {
+    // Si déconnecté, juste connecter avec la nouvelle config
+    if (!this.getIsAuthenticated()) {
+      this.logger.info('ha:ws', 'Reconfiguration WebSocket (déconnecté) - Connexion avec nouvelle config');
+      this.currentConfig = newConfig;
+      // Recréer le transport avec la nouvelle config
+      this.transport = new HaWsTransport({
+        host: newConfig.host,
+        port: newConfig.port,
+        token: newConfig.token,
+        reconnectDelay: newConfig.reconnect_delay,
+      });
+      this.setupTransportListeners();
+      this.connect();
+      return;
+    }
+
+    // Si connecté, comparer avec l'ancienne config
+    if (!this.areConfigsEqual(this.currentConfig, newConfig)) {
+      this.logger.info('ha:ws', 'Reconfiguration WebSocket - Config changée, reconnexion...');
+      this.currentConfig = newConfig;
+      this.disconnect();
+      // Recréer le transport avec la nouvelle config
+      this.transport = new HaWsTransport({
+        host: newConfig.host,
+        port: newConfig.port,
+        token: newConfig.token,
+        reconnectDelay: newConfig.reconnect_delay,
+      });
+      this.setupTransportListeners();
+      this.connect();
+    } else {
+      this.logger.debug('ha:ws', 'Reconfiguration WebSocket - Config inchangée, aucune action');
+    }
   }
 }

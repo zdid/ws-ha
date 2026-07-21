@@ -85,7 +85,7 @@ export class AppService {
     this.logger = logger;
     this.haWsClient = haWsClient;
     this.haStructureRegistry = haStructureRegistry;
-    
+
     // Initialiser le gestionnaire d'applications
     this.applicationManager = new ApplicationManager(restartManager, logger);
     
@@ -144,6 +144,39 @@ export class AppService {
     //     this.restartApplicationService(data.moduleId);
     //   }
     // });
+
+    // Écouter config:reload pour reconfigure WS et MQTT
+    this.eventBus.on('config:reload', () => {
+      this.handleConfigReload();
+    });
+  }
+
+  /**
+   * Gère le rechargement de la configuration pour WS
+   * (MQTT est géré indépendamment par IntegrationBridge, qui écoute
+   * 'config:save:result' directement — voir ha/integration/IntegrationBridge.ts)
+   */
+  private handleConfigReload(): void {
+    this.logger.info('AppService', 'Configuration rechargée - Reconfiguration des composants HA...');
+
+    const config = this.configService.getConfig();
+
+    // Reconfigurer WebSocket si activé et disponible
+    if (config.ha?.ws_enable === true && config.ha?.ws && this.haWsClient) {
+      this.logger.info('AppService', 'Reconfiguration HA WebSocket...');
+      this.haWsClient.reconfigure(config.ha.ws);
+    }
+
+    // Reconfigurer le logger si le niveau a changé
+    if (config.logging?.level && this.logger) {
+      const newLevel = config.logging.level as 'debug' | 'info' | 'warn' | 'error';
+      if (newLevel !== this.logger.getLevel()) {
+        this.logger.info('AppService', `Reconfiguration du niveau de log: ${newLevel}`);
+        this.logger.setLevel(newLevel);
+      }
+    }
+    
+    this.logger.info('AppService', 'Reconfiguration des composants HA terminée');
   }
 
   /**
@@ -200,7 +233,7 @@ export class AppService {
       // Chemin vers le répertoire applications
       const projectRoot = process.env.PROJECT_ROOT || path.resolve(path.join(__dirname, '../../../'));
       const appsDir = path.join(projectRoot, 'applications');
-      
+
       // Lister les répertoires dans applications/ (exclure core et desactivees)
       let dirs: Dirent[] = [];
       
@@ -905,8 +938,8 @@ export class AppService {
       // Recharger la configuration
       this.configService.reload();
       
-      // Redémarrer l'application si nécessaire (via RestartManager)
-      this.restartManager.scheduleRestart();
+      // Émettre un événement pour notifier que la config a été rechargée
+      this.eventBus.emit('config:reload', { timestamp: new Date().toISOString() });
     } else {
       this.eventBus.emit('config:save:result', {
         success: false,

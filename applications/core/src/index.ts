@@ -5,6 +5,39 @@
 import { config as dotenvConfig } from 'dotenv';
 dotenvConfig();
 
+import * as path from 'node:path';
+
+// =============================================================================
+// Initialisation globale - Trouver la racine du projet
+// =============================================================================
+
+/**
+ * Trouve la racine du projet en remontant jusqu'à trouver le répertoire 'applications'
+ */
+function findProjectRoot(): string {
+  let currentDir = path.resolve(__dirname);
+  
+  // Remonter jusqu'à trouver le répertoire 'applications'
+  while (currentDir.length > 1) {
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break; // On a atteint la racine du filesystem
+    
+    const dirName = path.basename(currentDir);
+    if (dirName === 'applications') {
+      return parentDir; // La racine du projet est le parent de 'applications'
+    }
+    currentDir = parentDir;
+  }
+  
+  // Fallback : utiliser le calcul par défaut depuis __dirname
+  return path.resolve(path.join(__dirname, '../../../'));
+}
+
+// Définir la racine du projet une fois pour toute l'application
+if (!process.env.PROJECT_ROOT) {
+  process.env.PROJECT_ROOT = findProjectRoot();
+}
+
 import type { Server as HttpServer } from 'node:http';
 
 // Import des services d'infrastructure
