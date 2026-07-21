@@ -164,31 +164,35 @@ export interface IntegrationModuleStatus {
 // =============================================================================
 
 /**
- * Construit le topic de découverte HA.
+ * Construit le topic de découverte HA (standard, inchangé depuis techniques-socle-ha-mqtt_specs v4.6).
  */
 export function getDiscoveryTopic(component: string, objectId: string): string {
   return `homeassistant/${component}/${objectId}/config`;
 }
 
 /**
- * Construit le topic d'état HA.
+ * Construit le topic d'état pour un device, propre à l'espace de noms de l'application.
+ * Conforme à techniques-socle-ha-mqtt_specs v4.9 §8.5.4.
+ * `deviceId` est un identifiant opaque au socle, dont l'encodage est propre à chaque module.
  */
-export function getStateTopic(component: string, objectId: string): string {
-  return `homeassistant/${component}/${objectId}/state`;
+export function getStateTopic(moduleName: string, bridgeInstance: string, deviceId: string): string {
+  return `/${moduleName}/${bridgeInstance}/${deviceId}/state`;
 }
 
 /**
- * Construit le topic de commande HA.
+ * Construit le topic de commande pour un device, propre à l'espace de noms de l'application.
+ * Conforme à techniques-socle-ha-mqtt_specs v4.9 §8.5.4.
  */
-export function getCommandTopic(component: string, objectId: string): string {
-  return `homeassistant/${component}/${objectId}/set`;
+export function getCommandTopic(moduleName: string, bridgeInstance: string, deviceId: string): string {
+  return `/${moduleName}/${bridgeInstance}/${deviceId}/set`;
 }
 
 /**
- * Construit le topic LWT pour un module.
+ * Construit le topic de statut (LWT) d'un bridge_instance.
+ * Un LWT par bridge_instance (pas par module) : voir techniques-socle-ha-mqtt_specs v4.9 §8.5.1.
  */
-export function getLwtTopic(moduleName: string): string {
-  return `ha-integration/${moduleName}/status`;
+export function getBridgeStatusTopic(moduleName: string, bridgeInstance: string): string {
+  return `/${moduleName}/${bridgeInstance}/status`;
 }
 
 /**
@@ -196,6 +200,21 @@ export function getLwtTopic(moduleName: string): string {
  */
 export function getAvailabilityTopic(component: string, objectId: string): string {
   return `homeassistant/${component}/${objectId}/availability`;
+}
+
+/**
+ * Réécrit le premier segment d'un topic source en `homeassistant`.
+ * Utilisé par le mode "découverte" du Passthrough MQTT (techniques-socle-ha-mqtt_specs v4.9 §8.5.6) :
+ * une application relaie un message de découverte lu sur un préfixe étranger
+ * (ex: "homeassist/sensor/x/config") vers le préfixe HA standard.
+ */
+export function rewriteToHomeAssistantPrefix(sourceTopic: string): string {
+  const segments = sourceTopic.split('/').filter((segment) => segment.length > 0);
+  if (segments.length === 0) {
+    return sourceTopic;
+  }
+  segments[0] = 'homeassistant';
+  return (sourceTopic.startsWith('/') ? '/' : '') + segments.join('/');
 }
 
 // =============================================================================

@@ -25,6 +25,7 @@ import { PresentationServer } from './presentation/server/index';
 // Import des clients HA (si disponibles)
 import type { HaWsClient } from './ha/sync/HaWsClient';
 import type { HaStructureRegistry } from './ha/sync/HaStructureRegistry';
+import type { IntegrationBridge } from './ha/integration/IntegrationBridge';
 
 // =============================================================================
 // Bootstrap de l'application
@@ -49,6 +50,7 @@ class ApplicationBootstrap {
   private appService?: AppService;
   private haWsClient?: HaWsClient;
   private haStructureRegistry?: HaStructureRegistry;
+  private integrationBridge?: IntegrationBridge;
 
   /**
    * Initialise toutes les dépendances
@@ -149,11 +151,28 @@ class ApplicationBootstrap {
           this.logger
         );
 
-        this.logger.info('Bootstrap', 'Composants HA initialisés');
+        this.logger.info('Bootstrap', 'Composants HA WebSocket initialisés');
       } catch (error) {
-        this.logger?.warn('Bootstrap', `Échec de l'initialisation HA: ${error}`);
+        this.logger?.warn('Bootstrap', `Échec de l'initialisation HA WebSocket: ${error}`);
         // HA est optionnel, continuer sans
       }
+    }
+
+    // IntegrationBridge est toujours instancié : il gère lui-même l'activation/désactivation
+    // dynamique via ha.mqtt_enable (voir IntegrationBridge.handleConfigSaveResult), et les
+    // bridges ne se connectent qu'à l'enregistrement d'un module d'intégration.
+    try {
+      const bridgeModule = await import('./ha/integration/IntegrationBridge');
+      this.integrationBridge = new bridgeModule.IntegrationBridge(this.eventBus, this.logger, this.configService);
+      this.integrationBridge.initialize();
+      this.logger.info('Bootstrap', 'IntegrationBridge initialisé');
+    } catch (error) {
+      this.logger?.warn('Bootstrap', `Échec de l'initialisation d'IntegrationBridge: ${error}`);
+    }
+
+    // Si au moins un composant HA est initialisé
+    if (this.haWsClient || this.haStructureRegistry) {
+      this.logger.info('Bootstrap', 'Composants HA initialisés');
     }
   }
 

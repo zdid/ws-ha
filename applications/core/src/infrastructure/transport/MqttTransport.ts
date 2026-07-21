@@ -16,6 +16,8 @@ export interface MqttTransportConfig {
   keepalive: number;
   reconnectDelay: number;
   clean?: boolean;
+  /** Topic du LWT (Last Will and Testament). Défaut : `app/{clientId}/status`. */
+  willTopic?: string;
 }
 
 /**
@@ -214,7 +216,7 @@ export class MqttTransport {
       password: this.config.password || undefined,
       // Configuration du LWT (Last Will and Testament)
       will: {
-        topic: `${LWT_TOPIC_PREFIX}/${this.config.clientId}/status`,
+        topic: this.getWillTopic(),
         payload: LWT_PAYLOAD_OFFLINE,
         retain: true,
         qos: 1,
@@ -305,8 +307,25 @@ export class MqttTransport {
   private publishLwt(payload: string, retain: boolean = true): void {
     if (!this.client || !this.isConnected) return;
 
-    const topic = `${LWT_TOPIC_PREFIX}/${this.config.clientId}/status`;
-    this.client.publish(topic, payload, { qos: 1, retain });
+    this.client.publish(this.getWillTopic(), payload, { qos: 1, retain });
+  }
+
+  /**
+   * Topic du LWT, configurable via `config.willTopic` (défaut : `app/{clientId}/status`).
+   */
+  private getWillTopic(): string {
+    return this.config.willTopic ?? `${LWT_TOPIC_PREFIX}/${this.config.clientId}/status`;
+  }
+
+  /**
+   * Flip manuel du statut retained online/offline, sans fermer la connexion.
+   * Utile quand l'application détecte elle-même la perte d'un matériel en aval
+   * (ex: port série débranché) sans que la connexion MQTT elle-même ne tombe —
+   * dans ce cas le LWT natif (déclenché uniquement à la perte de connexion) ne suffit pas.
+   * @param online - true pour publier "online", false pour "offline"
+   */
+  publishStatus(online: boolean): void {
+    this.publishLwt(online ? LWT_PAYLOAD_ONLINE : LWT_PAYLOAD_OFFLINE, true);
   }
 
   // ===========================================================================

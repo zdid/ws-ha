@@ -1,8 +1,8 @@
 # PROMPT PROJET - Règles de Développement
 
-**Version : 1.2**
-**Date : 19 Juillet 2026**
-**Dernière mise à jour : Restructuration de l'arborescence (applications/ à la racine) + précisions sur l'activation/désactivation + ajout sections Gestion des Spécifications (redondances et liste des specs nécessaires)**
+**Version : 1.3**
+**Date : 21 Juillet 2026**
+**Dernière mise à jour : Correction des références obsolètes vers les specs suite au nettoyage Alpine.js et à l'audit de nommage du 21/07/2026, PUIS passage de toutes les mentions de specs à un format sans numéro de version (ex: `techniques-socle-ha-mqtt_specs` au lieu de `techniques-socle-ha-mqtt_specs_v4.7.md`) dans les tableaux §11 et la structure recommandée, pour éviter que ce document se périme à chaque nouvelle version de spec. Ajout de la référence à `inter-app-communication_specs`. Précision sur la convention de nommage à deux niveaux effectivement en usage.**
 
 ## 📚 Table des Matières
 1. [Règles Fondamentales](#-règles-fondamentales)
@@ -48,6 +48,8 @@ Les fichiers de spécification **doivent** contenir la version dans leur nom.
 - `api_specs_v1.0.0.md`
 - `database_schema_v2.1.0.sql`
 - `requirements_v3.0.0-beta.txt`
+
+> **Note (v1.3)** : En pratique, les specs de `specs/current/` utilisent un format à **deux niveaux** `v[MAJEURE].[MINEURE]` (ex : `v4.7`, `v1.0`), le `PATCH` étant omis sauf besoin explicite. Le format ci-dessus reste la référence théorique complète ; la convention à deux niveaux est la norme effective du projet — s'y tenir pour toute nouvelle spec.
 
 ### 4. **Gestion des Dates dans les Fichiers**
 Pour permettre le contrôle de version, **TOUJOURS** inclure un commentaire de date/heure correspondant à la date heure minutes secondes de le modification dans les fichiers principaux (index.html, etc.).
@@ -204,16 +206,24 @@ diff -r original/ backups/original_backup_2026-07-12/
 projet/
 ├── specs/                  # Spécifications (toujours conservées)
 │   ├── current/            # Version actuelle
-│   │   ├── architectural-patterns_specs-v1.0.md
-│   │   ├── classification-rfxcom_specs_v1.0.md
-│   │   ├── erreurs_specs_v1.0.md
-│   │   ├── fonctionnelles-rfxcom_specs_v5.5.md
-│   │   ├── implementation-rfxcom_specs_v1.2.md
-│   │   ├── integrationbridge-mqtt-auto_specs_v1.0.md
-│   │   ├── nommage_specs_v1.0.md
-│   │   ├── presentation_specs_v3.2.md
-│   │   ├── recepteurs-emetteurs-rfxcom_specs_v5.0.md
-│   │   └── techniques-socle-ha-mqtt_specs_v4.6.md
+│   │   ├── architectural-patterns_specs.md      # + suffixe de version, ex: _v1.0.md
+│   │   ├── classification-rfxcom_specs.md
+│   │   ├── erreurs_specs.md
+│   │   ├── fonctionnelles-arbreouquoi_specs.md
+│   │   ├── fonctionnelles-nommage_specs.md
+│   │   ├── fonctionnelles-rfxcom_specs.md
+│   │   ├── guide-nouvelle-application_specs.md
+│   │   ├── implementation-arbreouquoi_specs.md
+│   │   ├── implementation-nommage_specs.md
+│   │   ├── implementation-rfxcom_specs.md
+│   │   ├── integrationbridge-mqtt-auto_specs.md
+│   │   ├── inter-app-communication_specs.md
+│   │   ├── nommage_specs.md
+│   │   ├── presentation_specs.md
+│   │   ├── recepteurs-emetteurs-rfxcom_specs.md
+│   │   └── techniques-socle-ha-mqtt_specs.md
+│   │       # ⚠️ Chaque fichier réel porte un suffixe de version (ex: techniques-socle-ha-mqtt_specs_v4.9.md).
+│   │       # Voir specs/current/ pour la version exacte actuellement en vigueur.
 │   ├── archives/           # Versions obsolètes
 │   │   └── vX.Y.Z/
 │   │       └── [fichiers archivés]
@@ -327,7 +337,7 @@ projet/
 #### 🟡 Règles de Référencement
 - **✅ TOUJOURS** lier vers le document de référence (`techniques-socle-ha-mqtt_specs`) pour les concepts communs
 - **❌ JAMAIS** dupliquer une explication complète si elle existe déjà dans le socle
-- **✅ Utiliser** des références croisées : `[Voir §X dans techniques-socle-ha-mqtt_specs_v4.6.md](#)`
+- **✅ Utiliser** des références croisées : `[Voir §X dans techniques-socle-ha-mqtt_specs](#)` (sans numéro de version — chercher le fichier `_vX.Y.md` le plus récent dans `specs/current/`)
 
 ---
 
@@ -335,33 +345,38 @@ projet/
 
 #### 📌 Pour TOUTE Nouvelle Application
 
-| **N°** | **Spécification** | **Version** | **Rôle** | **Obligatoire** |
-|--------|-------------------|-------------|----------|----------------|
-| 1 | `PROMPT_PROJET.md` | v1.1+ | Règles de développement et gestion des specs | ✅ Oui |
-| 2 | `techniques-socle-ha-mqtt_specs_v4.6.md` | v4.6+ | **Socle Commun** : Architecture 5 couches, EventBus, Socket.io, MQTT, AppService, RestartManager | ✅ Oui |
-| 3 | `nommage_specs_v1.0.md` | v1.0 | Conventions de nommage (QUOI/OÙ, taxonomie) | ✅ Oui |
-| 4 | `guide-nouvelle-application_specs_v1.3.md` | v1.3 | Guide pratique étape par étape | ✅ Oui |
+| **N°** | **Spécification** | **Rôle** | **Obligatoire** |
+|--------|-------------------|----------|----------------|
+| 1 | `PROMPT_PROJET.md` | Règles de développement et gestion des specs | ✅ Oui |
+| 2 | `techniques-socle-ha-mqtt_specs` | **Socle Commun** : Architecture 5 couches, EventBus, Socket.io, MQTT, AppService, RestartManager | ✅ Oui |
+| 3 | `nommage_specs` | Conventions de nommage (QUOI/OÙ, taxonomie) | ✅ Oui |
+| 4 | `guide-nouvelle-application_specs` | Guide pratique étape par étape | ✅ Oui |
+
+> Ces noms sont **sans numéro de version** : toujours prendre la version la plus récente présente dans `specs/current/` (ex: `techniques-socle-ha-mqtt_specs_v4.9.md`).
 
 #### 📌 Pour Applications Spécifiques
 
 | **Type d'Application** | **Spécifications Additionnelles** | **Cas d'Usage** |
 |------------------------|----------------------------------|-----------------|
-| **Intégration MQTT** (RFXCOM, Zigbee2MQTT, etc.) | `integrationbridge-mqtt-auto_specs_v1.0.md` | Applications intégrant du matériel via MQTT |
-| **Application RFXCOM** | `fonctionnelles-rfxcom_specs_v5.5.md` + `recepteurs-emetteurs-rfxcom_specs_v5.0.md` + `classification-rfxcom_specs_v1.0.md` + `implementation-rfxcom_specs_v1.0.md` | **Maintenance et développement** spécifique RFXCOM |
-| **UI Avancée** | `presentation_specs_v3.0.md` | Applications avec interface complexe |
-| **Gestion d'erreurs fine** | `erreurs_specs_v1.0.md` | Applications nécessitant une gestion d'erreur spécifique |
-| **Patterns Architecturaux** | `architectural-patterns_specs-v1.0.md` | Pour comprendre les patterns MQTT/WS globaux |
+| **Intégration MQTT** (RFXCOM, Zigbee2MQTT, etc.) | `integrationbridge-mqtt-auto_specs` | Applications intégrant du matériel via MQTT |
+| **Application RFXCOM** | `fonctionnelles-rfxcom_specs` + `recepteurs-emetteurs-rfxcom_specs` + `classification-rfxcom_specs` + `implementation-rfxcom_specs` | **Maintenance et développement** spécifique RFXCOM |
+| **UI Avancée** | `presentation_specs` | Applications avec interface complexe |
+| **Gestion d'erreurs fine** | `erreurs_specs` | Applications nécessitant une gestion d'erreur spécifique |
+| **Patterns Architecturaux** | `architectural-patterns_specs` | Pour comprendre les patterns MQTT/WS globaux |
+| **Communication Inter-Applications** | `inter-app-communication_specs` | Toute application (sauf core) exposant ou consommant des capacités d'une autre application |
 
 #### ⚡ Ordre de Lecture Recommandé
 
 ```
 1️⃣  PROMPT_PROJET.md → Règles de développement
      ↓
-2️⃣  techniques-socle-ha-mqtt_specs_v4.6.md → Socle Commun (OBLIGATOIRE)
+2️⃣  techniques-socle-ha-mqtt_specs → Socle Commun (OBLIGATOIRE)
      ↓
-3️⃣  nommage_specs_v1.0.md → Conventions de nommage
+3️⃣  nommage_specs → Conventions de nommage
      ↓
-4️⃣  guide-nouvelle-application_specs_v1.3.md → Guide pratique
+4️⃣  guide-nouvelle-application_specs → Guide pratique
+     ↓
+4️⃣.5  inter-app-communication_specs → Communication inter-applications (obligatoire sauf core)
      ↓
 5️⃣  [Spécs Spécifiques] → Selon type d'application
 ```

@@ -31,10 +31,10 @@
 
 ### Pendant le travail :
 ```
-1. Respecter les conventions de nommage (voir nommage_specs_v1.0.md)
-2. Respecter les patterns architecturaux (voir architectural-patterns_specs-v1.0.md)
-3. Appliquer les règles de gestion des erreurs (voir erreurs_specs_v1.0.md)
-4. Suivre les spécifications fonctionnelles (voir fonctionnelles-rfxcom_specs_v5.0.md)
+1. Respecter les conventions de nommage (voir nommage_specs)
+2. Respecter les patterns architecturaux (voir architectural-patterns_specs)
+3. Appliquer les règles de gestion des erreurs (voir erreurs_specs)
+4. Suivre les spécifications fonctionnelles de l'application concernée (voir fonctionnelles-{app}_specs, ex: fonctionnelles-rfxcom_specs)
 ```
 
 ### Après modification :
@@ -50,18 +50,26 @@
 
 ## 📁 Structure des Spécifications Actuelles
 
-| Fichier | Description | Version |
-|--------|-------------|---------|
-| `architectural-patterns_specs-v1.0.md` | Patterns architecturaux | v1.0 |
-| `classification-rfxcom_specs_v1.0.md` | Classification RFXCOM | v1.0 |
-| `erreurs_specs_v1.0.md` | Gestion des erreurs | v1.0 |
-| `fonctionnelles-rfxcom_specs_v5.0.md` | Spécifications fonctionnelles RFXCOM | v5.0 |
-| `implementation-rfxcom_specs_v1.0.md` | Implémentation RFXCOM | v1.0 |
-| `integrationbridge-mqtt-auto_specs_v1.0.md` | Intégration Bridge MQTT Auto | v1.0 |
-| `nommage_specs_v1.0.md` | Conventions de nommage | v1.0 |
-| `presentation_specs_v3.0.md` | Spécifications de présentation | v3.0 |
-| `recepteurs-emetteurs-rfxcom_specs_v5.0.md` | Récepteurs/Émetteurs RFXCOM | v5.0 |
-| `techniques-socle-ha-mqtt_specs_v4.4.md` | Spécifications techniques socle | v4.4 |
+> ⚠️ Liste **sans numéro de version** : chaque nom ci-dessous est un préfixe de base — le fichier réel dans `specs/current/` porte toujours un suffixe `_vX.Y.md` (ex: `techniques-socle-ha-mqtt_specs_v4.9.md`). Toujours utiliser la version la plus récente présente dans `specs/current/`.
+
+| Fichier (base, sans version) | Description |
+|---|---|
+| `architectural-patterns_specs` | Patterns architecturaux MQTT/WS |
+| `classification-rfxcom_specs` | Classifieur RFXCOM (IHaClassifier) |
+| `erreurs_specs` | Codes d'erreur et états standardisés |
+| `fonctionnelles-arbreouquoi_specs` | Spécifications fonctionnelles ARBREOUQUOI |
+| `fonctionnelles-nommage_specs` | Spécifications fonctionnelles NOMMAGE |
+| `fonctionnelles-rfxcom_specs` | Spécifications fonctionnelles RFXCOM |
+| `guide-nouvelle-application_specs` | Guide de création d'une nouvelle application |
+| `implementation-arbreouquoi_specs` | Implémentation ARBREOUQUOI |
+| `implementation-nommage_specs` | Implémentation NOMMAGE |
+| `implementation-rfxcom_specs` | Implémentation RFXCOM |
+| `integrationbridge-mqtt-auto_specs` | Démarrage/arrêt automatique MQTT et HA-WS |
+| `inter-app-communication_specs` | Communication inter-applications (Request/Reply, EventBus partagé) |
+| `nommage_specs` | Conventions de nommage QUOI/OÙ |
+| `presentation_specs` | Couche Présentation (TypeScript + Web Components) |
+| `recepteurs-emetteurs-rfxcom_specs` | Récepteurs/Émetteurs RFXCOM |
+| `techniques-socle-ha-mqtt_specs` | Spécifications techniques du socle (architecture 5 couches) |
 
 ---
 
