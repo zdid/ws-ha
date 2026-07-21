@@ -3,7 +3,7 @@
  * Gestion des conventions de nommage et taxonomie (QUOI/OÙ)
  */
 
-import type { HaStructuredEntity } from '../../../../ha/types/ha-structure';
+import type { HaStructuredEntity } from '../../../core/src/exports';
 
 // ============================================================================
 // Types pour le parsing QUOI/OÙ (basé sur nommage_specs_v1.0.md)
@@ -106,30 +106,6 @@ export interface NommageDiscoveryEvent {
   type: 'nommage:discovery:parsed';
   data: ParsedTaxonomy;
   timestamp: Date;
-}
-
-/**
- * Configuration de l'intégration MQTT pour NOMMAGE
- */
-export interface NommageMqttConfig {
-  // Connexion MQTT
-  host: string;
-  port: number;
-  username?: string;
-  password?: string;
-  clientId?: string;
-  keepalive?: number;
-  reconnectPeriod?: number;
-  
-  // Topics à écouter (pour la découverte)
-  discoveryTopics: string[];
-  
-  // Préfixe des topics (ex: "ha/", "homeassistant/")
-  topicPrefix: string;
-  
-  // QoS et retain
-  qos?: 0 | 1 | 2;
-  retain?: boolean;
 }
 
 /**

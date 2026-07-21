@@ -9,7 +9,9 @@
  * Note: UI minimaliste pour l'instant - juste affiche la présence de l'application
  */
 
-import { SocketService } from '../../../../ui/ts/services/SocketService';
+// Import SocketService depuis le core (point d'entrée UI navigateur, pas le backend)
+// Chemin depuis applications/nommage/src/presentation/ts/ vers applications/core/src/ui-exports
+import { SocketService } from '../../../../core/src/ui-exports';
 
 // ============================================================================
 // Types pour les données reçues
@@ -57,7 +59,7 @@ interface TaxonomyStructure {
 // ============================================================================
 
 let appStatus: NommageStatus | null = null;
-let socket: ReturnType<typeof SocketService.getInstance> | null = null;
+let socket: any | null = null;
 
 // ============================================================================
 // Initialisation
@@ -68,8 +70,9 @@ let socket: ReturnType<typeof SocketService.getInstance> | null = null;
  */
 function init(): void {
   try {
-    // Récupérer le socket
-    socket = SocketService.getInstance();
+    // Créer et connecter le socket
+    const socketService = new SocketService();
+    socket = socketService.connect();
     
     // Configurer les écouteurs d'événements
     setupEventListeners();

@@ -14,9 +14,7 @@
  *    → Tout passe par EventBus et interfaces injectées
  */
 
-import type { IEventBus } from '../../../../application/IEventBus';
-import type { Logger } from '../../../../infrastructure/logger/index';
-import type { IAppConfigProvider } from '../../../../infrastructure/config/IAppConfigProvider';
+import type { IEventBus, Logger, IAppConfigProvider } from '../../../core/src/exports';
 import type { INommageMqttIntegrationService } from '../ha/integration/nommage/NommageMqttIntegrationService';
 import type { NommageConfig } from './config-schema';
 import type {
@@ -65,7 +63,7 @@ export class NommageService implements INommageService {
     private mqttService: INommageMqttIntegrationService
   ) {
     this.config = this.configProvider.getAppConfig();
-    this.discoveryTopics = this.config.mqtt.discoveryTopics;
+    this.discoveryTopics = this.config.couples[0]?.mqtt?.discoveryTopics || [];
     this.setupEventListeners();
   }
   
@@ -124,12 +122,13 @@ export class NommageService implements INommageService {
   private setupEventListeners(): void {
     // Écouter les messages de découverte bruts
     this.eventBus.on('nommage:discovery:raw', 
-      (discoveryMessage: DiscoveryMessage) => {
-        this.handleRawDiscoveryMessage(discoveryMessage);
+      (data: unknown) => {
+        this.handleRawDiscoveryMessage(data as DiscoveryMessage);
       });
     
     // Écouter les changements de statut MQTT
-    this.eventBus.on('nommage:mqtt:status', (status: { connected: boolean }) => {
+    this.eventBus.on('nommage:mqtt:status', (data: unknown) => {
+      const status = data as { connected: boolean };
       this.mqttConnected = status.connected;
       this.updateStatus();
       this.emitStatus();
@@ -146,8 +145,8 @@ export class NommageService implements INommageService {
     });
     
     // Écouter les demandes de sauvegarde de config
-    this.eventBus.on('nommage:config:save', (config: Partial<NommageConfig>) => {
-      this.saveConfig(config);
+    this.eventBus.on('nommage:config:save', (data: unknown) => {
+      this.saveConfig(data as Partial<NommageConfig>);
     });
   }
   
@@ -166,8 +165,6 @@ export class NommageService implements INommageService {
       if (parsed) {
         discoveryMessage.rawQuoi = parsed.quoi.raw;
         discoveryMessage.slugQuoi = parsed.quoi.slug;
-        discoveryMessage.rawLieux = parsed.rawLieux || '';
-        discoveryMessage.lieuxSegments = parsed.lieuxSegments || [];
         discoveryMessage.nomPrecis = parsed.ou.precis?.raw;
         discoveryMessage.slugPrecis = parsed.ou.precis?.slug;
         discoveryMessage.nomLieu = parsed.ou.lieu?.raw;
@@ -204,7 +201,7 @@ export class NommageService implements INommageService {
         this.logger.info('NommageService', 
           `Message parsed: QUOI="${parsed.quoi.raw}" | LIEU="${parsed.ou.lieu?.raw || 'N/A'}"`);
         
-        if (this.config.logging.showParsedMessages) {
+        if (this.config.couples[0]?.logging?.showParsedMessages) {
           this.logger.debug('NommageService', 
             `Parsed: ${JSON.stringify(parsed, null, 2)}`);
         }
@@ -300,8 +297,8 @@ export class NommageService implements INommageService {
       haAreaId: nomLieu ? this.slugify(nomLieu.raw) : undefined,
       haAreaName: nomLieu?.raw,
       // Générer une entity_id suggérée
-      haEntityId: nomLieu ? `${this.config.ha.objectIdPrefix}${slugQuoi}_${nomLieu.slug}` : 
-                   `${this.config.ha.objectIdPrefix}${slugQuoi}`,
+      haEntityId: nomLieu ? `${this.config.couples[0]?.ha?.objectIdPrefix}${slugQuoi}_${nomLieu.slug}` : 
+                   `${this.config.couples[0]?.ha?.objectIdPrefix}${slugQuoi}`,
       // Attributs pour HA
       haAttributes: {
         attributs_taxonomie: {
@@ -341,8 +338,8 @@ export class NommageService implements INommageService {
    * Générer une entity_id pour HA
    */
   private generateEntityId(parsed: ParsedTaxonomy): string {
-    const prefix = this.config.ha.objectIdPrefix;
-    const domain = this.config.ha.defaultDomain;
+    const prefix = this.config.couples[0]?.ha?.objectIdPrefix || 'nommage_';
+    const domain = this.config.couples[0]?.ha?.defaultDomain || 'sensor';
     const quoi = parsed.quoi.slug;
     const lieu = parsed.ou.lieu?.slug || 'unknown';
     
@@ -357,7 +354,7 @@ export class NommageService implements INommageService {
    * Transmettre la structure parsée au core pour envoi à HA
    */
   private transmitToCore(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonomy): void {
-    if (!this.config.ha.autoTransmit) {
+    if (!this.config.couples[0]?.ha?.autoTransmit) {
       this.logger.debug('NommageService', 'Transmission automatique désactivée');
       return;
     }
@@ -421,9 +418,9 @@ export class NommageService implements INommageService {
   
   private async saveConfig(partialConfig: Partial<NommageConfig>): Promise<void> {
     try {
-      await this.configProvider.savePartialConfig(partialConfig);
+      await this.configProvider.savePartialConfig(partialConfig as NommageConfig);
       this.config = this.configProvider.getAppConfig();
-      this.discoveryTopics = this.config.mqtt.discoveryTopics;
+      this.discoveryTopics = this.config.couples[0]?.mqtt?.discoveryTopics || [];
       
       // Reconfigurer le service MQTT si nécessaire
       await this.mqttService.disconnect();

@@ -10,44 +10,13 @@
  * Note: Ce fichier doit être compilé en JavaScript avant utilisation
  */
 
-import { SocketService } from '../../../../../ui/ts/services/SocketService';
+import { SocketService } from '../../../../core/src/ui-exports';
+import type { NommageConfig, NommageLoggingConfig } from '../../domain/config-schema';
+import { DEFAULT_NOMMAGE_CONFIG } from '../../domain/config-schema';
 
 // ============================================================================
 // Types pour la configuration
 // ============================================================================
-
-interface NommageConfig {
-  // MQTT
-  mqtt?: {
-    host: string;
-    port: number;
-    username?: string;
-    password?: string;
-    clientId: string;
-    topicPrefix: string;
-    discoveryTopics: string[];
-    qos: '0' | '1' | '2';
-    retain: boolean;
-    useTls: boolean;
-  };
-  
-  // Home Assistant
-  ha?: {
-    autoTransmit: boolean;
-    defaultComponent: string;
-    defaultDomain: string;
-    objectIdPrefix: string;
-    autoCreateAreas: boolean;
-    injectTaxonomyAttributes: boolean;
-  };
-  
-  // Logging
-  logging?: {
-    level: 'debug' | 'info' | 'warn' | 'error';
-    showRawMessages: boolean;
-    showParsedMessages: boolean;
-  };
-}
 
 interface FormErrors {
   [key: string]: string;
@@ -57,8 +26,8 @@ interface FormErrors {
 // État de l'application
 // ============================================================================
 
-let socket: ReturnType<typeof SocketService.getInstance> | null = null;
-let currentConfig: NommageConfig = {};
+let socket: any | null = null;
+let currentConfig: NommageConfig = { ...DEFAULT_NOMMAGE_CONFIG };
 let formErrors: FormErrors = {};
 let isLoading = false;
 
@@ -71,8 +40,9 @@ let isLoading = false;
  */
 function initConfigPage(): void {
   try {
-    // Récupérer le socket
-    socket = SocketService.getInstance();
+    // Créer et connecter le socket
+    const socketService = new SocketService();
+    socket = socketService.connect();
     
     // Configurer les écouteurs
     setupConfigEventListeners();
@@ -132,8 +102,8 @@ function setupConfigEventListeners(): void {
     hideLoading();
     
     if (response.success) {
-      currentConfig = {};
-      populateForm({});
+      currentConfig = { ...DEFAULT_NOMMAGE_CONFIG };
+      populateForm(currentConfig);
       showAlert('Configuration réinitialisée avec succès!', 'success');
     } else {
       showAlert(response.message || 'Erreur lors de la réinitialisation', 'error');
@@ -179,37 +149,43 @@ function loadConnectionStatus(): void {
  * Remplir le formulaire avec la configuration
  */
 function populateForm(config: NommageConfig): void {
+  // Récupérer le premier couple (ou valeurs par défaut)
+  const couple = config.couples[0] || DEFAULT_NOMMAGE_CONFIG.couples[0];
+  const mqtt = couple.mqtt || DEFAULT_NOMMAGE_CONFIG.couples[0].mqtt;
+  const ha = couple.ha || DEFAULT_NOMMAGE_CONFIG.couples[0].ha;
+  const logging: NommageLoggingConfig = couple.logging || DEFAULT_NOMMAGE_CONFIG.couples[0].logging || { level: 'info', showRawMessages: false, showParsedMessages: false };
+  
   // MQTT
-  if (config.mqtt) {
-    setFormValue('mqtt-host', config.mqtt.host);
-    setFormValue('mqtt-port', config.mqtt.port);
-    setFormValue('mqtt-username', config.mqtt.username || '');
-    setFormValue('mqtt-password', config.mqtt.password || '');
-    setFormValue('mqtt-clientId', config.mqtt.clientId);
-    setFormValue('mqtt-topicPrefix', config.mqtt.topicPrefix);
-    setFormValue('mqtt-qos', config.mqtt.qos || '1');
-    setFormValue('mqtt-retain', config.mqtt.retain !== false);
-    setFormValue('mqtt-useTls', config.mqtt.useTls || false);
+  if (mqtt) {
+    setFormValue('mqtt-host', mqtt.host);
+    setFormValue('mqtt-port', mqtt.port);
+    setFormValue('mqtt-username', mqtt.username || '');
+    setFormValue('mqtt-password', mqtt.password || '');
+    setFormValue('mqtt-clientId', mqtt.clientId);
+    setFormValue('mqtt-topicPrefix', mqtt.topicPrefix);
+    setFormValue('mqtt-qos', mqtt.qos || '1');
+    setFormValue('mqtt-retain', mqtt.retain !== false);
+    setFormValue('mqtt-useTls', mqtt.useTls || false);
     
     // Topics de découverte
-    renderDiscoveryTopics(config.mqtt.discoveryTopics || []);
+    renderDiscoveryTopics(mqtt.discoveryTopics || []);
   }
   
   // Home Assistant
-  if (config.ha) {
-    setFormValue('ha-autoTransmit', config.ha.autoTransmit !== false);
-    setFormValue('ha-defaultComponent', config.ha.defaultComponent || 'sensor');
-    setFormValue('ha-defaultDomain', config.ha.defaultDomain || 'sensor');
-    setFormValue('ha-objectIdPrefix', config.ha.objectIdPrefix || 'nommage_');
-    setFormValue('ha-autoCreateAreas', config.ha.autoCreateAreas !== false);
-    setFormValue('ha-injectTaxonomyAttributes', config.ha.injectTaxonomyAttributes !== false);
+  if (ha) {
+    setFormValue('ha-autoTransmit', ha.autoTransmit !== false);
+    setFormValue('ha-defaultComponent', ha.defaultComponent || 'sensor');
+    setFormValue('ha-defaultDomain', ha.defaultDomain || 'sensor');
+    setFormValue('ha-objectIdPrefix', ha.objectIdPrefix || 'nommage_');
+    setFormValue('ha-autoCreateAreas', ha.autoCreateAreas !== false);
+    setFormValue('ha-injectTaxonomyAttributes', ha.injectTaxonomyAttributes !== false);
   }
   
   // Logging
-  if (config.logging) {
-    setFormValue('logging-level', config.logging.level || 'info');
-    setFormValue('logging-showRawMessages', config.logging.showRawMessages || false);
-    setFormValue('logging-showParsedMessages', config.logging.showParsedMessages || false);
+  if (logging) {
+    setFormValue('logging-level', logging.level || 'info');
+    setFormValue('logging-showRawMessages', logging.showRawMessages || false);
+    setFormValue('logging-showParsedMessages', logging.showParsedMessages || false);
   }
 }
 
@@ -217,7 +193,7 @@ function populateForm(config: NommageConfig): void {
  * Définir la valeur d'un champ de formulaire
  */
 function setFormValue(id: string, value: any): void {
-  const element = document.getElementById(id);
+  const element = document.getElementById(id) as HTMLInputElement | null;
   
   if (!element) {
     console.warn(`[NOMMAGE Config] Élément non trouvé: ${id}`);
@@ -225,7 +201,7 @@ function setFormValue(id: string, value: any): void {
   }
   
   if (element.type === 'checkbox') {
-    (element as HTMLInputElement).checked = Boolean(value);
+    element.checked = Boolean(value);
   } else {
     element.value = value;
   }
@@ -263,24 +239,26 @@ function renderDiscoveryTopics(topics: string[]): void {
  * Obtenir la configuration depuis le formulaire
  */
 function getFormConfig(): NommageConfig {
-  const config: NommageConfig = {};
-  
   // MQTT
-  config.mqtt = {
+  const mqtt = {
     host: getFormValue('mqtt-host', 'string') || 'localhost',
     port: getFormValue('mqtt-port', 'number') || 1883,
     username: getFormValue('mqtt-username', 'string') || undefined,
     password: getFormValue('mqtt-password', 'string') || undefined,
     clientId: getFormValue('mqtt-clientId', 'string') || 'nommage-app',
-    topicPrefix: getFormValue('mqtt-topicPrefix', 'string') || 'ha/',
+    keepalive: 60,
+    reconnectPeriod: 5000,
+    cleanSession: true,
     discoveryTopics: getDiscoveryTopics(),
-    qos: getFormValue('mqtt-qos', 'string') as '0' | '1' | '2' || '1',
+    topicPrefix: getFormValue('mqtt-topicPrefix', 'string') || 'ha/',
+    qos: Number(getFormValue('mqtt-qos', 'string')) || 1,
     retain: getFormValue('mqtt-retain', 'boolean') !== false,
-    useTls: getFormValue('mqtt-useTls', 'boolean') || false
+    useTls: getFormValue('mqtt-useTls', 'boolean') || false,
+    rejectUnauthorized: true
   };
   
   // Home Assistant
-  config.ha = {
+  const ha = {
     autoTransmit: getFormValue('ha-autoTransmit', 'boolean') !== false,
     defaultComponent: getFormValue('ha-defaultComponent', 'string') || 'sensor',
     defaultDomain: getFormValue('ha-defaultDomain', 'string') || 'sensor',
@@ -290,20 +268,23 @@ function getFormConfig(): NommageConfig {
   };
   
   // Logging
-  config.logging = {
-    level: getFormValue('logging-level', 'string') as 'debug' | 'info' | 'warn' | 'error' || 'info',
+  const logging = {
+    level: (getFormValue('logging-level', 'string') as 'debug' | 'info' | 'warn' | 'error') || 'info',
     showRawMessages: getFormValue('logging-showRawMessages', 'boolean') || false,
     showParsedMessages: getFormValue('logging-showParsedMessages', 'boolean') || false
   };
   
-  return config;
+  return {
+    enabled: true,
+    couples: [{ mqtt, ha, logging }]
+  };
 }
 
 /**
  * Obtenir la valeur d'un champ de formulaire
  */
 function getFormValue(id: string, type: string): any {
-  const element = document.getElementById(id);
+  const element = document.getElementById(id) as HTMLInputElement | null;
   
   if (!element) {
     console.warn(`[NOMMAGE Config] Élément non trouvé: ${id}`);
@@ -313,7 +294,7 @@ function getFormValue(id: string, type: string): any {
   switch (type) {
     case 'boolean':
       if (element.type === 'checkbox') {
-        return (element as HTMLInputElement).checked;
+        return element.checked;
       }
       return false;
     case 'number':
@@ -346,28 +327,32 @@ function getDiscoveryTopics(): string[] {
 function validateConfig(config: NommageConfig): { valid: boolean; errors: FormErrors } {
   const errors: FormErrors = {};
   
+  // Récupérer le premier couple
+  const couple = config.couples[0] || DEFAULT_NOMMAGE_CONFIG.couples[0];
+  const mqtt = couple.mqtt || {};
+  
   // MQTT - Host requis
-  if (!config.mqtt?.host || config.mqtt.host.trim() === '') {
+  if (!mqtt.host || mqtt.host.trim() === '') {
     errors['mqtt-host'] = 'L\'hôte MQTT est requis';
   }
   
   // MQTT - Port requis
-  if (!config.mqtt?.port || config.mqtt.port < 1 || config.mqtt.port > 65535) {
+  if (!mqtt.port || mqtt.port < 1 || mqtt.port > 65535) {
     errors['mqtt-port'] = 'Le port MQTT doit être compris entre 1 et 65535';
   }
   
   // MQTT - Client ID requis
-  if (!config.mqtt?.clientId || config.mqtt.clientId.trim() === '') {
+  if (!mqtt.clientId || mqtt.clientId.trim() === '') {
     errors['mqtt-clientId'] = 'Le Client ID MQTT est requis';
   }
   
   // Topics de découverte requis
-  if (!config.mqtt?.discoveryTopics || config.mqtt.discoveryTopics.length === 0) {
+  if (!mqtt.discoveryTopics || mqtt.discoveryTopics.length === 0) {
     errors['mqtt-discoveryTopics'] = 'Au moins un topic de découverte est requis';
   }
   
   // Préfixe des topics requis
-  if (!config.mqtt?.topicPrefix || config.mqtt.topicPrefix.trim() === '') {
+  if (!mqtt.topicPrefix || mqtt.topicPrefix.trim() === '') {
     errors['mqtt-topicPrefix'] = 'Le préfixe des topics est requis';
   }
   

@@ -9,9 +9,7 @@
  * Rôle : Abstraction MQTT pour les modules de découverte
  */
 
-import type { IEventBus } from '../../../../../application/IEventBus';
-import type { Logger } from '../../../../../infrastructure/logger/index';
-import type { IAppConfigProvider } from '../../../../../infrastructure/config/IAppConfigProvider';
+import type { IEventBus, Logger, IAppConfigProvider } from '../../../../../core/src/exports';
 import type { NommageConfig } from '../../../domain/config-schema';
 import type { DiscoveryMessage } from '../../../domain/types';
 import * as mqtt from 'mqtt';
@@ -68,7 +66,7 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
     this.isConnecting = true;
     this.config = this.configProvider.getAppConfig();
     
-    const mqttConfig = this.config.mqtt;
+    const mqttConfig = this.config.couples[0]?.mqtt || {};
     const brokerUrl = this.buildBrokerUrl();
     
     this.logger.info('NommageMqttIntegrationService', 
@@ -123,7 +121,7 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
   }
   
   private buildBrokerUrl(): string {
-    const mqttConfig = this.config.mqtt;
+    const mqttConfig = this.config.couples[0]?.mqtt || {};
     const protocol = mqttConfig.useTls ? 'mqtts' : 'mqtt';
     return `${protocol}://${mqttConfig.host}:${mqttConfig.port}`;
   }
@@ -180,7 +178,7 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
     try {
       const message = this.parseMessage(topic, payload);
       
-      if (this.config.logging.showRawMessages) {
+      if (this.config.couples[0]?.logging?.showRawMessages) {
         this.logger.debug('NommageMqttIntegrationService', 
           `Message MQTT reçu - Topic: ${topic}`);
       }
@@ -207,7 +205,7 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
   }
   
   private isDiscoveryTopic(topic: string): boolean {
-    const mqttConfig = this.config.mqtt;
+    const mqttConfig = this.config.couples[0]?.mqtt || {};
     const topicPrefix = mqttConfig.topicPrefix;
     
     // Vérifier si le topic commence par le préfixe configuré
@@ -216,7 +214,7 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
     }
     
     // Vérifier si le topic correspond à un des patterns de découverte
-    for (const pattern of mqttConfig.discoveryTopics) {
+    for (const pattern of mqttConfig.discoveryTopics || []) {
       if (this.topicMatchesPattern(topic, pattern)) {
         return true;
       }
@@ -277,7 +275,7 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
     // Émettre le message brut vers le service métier pour parsing
     this.eventBus.emit('nommage:discovery:raw', discoveryMessage);
     
-    if (this.config.logging.showRawMessages) {
+    if (this.config.couples[0]?.logging?.showRawMessages) {
       this.logger.debug('NommageMqttIntegrationService', 
         `Message de découverte brut: ${rawName}`);
     }
@@ -296,12 +294,12 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
       throw new Error('Client MQTT non initialisé');
     }
     
-    const qos = this.config.mqtt.qos || 1;
+    const qos = (this.config.couples[0]?.mqtt?.qos || 1) as 0 | 1 | 2;
     
     for (const topic of topics) {
       try {
         await new Promise<void>((resolve, reject) => {
-          this.client!.subscribe(topic, { qos }, (err) => {
+          this.client!.subscribe(topic, { qos: qos as 0 | 1 | 2 }, (err) => {
             if (err) {
               this.logger.error('NommageMqttIntegrationService', 
                 `Erreur d'abonnement à ${topic}: ${err.message}`);
@@ -326,9 +324,9 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
       return;
     }
     
-    const mqttConfig = this.config.mqtt;
+    const mqttConfig = this.config.couples[0]?.mqtt || {};
     
-    for (const topic of mqttConfig.discoveryTopics) {
+    for (const topic of mqttConfig.discoveryTopics || []) {
       await new Promise<void>((resolve) => {
         this.client!.unsubscribe(topic, {}, () => {
           this.logger.info('NommageMqttIntegrationService', 

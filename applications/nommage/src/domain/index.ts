@@ -11,16 +11,19 @@
  * NOUVEAU v1.0 : Configuration pour un chapitre de menu dédié "Nommage"
  */
 
-import type { ApplicationModule, ModuleUiMetadata } from '../../../../types/config';
+import { 
+  ApplicationModule,
+  ModuleUiMetadata,
+  IEventBus,
+  Logger,
+  IAppConfigProvider,
+  ConfigService,
+  AppConfigProvider
+} from '../../../core/src/exports';
 import { NOMMAGE_SOCKET_EVENTS, NOMMAGE_PERSISTENT_EVENTS } from './socket-events';
 import { NommageService, INommageService } from './NommageService';
 import { NommageMqttIntegrationService, INommageMqttIntegrationService } from '../ha/integration/nommage/NommageMqttIntegrationService';
 import type { NommageConfig } from './config-schema';
-import type { IEventBus } from '../../../../application/IEventBus';
-import type { Logger } from '../../../../infrastructure/logger/index';
-import type { IAppConfigProvider } from '../../../../infrastructure/config/IAppConfigProvider';
-import type { ConfigService } from '../../../../infrastructure/config/ConfigService';
-import { AppConfigProvider } from '../../../../infrastructure/config/AppConfigProvider';
 
 // ============================================================================
 // Types pour la configuration du menu
@@ -66,8 +69,9 @@ export const NOMMAGE_UI_METADATA: ModuleUiMetadata = {
   
   fields: [
     {
-      section: 'MQTT',
-      description: 'Configuration de la connexion au broker MQTT pour écouter les messages de découverte',
+      title: 'MQTT',
+      description: 'Configuration de la connexion MQTT pour la découverte des équipements',
+      icon: '📡',
       fields: [
         {
           name: 'mqtt.host',
@@ -150,8 +154,9 @@ export const NOMMAGE_UI_METADATA: ModuleUiMetadata = {
       ]
     },
     {
-      section: 'Home Assistant',
-      description: 'Configuration pour la transmission vers Home Assistant',
+      title: 'Home Assistant',
+      description: 'Configuration de la transmission vers Home Assistant',
+      icon: '🏠',
       fields: [
         {
           name: 'ha.autoTransmit',
@@ -201,8 +206,9 @@ export const NOMMAGE_UI_METADATA: ModuleUiMetadata = {
       ]
     },
     {
-      section: 'Logging',
-      description: 'Niveau de logging et options de débogage',
+      title: 'Logging',
+      description: 'Configuration des logs de l\'application',
+      icon: '📜',
       fields: [
         {
           name: 'logging.level',
@@ -292,7 +298,6 @@ export const NOMMAGE_APP: ApplicationModule & { menu?: ApplicationMenuConfig } =
   name: 'NOMMAGE',
   description: 'Application de gestion des conventions de nommage et taxonomie pour Home Assistant. Écoute les messages de découverte MQTT, parse les noms selon le format QUOI---OÙ, et transmet les structures au core pour envoi à HA.',
   icon: '🏷️',
-  version: '1.0.0',
   
   menu: NOMMAGE_MENU_CONFIG,
   
@@ -346,7 +351,7 @@ export function createNommageServiceWithConfig(
   logger: Logger,
   configService: ConfigService
 ): INommageService {
-  const configProvider = new AppConfigProvider<NommageConfig>('nommage', configService);
+  const configProvider = new AppConfigProvider<NommageConfig>('nommage' as any, configService);
   return createNommageService(eventBus, logger, configProvider);
 }
 

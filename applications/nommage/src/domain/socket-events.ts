@@ -6,7 +6,7 @@
  * - Format : 'nommage:<section>:<action>'
  */
 
-import type { SocketEventsMap } from '../../../../types/config';
+
 
 // ============================================================================
 // Événements Server → Client (Backend vers UI)
@@ -94,6 +94,6 @@ export interface NommageSocketEventsRegistration {
 // ============================================================================
 
 export const NOMMAGE_PERSISTENT_EVENTS: (keyof NommageSocketEvents)[] = [
-  'nommage:status',           // Statut actuel de l'application
-  'nommage:taxonomy:structure' // Structure taxonomique actuelle
+  'STATUS',           // Statut actuel de l'application
+  'TAXONOMY_STRUCTURE' // Structure taxonomique actuelle
 ];
