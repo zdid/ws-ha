@@ -17,6 +17,16 @@ import { SocketService } from '../../../../core/src/ui-exports';
 // Types pour les données reçues
 // ============================================================================
 
+interface SourceStatus {
+  id: string;
+  connected: boolean;
+}
+
+interface DailyCount {
+  date: string;
+  count: number;
+}
+
 interface NommageStatus {
   connected: boolean;
   mqttConnected: boolean;
@@ -24,6 +34,8 @@ interface NommageStatus {
   parsedMessagesCount: number;
   lastParsedAt?: Date;
   error?: string;
+  sources: SourceStatus[];
+  dailyCounts: DailyCount[];
 }
 
 interface DiscoveryParsedEvent {
@@ -195,7 +207,7 @@ function updateStatusDisplay(status: NommageStatus): void {
   
   // Mettre à jour les topics de découverte
   updateDiscoveryTopics(status.discoveryTopics);
-  
+
   // Mettre à jour le compteur de messages
   if (status.parsedMessagesCount > 0) {
     const counterEl = document.getElementById('messages-counter');
@@ -203,7 +215,7 @@ function updateStatusDisplay(status: NommageStatus): void {
       counterEl.textContent = String(status.parsedMessagesCount);
     }
   }
-  
+
   // Afficher la date du dernier parsing
   if (status.lastParsedAt) {
     const lastParsedDetailEl = document.getElementById('last-parsed-detail');
@@ -211,6 +223,57 @@ function updateStatusDisplay(status: NommageStatus): void {
       lastParsedDetailEl.textContent = `Dernier parsing: ${new Date(status.lastParsedAt).toLocaleString('fr-FR')}`;
     }
   }
+
+  // Statut par connexion (source MQTT)
+  updateSourcesDisplay(status.sources);
+
+  // Entrées traitées sur les 5 derniers jours
+  updateDailyStatsDisplay(status.dailyCounts);
+}
+
+/**
+ * Affiche le statut de chaque connexion (nom + connecté/déconnecté)
+ */
+function updateSourcesDisplay(sources: SourceStatus[]): void {
+  const listEl = document.getElementById('sources-list');
+  const cardEl = document.getElementById('sources-card');
+
+  if (!listEl || !sources || sources.length === 0) return;
+
+  if (cardEl) cardEl.style.display = 'block';
+
+  listEl.innerHTML = sources.map((source) => `
+    <div class="source-row">
+      <span class="source-name">${escapeHtml(source.id)}</span>
+      <span class="source-badge ${source.connected ? 'connected' : 'disconnected'}">
+        ${source.connected ? 'Connecté' : 'Déconnecté'}
+      </span>
+    </div>
+  `).join('');
+}
+
+/**
+ * Affiche le nombre d'entrées traitées pour chacun des 5 derniers jours (plus ancien → plus récent)
+ */
+function updateDailyStatsDisplay(dailyCounts: DailyCount[]): void {
+  const headerEl = document.getElementById('daily-stats-header');
+  const rowEl = document.getElementById('daily-stats-row');
+  const containerEl = document.getElementById('daily-stats');
+
+  if (!headerEl || !rowEl || !dailyCounts || dailyCounts.length === 0) return;
+
+  if (containerEl) containerEl.style.display = 'block';
+
+  headerEl.innerHTML = dailyCounts.map((day) => `<th>${formatShortDate(day.date)}</th>`).join('');
+  rowEl.innerHTML = dailyCounts.map((day) => `<td class="count">${day.count}</td>`).join('');
+}
+
+/**
+ * Formate une date ISO ("AAAA-MM-JJ") en libellé court ("21/07")
+ */
+function formatShortDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}`;
 }
 
 /**

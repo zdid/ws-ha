@@ -265,6 +265,35 @@
       margin-top: 0;
       color: var(--color-text);
     }
+
+    .source-item {
+      border: 1px solid var(--color-primary);
+      border-radius: var(--radius);
+      padding: 15px;
+      margin-bottom: 15px;
+      position: relative;
+    }
+
+    .source-item .source-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .source-item .source-header h4 {
+      margin: 0;
+      font-size: 1em;
+    }
+
+    .btn-remove-source {
+      background: var(--color-error);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -293,140 +322,29 @@
     <!-- Formulaire de configuration -->
     <form class="config-form" id="config-form" novalidate>
       
-      <!-- Section MQTT -->
+      <!-- Sources MQTT — une ou plusieurs, toutes connectées et traitées simultanément -->
       <div class="form-section">
-        <h3>📡 Configuration MQTT</h3>
-        <p class="description">Paramètres de connexion au broker MQTT pour écouter les messages de découverte</p>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="mqtt-host">Hôte MQTT *</label>
-            <input type="text" id="mqtt-host" class="form-control" required placeholder="192.168.1.100">
-            <span class="hint">Adresse IP ou nom d'hôte du broker MQTT</span>
-          </div>
-          <div class="form-group">
-            <label for="mqtt-port">Port MQTT *</label>
-            <input type="number" id="mqtt-port" class="form-control" required min="1" max="65535" placeholder="1883">
-            <span class="hint">Port du serveur MQTT</span>
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="mqtt-username">Utilisateur MQTT</label>
-            <input type="text" id="mqtt-username" class="form-control" placeholder="user">
-            <span class="hint">Nom d'utilisateur pour l'authentification (facultatif)</span>
-          </div>
-          <div class="form-group">
-            <label for="mqtt-password">Mot de passe MQTT</label>
-            <input type="password" id="mqtt-password" class="form-control" placeholder="password">
-            <span class="hint">Mot de passe pour l'authentification (facultatif)</span>
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="mqtt-clientId">Client ID MQTT *</label>
-            <input type="text" id="mqtt-clientId" class="form-control" required placeholder="nommage-app">
-            <span class="hint">Identifiant unique du client MQTT</span>
-          </div>
-          <div class="form-group">
-            <label for="mqtt-qos">QoS</label>
-            <select id="mqtt-qos" class="select-control">
-              <option value="0">0 - Au maximum une fois</option>
-              <option value="1" selected>1 - Au moins une fois</option>
-              <option value="2">2 - Exactement une fois</option>
-            </select>
-            <span class="hint">Niveau de Qualité de Service</span>
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="mqtt-topicPrefix">Préfixe des Topics *</label>
-            <input type="text" id="mqtt-topicPrefix" class="form-control" required placeholder="ha/" value="ha/">
-            <span class="hint">Préfixe du premier terme des topics (ex: "ha/" ou "homeassistant/")</span>
-          </div>
-          <div class="form-group">
-            <label for="mqtt-retain">Conserver les messages retain</label>
-            <div class="checkbox-group">
-              <input type="checkbox" id="mqtt-retain" checked>
-              <label for="mqtt-retain" style="margin: 0; cursor: pointer;">Activer le retain</label>
-            </div>
-            <span class="hint">Recevoir les messages MQTT retain</span>
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="mqtt-discoveryTopics">Topics de Découverte *</label>
-          <div id="discovery-topics-container" class="field-array">
-            <div class="array-item">
-              <input type="text" class="form-control" placeholder="ha/+/+/config">
-              <button type="button" class="btn-remove" onclick="removeTopic(this)">✕</button>
-            </div>
-          </div>
-          <button type="button" class="btn-add" onclick="addTopic()">+ Ajouter un topic</button>
-          <span class="hint">Liste des topics MQTT à écouter pour la découverte (séparés par des virgules). Ex: ha/+/+/config, homeassistant/+/+/config</span>
-        </div>
-        
-        <div class="form-group">
-          <div class="checkbox-group">
-            <input type="checkbox" id="mqtt-useTls">
-            <label for="mqtt-useTls" style="margin: 0; cursor: pointer;">Utiliser TLS (mqtts://)</label>
-          </div>
-          <span class="hint">Activer la connexion MQTT sécurisée</span>
-        </div>
+        <h3>📡 Sources MQTT</h3>
+        <p class="description">
+          Une ou plusieurs connexions MQTT indépendantes, toutes actives en même temps (ex : le broker HA
+          lui-même, et séparément Zigbee2MQTT sur un préfixe de topics différent).
+        </p>
+
+        <div id="sources-container"></div>
+        <button type="button" class="btn-add" onclick="addSource()">+ Ajouter une source</button>
       </div>
-      
+
       <!-- Section Home Assistant -->
       <div class="form-section">
         <h3>🏠 Configuration Home Assistant</h3>
-        <p class="description">Options pour la transmission des structures parsées vers Home Assistant</p>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="ha-autoTransmit">Transmission Automatique</label>
-            <div class="checkbox-group">
-              <input type="checkbox" id="ha-autoTransmit" checked>
-              <label for="ha-autoTransmit" style="margin: 0; cursor: pointer;">Transmettre automatiquement</label>
-            </div>
-            <span class="hint">Transmettre automatiquement les structures parsées à HA</span>
-          </div>
-          <div class="form-group">
-            <label for="ha-autoCreateAreas">Créer les Areas automatiquement</label>
-            <div class="checkbox-group">
-              <input type="checkbox" id="ha-autoCreateAreas" checked>
-              <label for="ha-autoCreateAreas" style="margin: 0; cursor: pointer;">Créer les Areas</label>
-            </div>
-            <span class="hint">Créer automatiquement les Areas dans HA si elles n'existent pas</span>
-          </div>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="ha-defaultComponent">Composant par défaut</label>
-            <input type="text" id="ha-defaultComponent" class="form-control" placeholder="sensor" value="sensor">
-            <span class="hint">Composant HA par défaut pour les entités créées</span>
-          </div>
-          <div class="form-group">
-            <label for="ha-defaultDomain">Domaine par défaut</label>
-            <input type="text" id="ha-defaultDomain" class="form-control" placeholder="sensor" value="sensor">
-            <span class="hint">Domaine HA par défaut</span>
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="ha-objectIdPrefix">Préfixe Object ID</label>
-          <input type="text" id="ha-objectIdPrefix" class="form-control" placeholder="nommage_" value="nommage_">
-          <span class="hint">Préfixe pour les object_id HA générés</span>
-        </div>
-        
+        <p class="description">Options pour la transmission vers Home Assistant (Passthrough MQTT — commune à toutes les sources)</p>
+
         <div class="form-group">
           <div class="checkbox-group">
             <input type="checkbox" id="ha-injectTaxonomyAttributes" checked>
             <label for="ha-injectTaxonomyAttributes" style="margin: 0; cursor: pointer;">Injecter les attributs de taxonomie</label>
           </div>
-          <span class="hint">Ajouter les attributs de taxonomie aux entités HA</span>
+          <span class="hint">Ajouter les attributs de taxonomie au message relayé vers HA</span>
         </div>
       </div>
       
@@ -486,6 +404,6 @@
   <script src="/applications/nommage/presentation/nommage/config-app.js"></script>
   
   <!-- Derniere modification -->
-  <!-- Derniere modification: 2026-07-19 16:00:00 - Creation page configuration NOMMAGE -->
+  <!-- Derniere modification: 2026-07-21 18:00:00 - Passage a sources[] multi-sources (remplace le bloc MQTT unique) -->
 </body>
 </html>
