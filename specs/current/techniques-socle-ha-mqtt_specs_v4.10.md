@@ -1,8 +1,18 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.9  
+**Version :** 4.10  
 **Date :** 21 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
+
+> **v4.10** : Séparation de `exports.ts` (point d'entrée backend Node.js du core) et **`ui-exports.ts`**
+> (point d'entrée navigateur) — voir §4.2. Le code UI (ex: `SocketService`, dépendant de `window`/
+> `document`/du script global `socket.io-client`) ne doit **jamais** être réexporté depuis `exports.ts` :
+> tout consommateur backend de `exports.ts` (ex: une application important des types via ce point
+> d'entrée) entraînerait sinon la compilation transitive de ce code navigateur dans son propre `dist`
+> backend — constaté concrètement sur `nommage` et `arbreouquoi`, qui compilaient chacun une copie
+> morte de `SocketService.js` dans leur `dist` Node. Les applications ayant besoin de `SocketService`
+> côté navigateur importent désormais `ui-exports.ts` (ou le `dist` UI déjà buildé du core, selon leur
+> configuration TypeScript — voir `guide-nouvelle-application_specs` §3.9).
 
 > **v4.9** : Ajout du **Passthrough MQTT** (§8.5.6) : mécanisme pour les applications qui relaient
 > des messages MQTT déjà formés (lus depuis une source tierce) vers le broker HA unique du socle,
@@ -148,8 +158,11 @@ projet/
 ```
 ├── src/                              # Code source du cœur (core) de l'application
 │   ├── index.ts                      # Bootstrap : instancie et câble toutes les couches
-│   ├── exports.ts                    # ⭐ NOUVEAU : Point d'entrée unique pour les imports
-│   │                                   #    Centralise EventBus, Logger, ConfigService, HA types, etc.
+│   ├── exports.ts                    # Point d'entrée BACKEND (Node.js) — EventBus, Logger, ConfigService,
+│   │                                   #    HA types, etc. Ne DOIT PAS réexporter de code navigateur (§4.2.1).
+│   ├── ui-exports.ts                 # ⭐ NOUVEAU v4.10 : Point d'entrée NAVIGATEUR — ex: SocketService.
+│   │                                   #    Séparé de exports.ts pour ne pas polluer le dist backend
+│   │                                   #    des applications qui importent exports.ts (§4.2.1).
 │   ├── types/                        # Interfaces partagées — accessibles par toutes les couches
 │   │   ├── config.ts                 # AppConfig, MqttConfig, HaSyncConfig, WebConfig
 │   │   ├── ha.ts                     # HaEntity, HaDomain, HaState
@@ -217,6 +230,39 @@ projet/
         ├── style.css                 # Charte graphique commune (variables CSS)
         └── app.ts                    # Logique UI TypeScript — Socket.io client + Web Components
 ```
+
+### 4.2.1 `exports.ts` vs `ui-exports.ts` — pourquoi deux points d'entrée
+
+**⭐ NOUVEAU v4.10.** Le core expose deux barrels distincts pour les applications dérivées (nommage,
+arbreouquoi, etc.) :
+
+| Fichier | Exécuté dans | Contenu | Exemple |
+|---|---|---|---|
+| `src/exports.ts` | Node.js (backend) | EventBus, Logger, ConfigService, types HA, `HaMqttIntegrationService`, etc. | `IEventBus`, `HaStructureRegistry` |
+| `src/ui-exports.ts` | Navigateur | Code dépendant de `window`/`document`/du script global `socket.io-client` | `SocketService` |
+
+**Pourquoi la séparation est stricte** : un fichier `.ts` est une seule unité de compilation. Si
+`exports.ts` réexportait `SocketService` (comme c'était le cas avant v4.10), alors **tout** import
+depuis `exports.ts` — même un `import type` d'une interface purement backend — force TypeScript à
+résoudre l'intégralité du graphe de `exports.ts`, y compris `SocketService.ts`. Résultat observé
+concrètement : `nommage` et `arbreouquoi`, qui importent des types backend depuis `exports.ts`,
+compilaient chacun une copie de `SocketService.js` dans leur propre `dist` Node — du code mort qui ne
+peut pas s'exécuter côté serveur (utilise `window`, `declare const io`).
+
+**Règle** : toute ressource du core destinée à tourner dans le navigateur va dans `ui-exports.ts`,
+jamais dans `exports.ts`. Le module principal (`tsc` du core) **exclut explicitement**
+`src/ui-exports.ts` de son build (voir `tsconfig.json` du core) pour éviter le même phénomène côté
+core lui-même.
+
+**Consommation par une application dérivée** — deux cas selon la configuration TypeScript de
+l'application (voir `guide-nouvelle-application_specs` §3.9) :
+- Si le `rootDir` de l'application englobe `applications/core/src/` (ex: `nommage`, dont le `rootDir`
+  est `..`) : importer directement `../../../../core/src/ui-exports` (fichier source).
+- Si le `rootDir` de l'application est restreint à son propre `src/` (ex: `arbreouquoi`) : TypeScript
+  refuse de compiler une source hors `rootDir` (`TS6059`). Importer alors le `dist` UI déjà buildé du
+  core : `.../core/dist/presentation/ui/js/ts/services/SocketService`. Ceci suppose que le core a déjà
+  été buildé (`npm run build:ui`) et que `tsconfig.ui.json` du core émet des déclarations
+  (`declaration: true`, ajouté en v4.10 précisément pour ce cas).
 
 ### 4.3 Gestion Dynamique des Applications
 
@@ -1545,6 +1591,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **4.10** | 21/07/2026 | Claude | **Séparation `exports.ts` (backend) / `ui-exports.ts` (navigateur)** (§4.2.1, suite à investigation "le core met-il ses objets dans dist et pas dans src ?") : `SocketService` retiré de `exports.ts` et déplacé dans le nouveau `ui-exports.ts`, `src/ui-exports.ts` exclu du build backend du core. Corrige une pollution constatée dans `nommage` et `arbreouquoi`, dont le `dist` backend contenait une copie morte de `SocketService.js` (code navigateur, inexécutable côté Node) simplement parce qu'ils importaient des types backend depuis `exports.ts`. `tsconfig.ui.json` du core gagne `declaration: true`/`declarationMap: true` pour permettre aux applications à `rootDir` restreint (ex: `arbreouquoi`) de consommer le `dist` UI du core avec des types corrects, sans `@ts-ignore`. |
 | **4.9** | 21/07/2026 | Claude | **Ajout du Passthrough MQTT (§8.5.6, sur demande utilisateur)** : mécanisme pour les applications qui relaient des messages MQTT déjà formés (lus depuis une source tierce, ex: `nommage` relayant Zigbee2MQTT) vers le broker HA unique, sans normalisation de découverte. Mode "réécriture de préfixe" (`sourceTopic` → remplacement du 1er segment par `homeassistant`, QoS1/retain true) et mode "complet" (topic + payload intégraux, aucune transformation). Nouvelles méthodes `publishDiscoveryPassthrough`/`publishPassthrough` sur `HaMqttIntegrationService`, nouveaux événements EventBus `integration:{module}:passthrough:discovery`/`:publish`. |
 | **4.8** | 21/07/2026 | Claude | **Précision du format MQTT (§8.5, sur demande utilisateur — analyse d'écart avec le code réel)** : un seul broker pour tout le socle ; mission par intégration = LWT + découverte persistante + état + réception des commandes ; nouveau concept `bridge_instance` (une intégration peut piloter plusieurs bridges physiques, chacun avec son propre LWT) ; nouveaux topics état/commande `/{moduleName}/{bridgeInstance}/{deviceId}/state\|set` (remplace l'ancien schéma `homeassistant/.../state\|set` et l'ancien LWT `ha-integration/{module}/status`) ; le topic de découverte HA standard reste inchangé ; `deviceId` est un identifiant opaque dont l'encodage est propre à chaque module (voir specs RFXCOM pour son encodage) ; répartition claire des responsabilités : le module métier fournit les données essentielles, `HaMqttIntegrationService` normalise et complète l'intégralité du message de découverte. |
 | **4.7** | 21/07/2026 | Claude | **Suppression des références actives à Alpine.js** (stack technique, diagrammes, structure de répertoires, dépendances npm). La section 6 "Couche Présentation" ne duplique plus l'implémentation — elle renvoie vers `presentation_specs` (TypeScript pur + Web Components natifs depuis v3.0), qui reste la seule source de vérité pour cette couche. Les mentions historiques d'Alpine.js dans le changelog (v4.2) sont conservées. |

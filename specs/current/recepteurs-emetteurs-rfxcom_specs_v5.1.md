@@ -5,7 +5,7 @@
 *Conforme à [spec-nommage-v1.0.md](spec-nommage-v1.0.md) et [specs-techniques-socle-ha-mqtt.md](specs-techniques-socle-ha-mqtt.md)*
 
 > **v5.1** : Refonte de la section 8.5 (topics MQTT) pour se conformer au nouveau format défini
-> dans `techniques-socle-ha-mqtt_specs_v4.9.md` §8.5 : un seul broker, concept de `bridge_instance`,
+> dans `techniques-socle-ha-mqtt_specs_v4.10.md` §8.5 : un seul broker, concept de `bridge_instance`,
 > nouveaux topics état/commande `/rfxcom/{bridgeInstance}/{deviceId}/state|set`, LWT par bridge_instance,
 > encodage RFXCOM du `deviceId` (§8.5.1, nouveau), topic de découverte HA standard inchangé (§7).
 > Retrait des topics `rfxcom/scan` (superseded par Socket.io) et mise à jour de l'exécution de scène.
@@ -477,7 +477,7 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
 > **⭐ v5.1** : Le topic de découverte (`.../config`) reste au format HA standard. Les topics
 > `state_topic`/`command_topic` référencés dans le message suivent désormais le format défini en
 > §8.5 (`/{moduleName}/{bridgeInstance}/{deviceId}/state|set`), conforme à
-> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.9.md#854-format-des-topics-mqtt).
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.10.md#854-format-des-topics-mqtt).
 
 ### 7.1 Discovery pour Device RFXCOM (Capteur ou Émetteur)
 
@@ -723,7 +723,7 @@ Les événements ci-dessous **complètent** ceux définis dans [`specs-technique
 ### 8.5 Topics MQTT Spécifiques à RFXCOM
 
 > **⭐ v5.1** : Refonte complète de cette section pour se conformer au format générique défini dans
-> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.9.md#854-format-des-topics-mqtt)
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.10.md#854-format-des-topics-mqtt)
 > (un seul broker, `bridge_instance`, `deviceId` opaque). **Remplace entièrement** l'ancien schéma
 > `rfxcom/{receiverId}/...` de la v5.0.
 
@@ -761,7 +761,7 @@ Pour un **récepteur logique** (`recepteur_NNN`), `deviceId` = son `receiverId` 
 | `/rfxcom/{bridgeInstance}/{deviceId}/set` | HA → App | `{ "state": "ON"\|"OFF", "brightness"?: 0-255, "position"?: 0-100 }` | 1 | false | Commande reçue de HA pour un device ou récepteur |
 
 `bridgeInstance` identifie le transceiver physique concerné (ex: `rfx_bridge_0001`, voir
-[`techniques-socle-ha-mqtt_specs` §8.5.1](techniques-socle-ha-mqtt_specs_v4.9.md#851-concept-de-bridge_instance)).
+[`techniques-socle-ha-mqtt_specs` §8.5.1](techniques-socle-ha-mqtt_specs_v4.10.md#851-concept-de-bridge_instance)).
 
 #### 8.5.3 Topics de Découverte RFXCOM (App → HA)
 
@@ -1087,7 +1087,7 @@ Serveur → Sauvegarde dans config-rfxcom-devices-v1.0.yaml et publie Discovery 
 | 3.0 | 2026-07-08 | Mistral Vibe | Correction noms techniques |
 | 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, appairages N↔N via UI |
 | 5.0 | 2026-07-09 | Mistral Vibe | **Fichier YAML centralisé, primaryEmitter, émetteurs dans récepteur, attributs_taxonomie validé** |
-| 5.1 | 2026-07-21 | Claude | **Refonte topics MQTT §8.5** conforme à `techniques-socle-ha-mqtt_specs_v4.9.md` : un seul broker, `bridge_instance`, nouveaux topics état/commande `/rfxcom/{bridgeInstance}/{deviceId}/state\|set`, LWT par bridge, encodage RFXCOM du `deviceId` (§8.5.1), retrait des topics `rfxcom/scan` (superseded par Socket.io) |
+| 5.1 | 2026-07-21 | Claude | **Refonte topics MQTT §8.5** conforme à `techniques-socle-ha-mqtt_specs_v4.10.md` : un seul broker, `bridge_instance`, nouveaux topics état/commande `/rfxcom/{bridgeInstance}/{deviceId}/state\|set`, LWT par bridge, encodage RFXCOM du `deviceId` (§8.5.1), retrait des topics `rfxcom/scan` (superseded par Socket.io) |
 
 ---
 

@@ -179,7 +179,7 @@ applications/nommage/
         └── app.ts                 # Logique frontend
 ```
 
-**Fichiers obligatoires (selon [guide-nouvelle-application_specs_v1.4.md](./guide-nouvelle-application_specs_v1.4.md)) :**
+**Fichiers obligatoires (selon [guide-nouvelle-application_specs_v1.5.md](./guide-nouvelle-application_specs_v1.5.md)) :**
 - ✅ `domain/index.ts`
 - ✅ `domain/NommageService.ts`
 - ✅ `presentation/index.html`
@@ -521,7 +521,7 @@ Appel: .start()
 > **⭐ v1.1** : Remplace intégralement l'ancien mécanisme `nommage:transmit:to-core` (qui
 > reconstruisait un message HA complet et appelait l'API WebSocket pour créer les Areas).
 > NOMMAGE utilise désormais le **Passthrough MQTT** du socle
-> ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.9.md#856-passthrough-mqtt)).
+> ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.10.md#856-passthrough-mqtt)).
 
 **Événement émis par NOMMAGE (`integration:nommage:passthrough:discovery`) :**
 ```typescript
@@ -829,8 +829,8 @@ mosquitto_sub -h localhost -t "$SYS/broker/subscriptions" -v
 ## 📚 Références
 
 - [fonctionnelles-nommage_specs_v1.1.md](./fonctionnelles-nommage_specs_v1.1.md) - Spécifications fonctionnelles
-- [techniques-socle-ha-mqtt_specs_v4.9.md](./techniques-socle-ha-mqtt_specs_v4.9.md) - Socle technique
-- [guide-nouvelle-application_specs_v1.4.md](./guide-nouvelle-application_specs_v1.4.md) - Guide de création
+- [techniques-socle-ha-mqtt_specs_v4.10.md](./techniques-socle-ha-mqtt_specs_v4.10.md) - Socle technique
+- [guide-nouvelle-application_specs_v1.5.md](./guide-nouvelle-application_specs_v1.5.md) - Guide de création
 - [nommage_specs_v1.0.md](./nommage_specs_v1.0.md) - Protocole de nommage
 - [PROMPT_PROJET.md](../PROMPT_PROJET.md) - Règles générales
 

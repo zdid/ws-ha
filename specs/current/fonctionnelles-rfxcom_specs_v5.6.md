@@ -4,7 +4,7 @@
 *Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: **Spécifications Cover avec Lighting2** (états up/down/intermediate, calcul position%, traduction on/off), **Traduction Commandes HA→RFXCOM par type**, **Arborescence des Programmes**, Détection automatique, toolbar Scanner/Effacer/Rafraîchir, Appairages intégrés, Gestion protocoles, Scènes réactivées, transmitToHa, actions MQTT par le socle, indicateur connexion, traces détaillées.*
 
 > **v5.6** : Alignement des topics `state_topic`/scènes sur le nouveau format MQTT du socle
-> (`techniques-socle-ha-mqtt_specs_v4.9.md` §8.5) : `/{moduleName}/{bridgeInstance}/{deviceId}/state|set`.
+> (`techniques-socle-ha-mqtt_specs_v4.10.md` §8.5) : `/{moduleName}/{bridgeInstance}/{deviceId}/state|set`.
 > Le topic de découverte HA standard est inchangé. Voir `recepteurs-emetteurs-rfxcom_specs_v5.1.md`
 > §8.5 pour le détail complet (encodage `deviceId`, LWT par bridge_instance).
 
@@ -1141,7 +1141,7 @@ applications/rfxcom/
 | 5.1 | 2026-07-16 | Mistral Vibe | **Détection automatique dans onglet Devices, toolbar Scanner/Effacer/Rafraîchir, deux listes devices (paramétrés vs auto-discovery), Appairages intégrées aux Récepteurs** |
 | 5.4 | 2026-07-17 | Mistral Vibe | **Gestion des protocoles, transmitToHa, scènes réactivées, actions MQTT par le socle, workflow devices complet, nommage automatique ---/--, Lighting2 clarifié (binary_sensor), appairage remplace association** |
 | 5.5 | 2026-07-18 | Mistral Vibe | **Spécifications Cover avec Lighting2 (états up/down/intermediate, calcul position%, traduction on/off), Traduction Commandes HA→RFXCOM par type, Arborescence des Programmes modulaire** |
-| 5.6 | 2026-07-21 | Claude | Alignement des topics `state_topic` et scènes sur le nouveau format MQTT du socle (`/{moduleName}/{bridgeInstance}/{deviceId}/state\|set`), conforme à `techniques-socle-ha-mqtt_specs_v4.9.md` §8.5 |
+| 5.6 | 2026-07-21 | Claude | Alignement des topics `state_topic` et scènes sur le nouveau format MQTT du socle (`/{moduleName}/{bridgeInstance}/{deviceId}/state\|set`), conforme à `techniques-socle-ha-mqtt_specs_v4.10.md` §8.5 |
 
 ---
 

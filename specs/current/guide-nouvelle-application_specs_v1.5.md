@@ -1,17 +1,23 @@
 # Guide Rapide — Création d'une Nouvelle Application
 
-**Version :** 1.4  
-**Date :** 20 Juillet 2026  
+**Version :** 1.5  
+**Date :** 21 Juillet 2026  
 **Statut :** Document pratique pour les développeurs  
 **Public cible :** Développeurs créant une nouvelle application sans modifier le socle  
 
 > **⚠️ IMPORTANT :** Ce guide suppose que vous avez lu et compris :
-> - [techniques-socle-ha-mqtt_specs_v4.9.md](techniques-socle-ha-mqtt_specs_v4.9.md) (architecture 5 couches, EventBus, cycle de vie, nouvelle arborescence applications/)
+> - [techniques-socle-ha-mqtt_specs_v4.10.md](techniques-socle-ha-mqtt_specs_v4.10.md) (architecture 5 couches, EventBus, cycle de vie, nouvelle arborescence applications/, §4.2.1 exports.ts vs ui-exports.ts)
 > - **[inter-app-communication_specs_v1.0.md](inter-app-communication_specs_v1.0.md) (NOUVEAU : Communication inter-applications)**
 
 > **Note v1.1 :** Migration vers **TypeScript pur + Web Components natifs** (remplace Alpine.js comme indiqué dans [presentation_specs_v3.2.md](presentation_specs_v3.2.md) §v3.0).
 
 > **NOUVEAU v1.4 :** **Système de communication inter-applications** avec pattern Request/Reply asynchrone et corrélation. Toutes les applications (sauf core) DOIVENT déclarer leurs capacités via `ApplicationCapabilities` et utiliser `InterAppClient` pour les communications inter-applications.
+
+> **NOUVEAU v1.5 :** Correction de la §3.9 (import de `SocketService`) : l'exemple pointait vers un
+> chemin qui n'a jamais existé (`core/src/presentation/services/SocketService`) et suggérait un
+> singleton `getInstance()` que la classe réelle n'a jamais eu. Le bon point d'entrée est
+> **`core/src/ui-exports.ts`** (jamais `exports.ts`, qui est réservé au backend — voir
+> `techniques-socle-ha-mqtt_specs` §4.2.1), avec `new SocketService()`.
 
 ---
 
@@ -37,10 +43,10 @@
 - Node.js 20+ (LTS)
 - TypeScript 5.x (mode strict)
 - pnpm (recommandé)
-- Comprendre l'[architecture 5 couches](techniques-socle-ha-mqtt_specs_v4.9.md#3-architecture-en-couches)
+- Comprendre l'[architecture 5 couches](techniques-socle-ha-mqtt_specs_v4.10.md#3-architecture-en-couches)
 
 ### 1.2 Connaissances requises
-- EventBus Typé (voir §9 specs-techniques-socle-ha-mqtt-v4.6.md)
+- EventBus Typé (voir §9 techniques-socle-ha-mqtt_specs_v4.10.md)
 - Socket.io (unique canal UI ↔ Serveur)
 - TypeScript pur + Web Components natifs (pour la couche Présentation)
 - Convention de nommage ([nommage_specs_v1.0.md](nommage_specs_v1.0.md))
@@ -422,13 +428,25 @@ export function create{NomApp}ServiceWithConfig(
 
 **Fichier : `applications/{nom-app}/presentation/ts/app.ts`**
 
-```typescript
-// ⭐ Import depuis le point d'entrée unique du core
-// Note: Le SocketService sera importé depuis le core une fois implémenté
-import type { SocketService } from '../../../core/src/presentation/services/SocketService';
+> **⚠️ v1.5 :** `SocketService` s'importe depuis **`core/src/ui-exports.ts`**, jamais depuis
+> `core/src/exports.ts` (réservé au backend Node.js — voir `techniques-socle-ha-mqtt_specs` §4.2.1).
+> `SocketService` n'est **pas** un singleton (pas de `getInstance()`) : instanciez-le avec `new`.
+>
+> Le chemin d'import dépend du `rootDir` TypeScript de votre application (voir §2 pour le
+> `tsconfig.json` recommandé) :
+> - `rootDir` englobant `applications/` (ex: `nommage`, `rootDir: ".."`) : importer directement la
+>   source — `import { SocketService } from '../../../../core/src/ui-exports';`
+> - `rootDir` restreint à `./src` (ex: `arbreouquoi`) : TypeScript refuse de compiler une source hors
+>   `rootDir` (erreur `TS6059`). Importer alors le **dist UI déjà buildé** du core (nécessite d'avoir
+>   lancé `npm run build:ui` côté core au préalable) —
+>   `import { SocketService } from '../../../../core/dist/presentation/ui/js/ts/services/SocketService';`
 
-// Initialisation (le SocketService sera un singleton global)
-declare const socket: SocketService;
+```typescript
+// Cas rootDir englobant applications/ (voir note ci-dessus pour l'alternative dist)
+import { SocketService } from '../../../../core/src/ui-exports';
+
+const socket = new SocketService();
+socket.connect();
 
 // Émettre des événements vers le serveur
 function loadData() {
