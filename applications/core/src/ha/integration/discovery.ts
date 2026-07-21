@@ -25,6 +25,12 @@ export interface EssentialEntityData {
   device?: HaMqttDevice;
   /** Si absent, publication en lecture seule (pas de command_topic). */
   commandEnabled?: boolean;
+  /**
+   * Champs additionnels fusionnés tels quels dans le message de découverte (ex: bloc
+   * `attributs_taxonomie`, obligatoire pour les modules conformes à nommage_specs — voir
+   * fonctionnelles-rfxcom_specs §2.6). Ne doit pas réutiliser les clés déjà gérées ci-dessus.
+   */
+  extra?: Record<string, unknown>;
 }
 
 /**
@@ -68,7 +74,7 @@ export function buildDiscoveryPayload(
     entity.command_topic = getCommandTopic(context.moduleName, context.bridgeInstance, context.deviceId);
   }
 
-  return entity;
+  return essential.extra ? ({ ...entity, ...essential.extra } as HaMqttDiscoveryEntity) : entity;
 }
 
 /**

@@ -38,11 +38,24 @@ export type MqttErrorCode =
   | 'MQTT_UNSUBSCRIBE_FAILED';
 
 /**
+ * Codes d'erreur RFXCOM (implementation-rfxcom_specs_v1.2.md §10.1)
+ */
+export type RfxComErrorCode =
+  | 'RFXCOM_CONNECTION_ERROR'
+  | 'RFXCOM_TRANSCEIVER_NOT_INITIALIZED'
+  | 'RFXCOM_TRANSCEIVER_NOT_CONNECTED'
+  | 'RFXCOM_UNSUPPORTED_PROTOCOL'
+  | 'RFXCOM_UNSUPPORTED_ACTION'
+  | 'RFXCOM_COMMAND_FAILED'
+  | 'RFXCOM_DEVICE_NOT_FOUND';
+
+/**
  * Codes d'erreur génériques (specs-erreurs-v1.0.md §6)
  */
 export type AppErrorCode =
   | HaWsErrorCode
   | MqttErrorCode
+  | RfxComErrorCode
   | 'APP_CONFIG_INVALID'
   | 'APP_CONFIG_MISSING'
   | 'APP_CONFIG_REQUIRED_FIELD_MISSING'
@@ -179,6 +192,18 @@ export function createMqttError(
   details?: ErrorDetails
 ): AppError {
   return createAppError({ code, message, severity: 'error', module: module || 'mqtt:client', details });
+}
+
+/**
+ * Crée une erreur RFXCOM
+ */
+export function createRfxComError(
+  code: RfxComErrorCode,
+  message: string,
+  module?: string,
+  details?: ErrorDetails
+): AppError {
+  return createAppError({ code, message, severity: 'error', module: module || 'rfxcom', details });
 }
 
 /**

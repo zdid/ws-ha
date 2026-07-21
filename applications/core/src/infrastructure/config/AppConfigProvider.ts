@@ -35,16 +35,18 @@ export class AppConfigProvider<T extends AppSectionConfig> implements IAppConfig
   /**
    * Retourne la configuration de la section de l'application.
    * **Accès limité** à la section demandée.
+   *
+   * Si la section est absente de config.yaml (première installation, application jamais
+   * configurée via l'UI), retourne un objet vide plutôt que de lever une exception : chaque
+   * application connaît son propre schéma Zod / DEFAULT_XXX_CONFIG (le core ne les connaît pas,
+   * les modules étant chargés dynamiquement) — c'est à l'application de fusionner ce résultat
+   * avec ses propres valeurs par défaut avant de l'utiliser.
    */
   getAppConfig(): T {
     const fullConfig = this.configService.getConfig();
     const sectionConfig = (fullConfig as Record<string, unknown>)[this.section as string];
-    
-    if (!sectionConfig) {
-      throw new Error(`Section '${String(this.section)}' non trouvée dans la configuration`);
-    }
-    
-    return sectionConfig as T;
+
+    return (sectionConfig ?? {}) as T;
   }
 
   /**
