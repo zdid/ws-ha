@@ -4,7 +4,7 @@ import type { IAppConfigProvider } from '../../../core/dist/infrastructure/confi
 import type { HaStructuredEntity } from '../../../core/dist/ha/types/ha-entity';
 import type { HaArea, HaDevice, HaQuoiDefinition } from '../../../core/dist/ha/types/ha-structure';
 import type { HaStructureRegistry } from '../../../core/dist/ha/sync/HaStructureRegistry';
-import type { ArbreouquoiConfig } from './config-schema';
+import { arbreouquoiConfigSchema, type ArbreouquoiConfig } from './config-schema';
 import type { 
   OuNode, 
   OuWithQuoiNode, 
@@ -31,13 +31,22 @@ export class ArbreouquoiService {
     this.setupEventListeners();
   }
 
+  /**
+   * Charge la config depuis le provider et applique les valeurs par défaut du schéma (le
+   * provider retourne {} si la section 'arbreouquoi' n'existe pas encore dans config.yaml —
+   * première installation, jamais configuré via l'UI).
+   */
+  private getConfig(): ArbreouquoiConfig {
+    return arbreouquoiConfigSchema.parse(this.configService.getAppConfig());
+  }
+
   // ⭐ OBLIGATOIRE : Méthode start() asynchrone
   async start(): Promise<void> {
     this.logger.info('ArbreouquoiService', 'Démarrage du service ArbreOuQui...');
     
     try {
       // Charger la configuration
-      const config = this.configService.getAppConfig();
+      const config = this.getConfig();
       this.logger.info('ArbreouquoiService', `Configuration chargée. Mode: ${config.display.viewMode}`);
       
       // Vérifier que le référentiel HA est disponible
@@ -84,7 +93,7 @@ export class ArbreouquoiService {
   private setupEventListeners(): void {
     this.eventBus.on('ha:structure:rebuilt', () => {
       this.logger.info('ArbreouquoiService', 'Référentiel HA reconstruit');
-      const config = this.configService.getAppConfig();
+      const config = this.getConfig();
       if (config.refresh.refreshOnHaUpdate) {
         this.emitTree();
         this.emitStats();
@@ -92,7 +101,7 @@ export class ArbreouquoiService {
     });
 
     this.eventBus.on('ha:entity:updated', () => {
-      const config = this.configService.getAppConfig();
+      const config = this.getConfig();
       if (config.refresh.refreshOnHaUpdate) {
         this.emitTree();
       }
@@ -125,7 +134,7 @@ export class ArbreouquoiService {
 
   private handleConfigSave(partialConfig: Partial<ArbreouquoiConfig>): void {
     try {
-      const currentConfig = this.configService.getAppConfig();
+      const currentConfig = this.getConfig();
       const newConfig = { ...currentConfig, ...partialConfig };
       
       this.configService.savePartialConfig(newConfig);
@@ -186,7 +195,7 @@ export class ArbreouquoiService {
 
   private emitTree(): void {
     try {
-      const config = this.configService.getAppConfig();
+      const config = this.getConfig();
       const viewMode = config.display.viewMode || 'ou-first';
       const tree = viewMode === 'ou-first' ? this.buildOuFirstTree() : this.buildQuoiFirstTree();
       const catalog = this.buildQuoiCatalog();
@@ -229,7 +238,7 @@ export class ArbreouquoiService {
 
   private emitFilteredTree(filterOptions: FilterOptions): void {
     try {
-      const config = this.configService.getAppConfig();
+      const config = this.getConfig();
       const viewMode = config.display.viewMode || 'ou-first';
       const tree = viewMode === 'ou-first' 
         ? this.buildOuFirstTreeFiltered(filterOptions) 
