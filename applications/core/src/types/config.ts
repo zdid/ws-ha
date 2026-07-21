@@ -17,27 +17,58 @@ export type ModuleConfig = Record<string, unknown>;
  * Utilisé pour la génération dynamique des formulaires dans l'UI
  */
 export interface ConfigField {
-  name: string;                    // Nom du champ (ex: 'serialPort')
+  name: string;                    // Nom du champ (ex: 'serialPort', 'mqtt.host')
   label: string;                   // Label à afficher
-  type: 'text' | 'number' | 'boolean' | 'select' | 'password';
+  type: 'text' | 'string' | 'number' | 'boolean' | 'select' | 'password' | 'string-array';
   placeholder?: string;
   hint?: string;                   // Texte d'aide
+  description?: string;            // Description détaillée
   required?: boolean;
-  options?: { value: string; label: string }[]; // Pour les selects
+  default?: unknown;               // Valeur par défaut
+  options?: { value: string; label: string }[] | string[]; // Pour les selects (format simple ou {value, label})
   min?: number;                   // Pour number
   max?: number;
   step?: number;
 }
 
 /**
+ * Groupe de champs de configuration
+ * Permet d'organiser les champs en sections logiques (MQTT, HA, etc.)
+ */
+export interface ConfigFieldGroup {
+  title?: string;                 // Titre du groupe (ex: 'MQTT', 'HA')
+  description?: string;           // Description du groupe
+  icon?: string;                 // Icône du groupe
+  fields: ConfigField[];          // Champs du groupe
+}
+
+/**
  * Métadonnées UI pour un module d'application
  * Permet la génération dynamique des formulaires de configuration
+ * 
+ * @example
+ * // Structure plate
+ * { fields: [{ name: 'host', type: 'text', ... }] }
+ * 
+ * @example
+ * // Structure avec groupes
+ * { fields: [
+ *     { title: 'MQTT', fields: [{ name: 'mqtt.host', type: 'text', ... }] },
+ *     { title: 'HA', fields: [{ name: 'ha.enabled', type: 'boolean', ... }] }
+ *   ] }
  */
 export interface ModuleUiMetadata {
   title: string;                  // Titre de la section
   description: string;            // Description
   icon?: string;                  // Icône (optionnel)
-  fields: ConfigField[];          // Liste des champs à afficher
+  category?: string;             // Catégorie pour le menu
+  menuLabel?: string;            // Label du menu
+  menuIcon?: string;             // Icône du menu
+  menuOrder?: number;             // Ordre dans le menu
+  menuPath?: string;              // Chemin du menu
+  badge?: string;                 // Badge à afficher
+  // ⭐ Supporter les champs plats OU les groupes
+  fields: ConfigField[] | ConfigFieldGroup[];
 }
 
 /** Module d'application (pour la détection dynamique) */

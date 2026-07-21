@@ -2,7 +2,8 @@
 // Types des événements Socket.io et EventBus
 // Conforme à specs-techniques-socle-ha-mqtt-v4.3.md §5 et specs-presentation-v2.0.md §7
 
-import type { AppConfig, ConfigValidationResult, TechnicalConfig } from './config';
+import type { AppConfig, ConfigValidationResult, TechnicalConfig, ApplicationModule } from './config';
+export type { ApplicationModule };
 
 // ============================================================================
 // ÉVÉNEMENTS SOCKET.IO (Communication UI ↔ Serveur)
@@ -112,19 +113,7 @@ export interface ClientToServerEvents {
 // ÉVÉNEMENTS EVENTBUS (Communication Inter-Couches Serveur)
 // ============================================================================
 
-/** Module d'application (pour la détection dynamique) */
-export interface ApplicationModule {
-  id: string;                    // Identifiant unique (ex: "module-id")
-  name: string;                  // Nom affiché (ex: "Module Name")
-  description: string;           // Description
-  icon: string;                 // Icône (emoji)
-  type: 'core' | 'integration' | 'standalone';
-  configurable: boolean;         // Peut être configuré via UI
-  socketEvents?: Record<string, string>; // Événements Socket.io spécifiques
-  requiredMqtt?: boolean;       // Nécessite MQTT
-  requiredHaWs?: boolean;       // Nécessite HA WebSocket
-  status?: 'configured' | 'partial' | 'missing' | 'error';
-}
+// ApplicationModule est importé depuis config.ts
 
 /**
  * Événements internes de l'application (EventBus)
