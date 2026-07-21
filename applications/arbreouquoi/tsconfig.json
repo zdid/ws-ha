@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "../../",
+    "paths": {
+      "application/*": ["applications/core/dist/application/*"],
+      "infrastructure/*": ["applications/core/dist/infrastructure/*"],
+      "ha/*": ["applications/core/dist/ha/*"],
+      "types/*": ["applications/core/dist/types/*"],
+      "ui/*": ["applications/core/dist/presentation/*"]
+    },
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": [
+    "src/domain/**/*",
+    "src/presentation/ts/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

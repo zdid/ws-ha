@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arbre Ou Quoi - Visualisation du Référentiel HA</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="/applications/arbreouquoi/styles/arbreouquoi.css">
+  <!-- Derniere modification: 2026-07-20 11:00:00 - Mise à jour pour les deux modes d'affichage -->
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1><span class="app-icon">🌳</span> Arbre Ou Quoi</h1>
+      <p class="app-description">Visualisation du référentiel Home Assistant organisé par OU → QUOI → Entités</p>
+    </header>
+
+    <div class="app-toolbar">
+      <div class="toolbar-section">
+        <button id="refresh-btn" class="btn btn-primary">
+          <span>🔄</span> Rafraîchir
+        </button>
+        <button id="toggle-view-mode-btn" class="btn btn-primary">
+          🔀 Passer en mode QUOI → OU
+        </button>
+        <button id="expand-all-btn" class="btn btn-secondary">
+          <span>↕</span> Tout étendre
+        </button>
+        <button id="collapse-all-btn" class="btn btn-secondary">
+          <span>↕</span> Tout réduire
+        </button>
+      </div>
+
+      <div class="toolbar-section">
+        <div class="search-box">
+          <input type="text" id="search-input" placeholder="🔍 Rechercher une entité..." />
+          <button id="search-btn" class="btn btn-primary">Rechercher</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat-item">
+        <span class="stat-value" id="total-entities">0</span>
+        <span class="stat-label">Entités</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="total-ou-paths">0</span>
+        <span class="stat-label">Chemins OU</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="total-qui-types">0</span>
+        <span class="stat-label">Types QUOI</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="unassigned-entities">0</span>
+        <span class="stat-label">Non assignés</span>
+      </div>
+      <div class="stat-item status-item" id="connection-status">
+        <span class="status-indicator"></span>
+        <span class="status-text">Connecté</span>
+      </div>
+    </div>
+
+    <div class="loading-indicator" id="loading-indicator">
+      <div class="spinner"></div>
+      <p>Chargement du référentiel Home Assistant...</p>
+    </div>
+
+    <div class="error-message" id="error-message" style="display: none;"></div>
+
+    <div class="main-content">
+      <div class="tree-container">
+        <div class="tree-navigation">
+          <h3>📁 Arborescence</h3>
+          <div class="view-mode-info" id="view-mode-info">
+            Mode actuel: <strong>OU → QUOI → Entités</strong>
+          </div>
+          <div class="quoi-catalog" id="quoi-catalog">
+            <h4>Légende QUOI</h4>
+            <div class="quoi-icons" id="quoi-icons"></div>
+          </div>
+          <div class="ou-legend">
+            <h4>Légende OU</h4>
+            <div class="ou-legend-items">
+              <div class="ou-legend-item"><span class="ou-legend-icon">🏠</span> Grand-Père</div>
+              <div class="ou-legend-item"><span class="ou-legend-icon">🏢</span> Père</div>
+              <div class="ou-legend-item"><span class="ou-legend-icon">📍</span> Lieu</div>
+              <div class="ou-legend-item"><span class="ou-legend-icon">🎯</span> Lieu Précis</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tree-content">
+          <div class="tree" id="tree">
+            <!-- L'arbre sera généré dynamiquement par JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <div class="details-panel" id="details-panel" style="display: none;">
+        <button class="close-btn" id="close-details-btn">×</button>
+        <h3>Détails de l'entité</h3>
+        <div id="details-content"></div>
+      </div>
+    </div>
+
+    <div class="app-footer">
+      <p>Application Arbre Ou Quoi - Dernière mise à jour: <span id="last-update">Jamais</span></p>
+    </div>
+  </div>
+
+  <script src="/applications/arbreouquoi/ts/app.js"></script>
+</body>
+</html>
