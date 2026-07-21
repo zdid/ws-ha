@@ -26,7 +26,8 @@ export class ArbreouquoiService {
     private eventBus: IEventBus,
     private logger: Logger,
     private configService: IAppConfigProvider<ArbreouquoiConfig>,
-    private haStructureRegistry: HaStructureRegistry
+    /** Absent si ha.ws_enable=false — le référentiel structuré n'existe alors pas du tout. */
+    private haStructureRegistry: HaStructureRegistry | undefined
   ) {
     this.setupEventListeners();
   }
@@ -40,6 +41,18 @@ export class ArbreouquoiService {
     return arbreouquoiConfigSchema.parse(this.configService.getAppConfig());
   }
 
+  /**
+   * Accès au référentiel structuré avec message d'erreur clair s'il est absent (ha.ws_enable=false)
+   * plutôt qu'un "Cannot read properties of undefined" cryptique — les appelants sont déjà dans un
+   * try/catch qui convertit l'exception en événement ARBREOUQUOI_SOCKET_EVENTS.ERROR côté client.
+   */
+  private requireRegistry(): HaStructureRegistry {
+    if (!this.haStructureRegistry) {
+      throw new Error('Référentiel HA indisponible (ha.ws_enable=false)');
+    }
+    return this.haStructureRegistry;
+  }
+
   // ⭐ OBLIGATOIRE : Méthode start() asynchrone
   async start(): Promise<void> {
     this.logger.info('ArbreouquoiService', 'Démarrage du service ArbreOuQui...');
@@ -48,8 +61,18 @@ export class ArbreouquoiService {
       // Charger la configuration
       const config = this.getConfig();
       this.logger.info('ArbreouquoiService', `Configuration chargée. Mode: ${config.display.viewMode}`);
-      
-      // Vérifier que le référentiel HA est disponible
+
+      // Le référentiel structuré n'existe que si ha.ws_enable=true (voir techniques-socle-ha-mqtt_specs
+      // §8.1) — arbreouquoi en dépend entièrement (requiredHaWs: true), mais son absence est un état
+      // normal (WS désactivé), pas une erreur : on le signale proprement plutôt que de planter.
+      if (!this.haStructureRegistry) {
+        this.logger.warn('ArbreouquoiService',
+          'Référentiel HA indisponible (ha.ws_enable=false) — Arbre Ou Quoi ne peut pas fonctionner sans lui');
+        this.emitStatus('error', 'Référentiel HA indisponible : activez ha.ws_enable pour utiliser cette application');
+        this.registerPersistentEvents();
+        return;
+      }
+
       const entityCount = this.haStructureRegistry.getAllEntities().length;
       this.logger.info('ArbreouquoiService', `Référentiel HA initialisé avec ${entityCount} entités`);
       
@@ -219,7 +242,7 @@ export class ArbreouquoiService {
 
   private emitStats(): void {
     try {
-      const allEntities = this.haStructureRegistry.getAllEntities();
+      const allEntities = this.requireRegistry().getAllEntities();
       const ouPaths = new Set<string>();
       for (const entity of allEntities) {
         const path = this.extractOuPathFromEntity(entity).join('/');
@@ -254,8 +277,8 @@ export class ArbreouquoiService {
   // ============ BUILD OU-FIRST TREE ============
 
   private buildOuFirstTree(): OuFirstTree {
-    const allEntities = this.haStructureRegistry.getAllEntities();
-    const catalog = this.haStructureRegistry.getQuoiCatalog();
+    const allEntities = this.requireRegistry().getAllEntities();
+    const catalog = this.requireRegistry().getQuoiCatalog();
     
     const entitiesWithOu: Array<{ entity: HaStructuredEntity; ouPath: string[]; ouNames: string[] }> = [];
     
@@ -306,12 +329,12 @@ export class ArbreouquoiService {
   }
 
   private buildOuFirstTreeFiltered(filterOptions: FilterOptions): OuFirstTree {
-    const allEntities = this.haStructureRegistry.getAllEntities();
+    const allEntities = this.requireRegistry().getAllEntities();
     let filtered = filterOptions.showOnlyActive !== false 
       ? allEntities.filter(e => e.state !== 'unavailable') 
       : allEntities;
     
-    const catalog = this.haStructureRegistry.getQuoiCatalog();
+    const catalog = this.requireRegistry().getQuoiCatalog();
     const entitiesWithOu: Array<{ entity: HaStructuredEntity; ouPath: string[]; ouNames: string[] }> = [];
     
     for (const entity of filtered) {
@@ -353,8 +376,8 @@ export class ArbreouquoiService {
   // ============ BUILD QUOI-FIRST TREE ============
 
   private buildQuoiFirstTree(): QuoiFirstTree {
-    const allEntities = this.haStructureRegistry.getAllEntities();
-    const catalog = this.haStructureRegistry.getQuoiCatalog();
+    const allEntities = this.requireRegistry().getAllEntities();
+    const catalog = this.requireRegistry().getQuoiCatalog();
     
     const quoiGroups: QuiGroupWithOu[] = [];
     const quoiMap = new Map<string, QuiGroupWithOu>();
@@ -393,12 +416,12 @@ export class ArbreouquoiService {
   }
 
   private buildQuoiFirstTreeFiltered(filterOptions: FilterOptions): QuoiFirstTree {
-    const allEntities = this.haStructureRegistry.getAllEntities();
+    const allEntities = this.requireRegistry().getAllEntities();
     let filtered = filterOptions.showOnlyActive !== false 
       ? allEntities.filter(e => e.state !== 'unavailable') 
       : allEntities;
     
-    const catalog = this.haStructureRegistry.getQuoiCatalog();
+    const catalog = this.requireRegistry().getQuoiCatalog();
     const quoiGroups: QuiGroupWithOu[] = [];
     const quoiMap = new Map<string, QuiGroupWithOu>();
     
@@ -531,8 +554,8 @@ export class ArbreouquoiService {
   }
 
   private buildQuoiCatalog(): QuoiCatalogWithCounts[] {
-    const catalog = this.haStructureRegistry.getQuoiCatalog();
-    const allEntities = this.haStructureRegistry.getAllEntities();
+    const catalog = this.requireRegistry().getQuoiCatalog();
+    const allEntities = this.requireRegistry().getAllEntities();
     return catalog.map(quoiDef => {
       const entities = allEntities.filter(e => e.quoi_ids.includes(quoiDef.quoi_id));
       const paths = new Set<string>();
@@ -546,13 +569,13 @@ export class ArbreouquoiService {
 
   private emitEntityDetails(entityId: string): void {
     try {
-      const entity = this.haStructureRegistry.getEntity(entityId);
+      const entity = this.requireRegistry().getEntity(entityId);
       if (!entity) {
         this.eventBus.emit(ARBREOUQUOI_SOCKET_EVENTS.ERROR, { message: `Entité non trouvée: ${entityId}` });
         return;
       }
       const ouNames = this.extractOuNamesFromEntity(entity);
-      const related = this.haStructureRegistry.getAllEntities()
+      const related = this.requireRegistry().getAllEntities()
         .filter(e => e.entity_id !== entityId)
         .filter(e => {
           const ePath = this.extractOuPathFromEntity(e).join('/');
@@ -586,20 +609,20 @@ export class ArbreouquoiService {
   }
 }
 
+/**
+ * Factory à 4 paramètres : AppService.startApplicationService() détecte l'arité (factory.length)
+ * et fournit haStructureRegistry en 4ème argument (undefined si ha.ws_enable=false — voir
+ * requireRegistry() ci-dessus pour la gestion de cette absence).
+ *
+ * ⚠️ Avant ce correctif, cette factory n'existait qu'à 3 paramètres et castait `configProvider`
+ * en `HaStructureRegistry` (`as unknown as HaStructureRegistry`) faute de mécanisme d'injection —
+ * plantait immédiatement (`getAllEntities is not a function`) dès le premier accès au référentiel.
+ */
 export function createArbreouquoiService(
   eventBus: IEventBus,
   logger: Logger,
-  configProvider: IAppConfigProvider<ArbreouquoiConfig>
+  configProvider: IAppConfigProvider<ArbreouquoiConfig>,
+  haStructureRegistry: HaStructureRegistry | undefined
 ): ArbreouquoiService {
-  return new ArbreouquoiService(eventBus, logger, configProvider, configProvider as unknown as HaStructureRegistry);
-}
-
-export function createArbreouquoiServiceWithRegistry(
-  eventBus: IEventBus,
-  logger: Logger,
-  configService: unknown,
-  haStructureRegistry: HaStructureRegistry
-): ArbreouquoiService {
-  const configProvider = new (require('../../../../infrastructure/config/AppConfigProvider').AppConfigProvider)('arbreouquoi', configService);
   return new ArbreouquoiService(eventBus, logger, configProvider, haStructureRegistry);
 }

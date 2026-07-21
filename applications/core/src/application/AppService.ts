@@ -571,10 +571,15 @@ export class AppService {
       }
       
       // Instancier le service
-      // Toutes les factories attendent un IAppConfigProvider en 3ème paramètre
+      // Toutes les factories attendent un IAppConfigProvider en 3ème paramètre. Une factory à
+      // 4 paramètres reçoit en plus this.haStructureRegistry (peut être undefined si
+      // ha.ws_enable=false — à l'application de gérer cette absence, voir ArbreouquoiService).
       let service: any;
-      
-      if (factory.length >= 3) {
+
+      if (factory.length >= 4) {
+        const configProvider = new AppConfigProvider(moduleId as any, this.configService);
+        service = factory(this.eventBus, this.logger, configProvider, this.haStructureRegistry);
+      } else if (factory.length >= 3) {
         // La factory attend 3 paramètres : eventBus, logger, configProvider
         const configProvider = new AppConfigProvider(moduleId as any, this.configService);
         service = factory(this.eventBus, this.logger, configProvider);
