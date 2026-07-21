@@ -12,5 +12,5 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/presentation/ui/ts/**"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/presentation/ui/ts/**", "src/ui-exports.ts"]
 }
