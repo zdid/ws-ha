@@ -1,6 +1,6 @@
 # Guide Rapide — Création d'une Nouvelle Application
 
-**Version :** 1.5  
+**Version :** 1.6  
 **Date :** 21 Juillet 2026  
 **Statut :** Document pratique pour les développeurs  
 **Public cible :** Développeurs créant une nouvelle application sans modifier le socle  
@@ -18,6 +18,13 @@
 > singleton `getInstance()` que la classe réelle n'a jamais eu. Le bon point d'entrée est
 > **`core/src/ui-exports.ts`** (jamais `exports.ts`, qui est réservé au backend — voir
 > `techniques-socle-ha-mqtt_specs` §4.2.1), avec `new SocketService()`.
+
+> **NOUVEAU v1.6 :** Correction des exemples §3.8 (chemins statiques `<link>`/`<script>`) : le
+> segment `presentation/` fait partie intégrante de l'URL servie
+> (`/applications/{nom-app}/presentation/...`), il ne doit jamais être omis — erreur constatée en
+> pratique sur `nommage` et `arbreouquoi` (scripts/styles introuvables au chargement de leur page).
+> Correction §5.1 : `AppService` ne scanne que `applications/`, pas de `dist/applications/` partagé
+> à la racine (chaque application a son propre `dist/`, voir `techniques-socle-ha-mqtt_specs` §4.2).
 
 ---
 
@@ -408,7 +415,7 @@ export function create{NomApp}ServiceWithConfig(
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{Nom App} - HA App</title>
   <link rel="stylesheet" href="/styles/main.css">
-  <link rel="stylesheet" href="/applications/{nom-app}/styles/{nom-app}.css">
+  <link rel="stylesheet" href="/applications/{nom-app}/presentation/styles/{nom-app}.css">
 </head>
 <body>
   <div class="app-container">
@@ -419,10 +426,16 @@ export function create{NomApp}ServiceWithConfig(
       <div id="error" class="error" style="display: none;"></div>
     </div>
   </div>
-  <script src="/applications/{nom-app}/ts/app.js"></script>
+  <script src="/applications/{nom-app}/presentation/ts/app.js"></script>
 </body>
 </html>
 ```
+
+> **⚠️ v1.6** : Le segment `presentation/` fait partie intégrante de l'URL (pas seulement du chemin
+> disque) — `/applications/{nom-app}/presentation/...` correspond à
+> `applications/{nom-app}/{dist,src}/presentation/...`. C'est la convention réellement utilisée par
+> `ModuleContainer.ts` du core et `presentation_specs` §4.3 ; un chemin qui omettrait `presentation/`
+> (ex: `/applications/{nom-app}/ts/app.js`) ne résout vers rien.
 
 ### 3.9 Initialiser le client Socket.io
 
@@ -500,9 +513,9 @@ Le socle **détecte et démarre automatiquement** votre application.
 
 ### 5.1 Convention de détection
 
-`AppService` scanne automatiquement :
-- `applications/{nom-app}/`
-- `dist/applications/{nom-app}/`
+`AppService` scanne automatiquement le répertoire `applications/` à la racine du projet (chaque
+application y possède son propre `dist/` et `src/` — il n'existe pas de `dist/applications/`
+partagé à la racine, contrairement à ce qu'indiquait cette section avant v1.6).
 
 **Conditions pour être détectée** :
 1. Répertoire doit contenir `domain/index.ts`

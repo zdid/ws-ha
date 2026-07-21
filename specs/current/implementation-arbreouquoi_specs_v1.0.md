@@ -5,7 +5,7 @@
 **Auteur :** Mistral Vibe  
 **Statut :** En développement  
 **Type :** Application standalone  
-**Dépend de :** techniques-socle-ha-mqtt_specs_v4.10.md, guide-nouvelle-application_specs_v1.5.md, nommage_specs_v1.0.md  
+**Dépend de :** techniques-socle-ha-mqtt_specs_v4.10.md, guide-nouvelle-application_specs_v1.6.md, nommage_specs_v1.0.md  
 
 ---
 
@@ -1079,7 +1079,7 @@ Voir [nommage_specs_v1.0.md](nommage_specs_v1.0.md) pour les règles complètes.
 - [PROMPT.md](../../PROMPT.md) — Instructions pour Vibe
 - [PROMPT_PROJET.md](../../PROMPT_PROJET.md) — Règles de développement
 - [techniques-socle-ha-mqtt_specs_v4.10.md](techniques-socle-ha-mqtt_specs_v4.10.md) — Spécifications techniques socle
-- [guide-nouvelle-application_specs_v1.5.md](guide-nouvelle-application_specs_v1.5.md) — Guide de création
+- [guide-nouvelle-application_specs_v1.6.md](guide-nouvelle-application_specs_v1.6.md) — Guide de création
 - [nommage_specs_v1.0.md](nommage_specs_v1.0.md) — Conventions de nommage
 
 ---

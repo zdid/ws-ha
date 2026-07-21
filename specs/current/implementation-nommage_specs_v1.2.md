@@ -1,16 +1,24 @@
 # Spécifications d'Implémentation - Application NOMMAGE
 
-**Version :** 1.1  
+**Version :** 1.2  
 **Date :** 21 Juillet 2026  
 **Auteur :** Mistral Vibe / Claude  
 **Statut :** Document technique pour les développeurs  
-**Document parent :** [fonctionnelles-nommage_specs_v1.1.md](./fonctionnelles-nommage_specs_v1.1.md)
+**Document parent :** [fonctionnelles-nommage_specs_v1.2.md](./fonctionnelles-nommage_specs_v1.2.md)
 
 > **v1.1** : `NommageMqttIntegrationService` gère désormais **N connexions MQTT simultanées** (une
 > par source, §4.1) au lieu d'une seule. La transmission vers HA passe par le **Passthrough MQTT**
 > du socle (§5.3) et remplace l'ancien `nommage:transmit:to-core`. **Correction importante** : le
 > flux ne met **jamais** à jour `HaStructureRegistry` (alimenté nativement par HA via WS
 > uniquement, si `ha.ws_enable=true`) — NOMMAGE ne dépend que de `ha.mqtt_enable`.
+
+> **v1.2** : Le code livré en v1.1 ne connectait et ne traitait en réalité que la **première**
+> source (`couples[0]`), les exemples de code de cette section §4 n'avaient d'ailleurs jamais été
+> alignés sur le Passthrough MQTT malgré le texte l'annonçant — les deux sont corrigés ci-dessous.
+> **`bridgeInstance` obligatoire** (§5.3, absent de l'exemple v1.1) : NOMMAGE s'enregistre auprès du
+> socle (`integration:bridge:register`) avec `bridgeInstance: 'main'` avant de pouvoir publier via
+> le Passthrough MQTT. **Nouveau** (§4.2.1) : `NommageStatus` expose `sources[]` (statut par
+> connexion) et `dailyCounts[]` (entrées traitées par jour, 5 jours glissants).
 
 ---
 
@@ -29,7 +37,7 @@
 
 ## 1. Introduction
 
-Ce document détaille l'**implémentation technique** de l'application NOMMAGE, en complément des [spécifications fonctionnelles](./fonctionnelles-nommage_specs_v1.1.md).
+Ce document détaille l'**implémentation technique** de l'application NOMMAGE, en complément des [spécifications fonctionnelles](./fonctionnelles-nommage_specs_v1.2.md).
 
 **Public cible :**
 - Développeurs souhaitant étendre ou maintenir l'application
@@ -179,7 +187,7 @@ applications/nommage/
         └── app.ts                 # Logique frontend
 ```
 
-**Fichiers obligatoires (selon [guide-nouvelle-application_specs_v1.5.md](./guide-nouvelle-application_specs_v1.5.md)) :**
+**Fichiers obligatoires (selon [guide-nouvelle-application_specs_v1.6.md](./guide-nouvelle-application_specs_v1.6.md)) :**
 - ✅ `domain/index.ts`
 - ✅ `domain/NommageService.ts`
 - ✅ `presentation/index.html`
@@ -329,11 +337,15 @@ private parseDiscoveryName(rawName: string): ParsedTaxonomy | null {
   return {
     quoi: { raw: rawQuoi, slug: slugQuoi },
     ou: { precis: nomPrecis, lieu: nomLieu, pere: nomPere, grandPere: nomGrandPere },
+    // ⭐ v1.2 — haAreaId/haAreaName/haEntityId sont purement informatifs (affichage UI) : HA crée
+    // ses propres entity_id à partir du message source relayé tel quel (voir §5.3), NOMMAGE n'a
+    // plus de "objectIdPrefix"/"defaultDomain" configurables depuis que le passthrough a remplacé
+    // la reconstruction manuelle d'entité (v1.1).
     haAreaId: nomLieu?.slug,
     haAreaName: nomLieu?.raw,
-    haEntityId: nomLieu 
-      ? `${this.config.ha.objectIdPrefix}${slugQuoi}_${nomLieu.slug}`
-      : `${this.config.ha.objectIdPrefix}${slugQuoi}`,
+    haEntityId: nomLieu
+      ? `nommage_${slugQuoi}_${nomLieu.slug}`
+      : `nommage_${slugQuoi}`,
     haAttributes: {
       attributs_taxonomie: {
         quoi: rawQuoi,
@@ -346,8 +358,7 @@ private parseDiscoveryName(rawName: string): ParsedTaxonomy | null {
         slug_pere: nomPere?.slug,
         lieu_grand_pere: nomGrandPere?.raw,
         slug_grand_pere: nomGrandPere?.slug
-      },
-      ...otherAttributes
+      }
     }
   };
 }
@@ -363,15 +374,18 @@ private slugify(text: string): string {
     .replace(/_+/g, '_');
 }
 
-// Transmission au core
-private transmitToCore(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonomy): void {
-  if (!this.config.ha.autoTransmit) return;
-  
-  this.eventBus.emit('nommage:transmit:to-core', {
-    type: 'nommage:discovery:parsed',
-    discoveryMessage,
-    parsedTaxonomy: parsed,
-    timestamp: new Date()
+// ⭐ v1.2 — Relais vers HA via le Passthrough MQTT du socle (§5.3). Remplace l'ancien
+// transmitToCore/nommage:transmit:to-core : cet exemple de code n'avait jamais été mis à jour en
+// v1.1 malgré le texte l'annonçant déjà obsolète — corrigé ici pour refléter le code réel.
+private emitPassthroughDiscovery(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonomy): void {
+  const payload = this.config.ha.injectTaxonomyAttributes
+    ? { ...discoveryMessage.payload, attributs_taxonomie: parsed.haAttributes.attributs_taxonomie }
+    : { ...discoveryMessage.payload };
+
+  this.eventBus.emit('integration:nommage:passthrough:discovery', {
+    bridgeInstance: 'main',        // ⭐ voir §5.3 — obligatoire, absent à tort de l'exemple v1.1
+    sourceTopic: discoveryMessage.topic,
+    payload
   });
 }
 ```
@@ -384,11 +398,44 @@ private transmitToCore(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonom
 - `nommage:config:save` → Sauvegarde de la configuration
 
 **Événements EventBus émis :**
-- `nommage:discovery:parsed` → Message parsé avec succès
+- `nommage:discovery:parsed` → Message parsé avec succès (statut détaillé, voir §4.2.1)
 - `nommage:taxonomy:structure` → Structure taxonomique complète
-- `nommage:status` → Statut actuel
+- `nommage:status` → Statut actuel (inclut désormais `sources[]`/`dailyCounts[]`, voir §4.2.1)
 - `nommage:error` → Erreur interne
-- `nommage:transmit:to-core` → Transmission au core pour HA
+- `integration:bridge:register` / `:unregister` → Enregistrement du bridge auprès du socle (§5.3)
+- `integration:nommage:passthrough:discovery` → Relais enrichi vers HA (remplace `nommage:transmit:to-core`, retiré en v1.1)
+
+### 4.2.1 Statistiques du tableau de bord — ⭐ NOUVEAU v1.2
+
+**Statut par connexion :** `NommageMqttIntegrationService.getSourceStatuses()` retourne, pour
+chaque source configurée, `{ id, connected }` en croisant `config.sources` avec l'ensemble des
+sourceId actuellement connectés. Appelé par `NommageService` à chaque émission de `nommage:status`.
+
+**Entrées traitées par jour (5 jours glissants) :** `NommageService` maintient une
+`Map<string, number>` (clé `"AAAA-MM-JJ"`, heure locale du serveur), incrémentée à chaque parsing
+réussi (`recordProcessedEntry`). Une purge supprime les clés plus anciennes que la fenêtre à chaque
+incrément (évite une croissance illimitée sur un processus longue durée). `getDailyCountsLastDays()`
+reconstruit toujours exactement 5 entrées (0 pour les jours sans activité), du plus ancien au plus
+récent :
+
+```typescript
+private getDailyCountsLastDays(): DailyCount[] {
+  const result: DailyCount[] = [];
+  const today = new Date();
+
+  for (let i = DAILY_STATS_WINDOW_DAYS - 1; i >= 0; i--) {
+    const day = new Date(today);
+    day.setDate(day.getDate() - i);
+    const key = this.toIsoDate(day);
+    result.push({ date: key, count: this.dailyCounts.get(key) || 0 });
+  }
+
+  return result;
+}
+```
+
+> ⚠️ Comme `parsedMessagesCount` et `taxonomyStructures`, ces compteurs sont **en mémoire** : ils
+> repartent à zéro à chaque redémarrage de l'application (pas de persistance sur disque).
 
 ### 4.3 Déclaration du Module
 
@@ -444,6 +491,8 @@ export * from '../ha/integration/nommage/NommageMqttIntegrationService';
 **Fonctionnalités :**
 - Connexion Socket.io au serveur
 - Affichage du statut (Application + MQTT)
+- ⭐ **v1.2** — Statut par connexion (`status.sources[]` — voir §4.2.1)
+- ⭐ **v1.2** — Entrées traitées par jour, 5 jours glissants (`status.dailyCounts[]` — voir §4.2.1)
 - Liste des topics de découverte
 - Compteur des messages parsés
 - Date du dernier parsing
@@ -451,16 +500,24 @@ export * from '../ha/integration/nommage/NommageMqttIntegrationService';
 
 **Code clé (app.ts) :**
 ```typescript
-// Initialisation
+// Import depuis le point d'entrée UI navigateur du core (jamais exports.ts, voir
+// techniques-socle-ha-mqtt_specs §4.2.1). SocketService n'est pas un singleton : new, pas getInstance().
+import { SocketService } from '../../../../core/src/ui-exports';
+
 function init(): void {
-  socket = SocketService.getInstance();
+  const socketService = new SocketService();
+  socket = socketService.connect();
   setupEventListeners();
   requestInitialStatus();
   hideLoading();
 }
 
 // Événements Socket.io
-socket.on('nommage:status', updateStatusDisplay);
+socket.on('nommage:status', (status: NommageStatus) => {
+  updateStatusDisplay(status);
+  updateSourcesDisplay(status.sources);      // ⭐ v1.2
+  updateDailyStatsDisplay(status.dailyCounts); // ⭐ v1.2
+});
 socket.on('nommage:discovery:parsed', (data) => {
   updateParsedMessagesCounter();
   updateLastParsedDisplay(data.timestamp);
@@ -523,15 +580,31 @@ Appel: .start()
 > NOMMAGE utilise désormais le **Passthrough MQTT** du socle
 > ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.10.md#856-passthrough-mqtt)).
 
+> **⚠️ v1.2** : `bridgeInstance` est **obligatoire** dans l'événement (absent à tort de l'exemple
+> v1.1) — le socle route le passthrough par bridge_instance, pas seulement par module (voir
+> `techniques-socle-ha-mqtt_specs` §8.5.1). NOMMAGE doit d'abord **s'enregistrer** auprès du socle
+> avant de pouvoir publier :
+> ```typescript
+> // Au démarrage (NommageService.start())
+> this.eventBus.emit('integration:bridge:register', { moduleName: 'nommage', bridgeInstance: 'main' });
+> // À l'arrêt (NommageService.stop())
+> this.eventBus.emit('integration:bridge:unregister', { moduleName: 'nommage', bridgeInstance: 'main' });
+> ```
+> NOMMAGE utilise un seul `bridgeInstance` fixe (`'main'`) pour sa connexion **sortante** vers le
+> broker HA du socle — à ne pas confondre avec les N sources MQTT **entrantes** (§4.1), qui sont
+> des connexions de lecture indépendantes gérées par `NommageMqttIntegrationService`.
+
 **Événement émis par NOMMAGE (`integration:nommage:passthrough:discovery`) :**
 ```typescript
 // Émis par NommageService après parsing + enrichissement
 type PassthroughDiscoveryEvent = {
+  bridgeInstance: string; // ⭐ v1.2 — obligatoire, ex: "main" (voir encadré ci-dessus)
   sourceTopic: string;    // Topic d'origine, préfixe non modifié (ex: "homeassist/sensor/x/config")
   payload: Record<string, unknown>;  // Payload source + attributs_taxonomie injectés
 };
 
 this.eventBus.emit('integration:nommage:passthrough:discovery', {
+  bridgeInstance: 'main',
   sourceTopic: discoveryMessage.topic,
   payload: {
     ...discoveryMessage.payload,
@@ -540,17 +613,25 @@ this.eventBus.emit('integration:nommage:passthrough:discovery', {
 } satisfies PassthroughDiscoveryEvent);
 ```
 
-**Traitement générique dans le core** (`HaMqttIntegrationService`, commun à toutes les
+**Traitement dans le core** (`IntegrationBridge`/`HaMqttIntegrationService`, générique à toutes les
 applications utilisant le passthrough — pas de code spécifique à NOMMAGE dans le core) :
 ```typescript
-this.eventBus.on('integration:nommage:passthrough:discovery', (data: PassthroughDiscoveryEvent) => {
-  // Remplace uniquement le premier segment du topic par "homeassistant"
-  const segments = data.sourceTopic.split('/');
-  segments[0] = 'homeassistant';
-  const targetTopic = segments.join('/');
+// IntegrationBridge : un seul abonnement dynamique par module enregistré, pas de nom d'appli en dur
+this.eventBus.onGeneric<PassthroughDiscoveryRequestEvent>(
+  `integration:${moduleName}:passthrough:discovery`,
+  (data) => {
+    if (!this.mqttEnabled) return;
+    this.haMqttService.publishDiscoveryPassthrough(moduleName, data.bridgeInstance, data.sourceTopic, data.payload);
+  }
+);
 
-  this.mqttClient.publish(targetTopic, JSON.stringify(data.payload), { qos: 1, retain: true });
-});
+// HaMqttIntegrationService.publishDiscoveryPassthrough : réécrit le préfixe puis publie
+// sur la connexion MQTT du bridge_instance concerné (QoS 1, retain true)
+publishDiscoveryPassthrough(moduleName: string, bridgeInstance: string, sourceTopic: string, payload: unknown): void {
+  const transport = this.getTransport(moduleName, bridgeInstance);
+  const targetTopic = rewriteToHomeAssistantPrefix(sourceTopic); // remplace le 1er segment par "homeassistant"
+  transport.publish(targetTopic, JSON.stringify(payload), 1, true);
+}
 ```
 
 > ⚠️ **Ce que ce flux NE fait PAS** (erreur à ne pas reproduire) :
@@ -828,9 +909,9 @@ mosquitto_sub -h localhost -t "$SYS/broker/subscriptions" -v
 
 ## 📚 Références
 
-- [fonctionnelles-nommage_specs_v1.1.md](./fonctionnelles-nommage_specs_v1.1.md) - Spécifications fonctionnelles
+- [fonctionnelles-nommage_specs_v1.2.md](./fonctionnelles-nommage_specs_v1.2.md) - Spécifications fonctionnelles
 - [techniques-socle-ha-mqtt_specs_v4.10.md](./techniques-socle-ha-mqtt_specs_v4.10.md) - Socle technique
-- [guide-nouvelle-application_specs_v1.5.md](./guide-nouvelle-application_specs_v1.5.md) - Guide de création
+- [guide-nouvelle-application_specs_v1.6.md](./guide-nouvelle-application_specs_v1.6.md) - Guide de création
 - [nommage_specs_v1.0.md](./nommage_specs_v1.0.md) - Protocole de nommage
 - [PROMPT_PROJET.md](../PROMPT_PROJET.md) - Règles générales
 
@@ -840,6 +921,7 @@ mosquitto_sub -h localhost -t "$SYS/broker/subscriptions" -v
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **1.2** | 21/07/2026 | Claude | **Correction** : le code v1.1 ne connectait/traitait en réalité que `couples[0]` malgré le texte — `NommageMqttIntegrationService` gère désormais réellement une `Map<sourceId, MqttClient>` (§4.1). Exemples de code §4.2/§5.3 réalignés sur le Passthrough MQTT réel (`bridgeInstance` obligatoire, absent à tort en v1.1). **Nouveau** : statut par connexion et entrées traitées par jour sur 5 jours glissants (§4.2.1, `NommageStatus.sources[]`/`.dailyCounts[]`). |
 | **1.1** | 21/07/2026 | Claude | `NommageMqttIntegrationService` gère N connexions simultanées (une par source), transmission via Passthrough MQTT du socle (remplace `nommage:transmit:to-core`), correction : le référentiel HA n'est jamais mis à jour depuis MQTT, NOMMAGE ne dépend que de `ha.mqtt_enable` |
 | **1.0** | 19/07/2026 | Mistral Vibe | Version initiale : Implémentation complète selon specs |
 

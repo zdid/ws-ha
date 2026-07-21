@@ -1,10 +1,17 @@
 # Spécifications Fonctionnelles - Application NOMMAGE
 
-**Version :** 1.1  
+**Version :** 1.2  
 **Date :** 21 Juillet 2026  
 **Auteur :** Mistral Vibe / Claude  
 **Statut :** Document de référence pour l'application NOMMAGE  
 **Document parent :** [PROMPT_PROJET.md](../PROMPT_PROJET.md)
+
+> **v1.2** : Le code ne traitait en réalité que la **première entrée** de `couples`/`sources`
+> malgré la description v1.1 — corrigé (§3.1). **Tableau de bord enrichi** (§3.5) : affichage du
+> **statut par connexion** (nom de la source + connectée/déconnectée) et du **nombre d'entrées
+> traitées par jour sur une fenêtre glissante de 5 jours** (§4.2). Correction des chemins statiques
+> des pages de présentation (`presentation/` fait partie de l'URL, voir
+> `guide-nouvelle-application_specs` §3.8/v1.6).
 
 > **v1.1** : **Sources MQTT multiples traitées simultanément** (§3.1, §4.3) — `mqtt` (objet unique)
 > remplacé par `sources[]` (tableau), toutes connectées et écoutées en parallèle, ce qui n'était
@@ -97,6 +104,12 @@ L'application NOMMAGE **intercepte les messages de découverte MQTT** et appliqu
 > **⭐ v1.1** : NOMMAGE peut lire depuis **plusieurs sources MQTT indépendantes**, traitées
 > **simultanément** (pas seulement configurées — voir §4.3). Une source = une connexion à un
 > broker MQTT (potentiellement distinct du broker HA) avec ses propres topics de découverte.
+>
+> **⚠️ v1.2** : Cette description v1.1 n'était pas implémentée — le code ne connectait et ne
+> traitait en réalité que `couples[0]` (la première entrée), quel que soit le nombre d'entrées
+> configurées. Corrigé : `NommageMqttIntegrationService` gère désormais une connexion MQTT
+> (`mqtt.MqttClient`) par source dans une `Map<sourceId, MqttClient>`, toutes connectées en
+> parallèle via `Promise.allSettled` (voir implementation-nommage_specs §4.1).
 
 **Description :** NOMMAGE écoute les messages de découverte MQTT émis par d'autres applications ou
 systèmes, sur **une ou plusieurs sources en parallèle**. Chaque source dispose de sa propre
@@ -255,12 +268,26 @@ elle republie le message source enrichi, avec réécriture du préfixe du topic.
 
 **Fonctionnalités :**
 - Affichage du **statut de connexion** (Application + MQTT)
-- Liste des **topics de découverte** configurés
+- ⭐ **v1.2** — **Statut par connexion** : une ligne par source configurée, affichant son
+  identifiant (`sources[].id`) et son état (connectée/déconnectée). Contrairement au statut MQTT
+  global (qui indique "au moins une source connectée"), cette liste permet de voir précisément
+  quelle source a un problème.
+- ⭐ **v1.2** — **Entrées traitées par jour, sur 5 jours glissants** : un tableau affichant, pour
+  chacun des 5 derniers jours (aujourd'hui compris), le nombre de messages de découverte parsés
+  avec succès ce jour-là. Toujours 5 colonnes, avec 0 pour les jours sans activité. Ce compteur est
+  **en mémoire** (comme le compteur global `parsedMessagesCount`) : il repart à zéro à chaque
+  redémarrage de l'application, il ne s'agit pas d'un historique persistant.
+- Liste des **topics de découverte** configurés (agrégés de toutes les sources)
 - Compteur des **messages parsés**
 - Date du **dernier parsing**
 - Boutons pour **rafraîchir** et **tester**
 
 **URL :** `/applications/nommage/presentation/index.html`
+
+> **⚠️ v1.2** : Le segment `presentation/` fait partie intégrante de cette URL (routage confirmé
+> par `ModuleContainer.ts` du core) — ne pas le retirer des chemins des scripts/styles de la page,
+> erreur constatée en pratique qui empêchait le chargement du script (voir
+> `guide-nouvelle-application_specs` §3.8/v1.6).
 
 ### 3.6 Configuration
 
@@ -408,6 +435,35 @@ elle republie le message source enrichi, avec réécriture du préfixe du topic.
   `clientId` provoqueraient une déconnexion mutuelle)
 - La perte de connexion d'une source **ne doit pas** interrompre le traitement des autres sources
   (reconnexion indépendante, voir §3.1 et §8.1)
+
+### 4.4 Statut (NommageStatus) — ⭐ NOUVEAU v1.2
+
+Structure émise sur l'événement persistant `nommage:status` (reçu automatiquement par tout nouveau
+client Socket.io, voir §7 `guide-nouvelle-application_specs`) :
+
+```typescript
+{
+  connected: boolean;             // Statut de l'application
+  mqttConnected: boolean;         // true si AU MOINS UNE source est connectée
+  discoveryTopics: string[];      // Topics agrégés de toutes les sources
+  parsedMessagesCount: number;    // Compteur global depuis le démarrage
+  lastParsedAt?: Date;
+  error?: string;
+
+  // ⭐ v1.2 — Statut détaillé par connexion, une entrée par source configurée
+  sources: {
+    id: string;                   // sources[].id
+    connected: boolean;
+  }[];
+
+  // ⭐ v1.2 — Entrées traitées par jour, 5 derniers jours (plus ancien → plus récent).
+  // Toujours 5 éléments, 0 pour les jours sans entrée traitée. En mémoire (non persisté).
+  dailyCounts: {
+    date: string;                 // Format "AAAA-MM-JJ"
+    count: number;
+  }[];
+}
+```
 
 ---
 
@@ -733,7 +789,7 @@ Toute configuration est **validée avec Zod** avant application.
 
 - [nommage_specs_v1.0.md](./nommage_specs_v1.0.md) - Protocole de nommage QUOI/OÙ
 - [techniques-socle-ha-mqtt_specs_v4.10.md](./techniques-socle-ha-mqtt_specs_v4.10.md) - Socle technique
-- [guide-nouvelle-application_specs_v1.5.md](./guide-nouvelle-application_specs_v1.5.md) - Guide de création
+- [guide-nouvelle-application_specs_v1.6.md](./guide-nouvelle-application_specs_v1.6.md) - Guide de création
 - [PROMPT_PROJET.md](../PROMPT_PROJET.md) - Règles de développement
 
 ---
@@ -742,6 +798,7 @@ Toute configuration est **validée avec Zod** avant application.
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **1.2** | 21/07/2026 | Claude | **Correction** : le code ne traitait en réalité que `couples[0]`/la première source malgré la description v1.1 — corrigé (§3.1, `NommageMqttIntegrationService` gère désormais une `Map<sourceId, MqttClient>`). **Tableau de bord enrichi** (§3.5, §4.4) : statut par connexion (nom + connecté/déconnecté) et entrées traitées par jour sur 5 jours glissants (`NommageStatus.sources[]`/`.dailyCounts[]`). Correction des chemins statiques des pages (`presentation/` fait partie de l'URL). |
 | **1.1** | 21/07/2026 | Claude | Sources MQTT multiples traitées simultanément (`sources[]` remplace `mqtt`), transmission via Passthrough MQTT du socle (remplace `nommage:transmit:to-core`), cas d'usage Zigbee2MQTT résolu, clarification §6.2 : NOMMAGE ne dépend que de `ha.mqtt_enable` (jamais `ha.ws_enable`), le référentiel HA n'est jamais mis à jour depuis MQTT |
 | **1.0** | 19/07/2026 | Mistral Vibe | Version initiale : Parsing QUOI/OÙ, transmission au core |
 
