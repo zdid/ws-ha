@@ -42,3 +42,6 @@ specs/archives/
 
 git-backup-*
 
+# Sauvegardes locales (backups/[fichier]_backup_[AAAA-MM-JJ]... — jamais commitées, cf. CLAUDE.md règle 5)
+backups/
+
