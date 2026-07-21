@@ -1,0 +1,561 @@
+{
+  "source": "http://192.168.1.55:8082/",
+  "onglet": "Données",
+  "description": "Liste des données EVOO7 Control (via plugin MQTT). consultation/mise_a_jour reflètent l'état réel des cases cochées sur la page ; mise_a_jour = null quand la case 'Mise à jour' n'existe pas pour cette donnée (donnée en lecture seule). topic_sensor et format_message_sensor sont les valeurs réelles saisies dans ces champs. valeurs_possibles est desormais une liste d'objets {code, libelle} (code = valeur numerique reelle attendue sur le fil MQTT EVOO7, extraite des commentaires HTML de la page EVOO7 - PAS toujours l'index de la liste, voir consigne_active: 202/206).",
+  "donnees": [
+    {
+      "id": "pente_loi_deau",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Pente loi d'eau (uniquement sur plancher chauffant).",
+      "min": 0,
+      "max": 2,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "parrallele_loi_deau",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Parallèle loi d'eau (uniquement sur plancher chauffant).",
+      "min": 0,
+      "max": 45,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_coupure_pac_chaud",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Température d'eau coupure PAC en chaud.",
+      "min": 25,
+      "max": 60,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_coupure_pac_froid",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Température d'eau coupure PAC en froid (uniquement sur plancher chauffant).",
+      "min": 5,
+      "max": 20,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "delta_temp_demar_pac",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Delta température eau démarrage PAC (uniquement sur plancher chauffant).",
+      "min": 0,
+      "max": 20,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_autor_appoint",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Température autorisation appoint.",
+      "min": -10,
+      "max": 10,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "fact_corr_ambiance",
+      "consultation": true,
+      "mise_a_jour": true,
+      "description": "Facteur de correction ambiance (uniquement sur plancher chauffant).",
+      "min": 0,
+      "max": 6,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"num\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "surchauffe_heures_creuses",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Surchauffe en heures creuses (uniquement sur plancher chauffant).",
+      "min": 0,
+      "max": 5,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "delta_tdeg_ambiante_coupure",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Delta T°c ambiante de coupure chauffage.",
+      "min": 0.5,
+      "max": 4,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "delta_tdeg_ambiante_reprise",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Delta T°c ambiante de reprise chauffage.",
+      "min": 0,
+      "max": 4,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "decalage_tdeg_ambiante",
+      "consultation": true,
+      "mise_a_jour": true,
+      "description": "Décalage de la T°c ambiante.",
+      "min": -10,
+      "max": 10,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"num\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "activ_circuit_radi",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Activation du circuit radiateur (uniquement sur plancher chauffant + radiateur).",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "OFF"
+        },
+        {
+          "code": "1",
+          "libelle": "ON"
+        },
+        {
+          "code": "2",
+          "libelle": "AUTO"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_ext_activ_radi",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Température Ext. activation radiateur (uniquement sur plancher chauffant + radiateur).",
+      "min": -20,
+      "max": 20,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_ext_coupure_radi",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Température Ext. coupure radiateur (uniquement sur plancher chauffant + radiateur).",
+      "min": -20,
+      "max": 20,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_mini_eau_radi",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Température mini. eau radiateur.",
+      "min": 10,
+      "max": 50,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "gestion_pause",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Gestion de la pause des circulateurs.",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Plancher OFF, Radiateur OFF"
+        },
+        {
+          "code": "1",
+          "libelle": "Plancher OFF, Radiateur ON"
+        },
+        {
+          "code": "2",
+          "libelle": "Fermeture vanne 3 voies"
+        },
+        {
+          "code": "3",
+          "libelle": "T°c départ = Consigne amb."
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "type_pilotage_pac",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Type pilotage PAC.",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Par la sonde d'air"
+        },
+        {
+          "code": "1",
+          "libelle": "Par télécommande"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_amb",
+      "consultation": true,
+      "mise_a_jour": null,
+      "description": "Température ambiante",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"temperature\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_ext",
+      "consultation": true,
+      "mise_a_jour": null,
+      "description": "Température extérieure",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"temperature\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_eau",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Température eau ballon",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "temp_depart_pc",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Température départ PC",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_heures_creuses",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Etat Heures-creuses",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Active"
+        },
+        {
+          "code": "1",
+          "libelle": "Inactive"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_force_on",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Etat force ON",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Active"
+        },
+        {
+          "code": "1",
+          "libelle": "Inactive"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_force_off",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Etat force OFF",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Active"
+        },
+        {
+          "code": "1",
+          "libelle": "Inactive"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_eco",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Etat éco.",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Active"
+        },
+        {
+          "code": "1",
+          "libelle": "Inactive"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_regulation",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Etat de la régulation",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Normal pas d'erreur"
+        },
+        {
+          "code": "1",
+          "libelle": "Défaut Sonde Ambiance"
+        },
+        {
+          "code": "2",
+          "libelle": "Défaut Sonde extérieure"
+        },
+        {
+          "code": "3",
+          "libelle": "Défaut sonde eau ballon"
+        },
+        {
+          "code": "4",
+          "libelle": "Défaut sonde eau départ PC"
+        },
+        {
+          "code": "5",
+          "libelle": "Défaut PAC"
+        },
+        {
+          "code": "6",
+          "libelle": "Surchauffe Eau Ballon"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_fonctionnement",
+      "consultation": true,
+      "mise_a_jour": true,
+      "description": "Mode de fonctionnement",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "Arrêt"
+        },
+        {
+          "code": "1",
+          "libelle": "Chauffage"
+        },
+        {
+          "code": "2",
+          "libelle": "Raffraichissement"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"prog\", \"num\" : \"thermostat\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_circulateur_pc",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Circulateur plancher chauffant",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "OFF"
+        },
+        {
+          "code": "1",
+          "libelle": "ON"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_circulateur_radiateur",
+      "consultation": true,
+      "mise_a_jour": null,
+      "description": "Circulateur radiateurs",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "OFF"
+        },
+        {
+          "code": "1",
+          "libelle": "ON"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"radiateur\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_pac",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Pompe à chaleur",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "OFF"
+        },
+        {
+          "code": "1",
+          "libelle": "ON"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "etat_appoint",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Appoint d'énergie",
+      "valeurs_possibles": [
+        {
+          "code": "0",
+          "libelle": "OFF"
+        },
+        {
+          "code": "1",
+          "libelle": "ON"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "consigne_active",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Consigne Active",
+      "valeurs_possibles": [
+        {
+          "code": "202",
+          "libelle": "Normale"
+        },
+        {
+          "code": "206",
+          "libelle": "ECO"
+        }
+      ],
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "consigne_normal",
+      "consultation": true,
+      "mise_a_jour": true,
+      "description": "Consigne Mode Normal",
+      "min": 10,
+      "max": 30,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"thermostat\", \"num\" : \"thermostat\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "consigne_eco",
+      "consultation": true,
+      "mise_a_jour": true,
+      "description": "Consigne Mode Eco",
+      "min": 10,
+      "max": 30,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"thermostat\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "consigne_depart_pc",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Consigne Départ PC",
+      "min": 10,
+      "max": 30,
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "mode_absence",
+      "consultation": false,
+      "mise_a_jour": false,
+      "description": "Absence : Date de fin (durée)",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "version_firmware_can",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Version du firmware de l'EVOO7 Control",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "version_logiciel_enligne",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Dernière Version du Logiciel",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "version_logiciel",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Version du Logiciel",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "version_description_enligne",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Dernière Version des Descriptions de données",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "version_description",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Version des Descriptions de données",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "gaugeedf",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Consommation Edf (objet JSON)",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    },
+    {
+      "id": "gaugepac",
+      "consultation": false,
+      "mise_a_jour": null,
+      "description": "Consommation Pac (objet JSON)",
+      "topic_sensor": "domitic/result/evoo7/text/$name$",
+      "format_message_sensor": "{ \"protocol\" : \"evoo7\",\"___origine\":\"evoo7\",\"___date\":\"$date$\",\"command\" : \"text\", \"num\" : \"$name$\", \"status\" : \"$value$\" }"
+    }
+  ]
+}

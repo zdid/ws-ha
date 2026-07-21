@@ -210,6 +210,7 @@ projet/
 │   │   ├── classification-rfxcom_specs.md
 │   │   ├── erreurs_specs.md
 │   │   ├── fonctionnelles-arbreouquoi_specs.md
+│   │   ├── fonctionnelles-evoo7_specs.md
 │   │   ├── fonctionnelles-nommage_specs.md
 │   │   ├── fonctionnelles-rfxcom_specs.md
 │   │   ├── guide-nouvelle-application_specs.md
@@ -360,6 +361,7 @@ projet/
 |------------------------|----------------------------------|-----------------|
 | **Intégration MQTT** (RFXCOM, Zigbee2MQTT, etc.) | `integrationbridge-mqtt-auto_specs` | Applications intégrant du matériel via MQTT |
 | **Application RFXCOM** | `fonctionnelles-rfxcom_specs` + `recepteurs-emetteurs-rfxcom_specs` + `classification-rfxcom_specs` + `implementation-rfxcom_specs` | **Maintenance et développement** spécifique RFXCOM |
+| **Application EVOO7** | `fonctionnelles-evoo7_specs` | **Maintenance et développement** spécifique EVOO7 (régulateur de chauffage/PAC VR Electronique) |
 | **UI Avancée** | `presentation_specs` | Applications avec interface complexe |
 | **Gestion d'erreurs fine** | `erreurs_specs` | Applications nécessitant une gestion d'erreur spécifique |
 | **Patterns Architecturaux** | `architectural-patterns_specs` | Pour comprendre les patterns MQTT/WS globaux |

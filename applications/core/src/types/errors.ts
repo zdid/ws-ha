@@ -50,12 +50,23 @@ export type RfxComErrorCode =
   | 'RFXCOM_DEVICE_NOT_FOUND';
 
 /**
+ * Codes d'erreur EVOO7
+ */
+export type Evoo7ErrorCode =
+  | 'EVOO7_CONNECTION_ERROR'
+  | 'EVOO7_UNKNOWN_DATA'
+  | 'EVOO7_NOT_UPDATABLE'
+  | 'EVOO7_INVALID_VALUE'
+  | 'EVOO7_COMMAND_FAILED';
+
+/**
  * Codes d'erreur génériques (specs-erreurs-v1.0.md §6)
  */
 export type AppErrorCode =
   | HaWsErrorCode
   | MqttErrorCode
   | RfxComErrorCode
+  | Evoo7ErrorCode
   | 'APP_CONFIG_INVALID'
   | 'APP_CONFIG_MISSING'
   | 'APP_CONFIG_REQUIRED_FIELD_MISSING'
@@ -204,6 +215,18 @@ export function createRfxComError(
   details?: ErrorDetails
 ): AppError {
   return createAppError({ code, message, severity: 'error', module: module || 'rfxcom', details });
+}
+
+/**
+ * Crée une erreur EVOO7
+ */
+export function createEvoo7Error(
+  code: Evoo7ErrorCode,
+  message: string,
+  module?: string,
+  details?: ErrorDetails
+): AppError {
+  return createAppError({ code, message, severity: 'error', module: module || 'evoo7', details });
 }
 
 /**
