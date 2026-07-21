@@ -1136,8 +1136,331 @@ async function stop() {
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|------------|
+| 1.2 | 2026-07-17 | Mistral Vibe | Démarrage automatique via AppService avec reconnexion sur changement de configuration, injection unifiée d'`IAppConfigProvider`, traces détaillées. *(21/07/2026 — Claude : le fichier n'avait jamais été renommé de `v1.0.md` vers `v1.2.md` malgré cette version en-tête ; corrigé par renommage, cf. `specs/CHANGELOG.md`.)* |
 | 1.0 | 2026-07-11 | Mistral Vibe | Version initiale - Intégration de la bibliothèque rfxcom npm v2.6.2 |
 
 ---
 
 *Conforme à [specs-fonctionnelles-rfxcom-v5.0.md](specs-fonctionnelles-rfxcom-v5.0.md), [specs-techniques-socle-ha-mqtt-v4.3.md](specs-techniques-socle-ha-mqtt-v4.3.md) et [spec-nommage-v1.0.md](spec-nommage-v1.0.md)*
+
+
+---
+
+## 9. Communication Inter-Applications
+
+> **⚠️ IMPORTANT :** Cette section documente les événements et capacités que cette application **expose** aux autres applications.
+> 
+> **Pour utiliser ces capacités :**
+> - Import depuis le core : `import { InterAppClient } from '../../../core/src/exports'`
+> - Utiliser `interAppClient.request()` pour les Request/Reply
+> - Utiliser `interAppClient.on()` pour écouter les événements Fire & Forget
+> - Voir [inter-app-communication_specs_v1.0.md](../inter-app-communication_specs_v1.0.md) pour les détails
+
+### 9.1 Événements Fire & Forget (Écoute possible par d'autres applications)
+
+| Événement | Description | Payload Type | Fréquence | Émetteur |
+|-----------|-------------|--------------|-----------|----------|
+| `rfxcom:transceiver:connected` | Transceiver RFXCOM connecté et prêt | `RfxcomTransceiverConnectedPayload` | Au démarrage | rfxcom |
+| `rfxcom:transceiver:disconnected` | Transceiver RFXCOM déconnecté | `RfxcomTransceiverDisconnectedPayload` | Sur erreur | rfxcom |
+| `rfxcom:transceiver:error` | Erreur du transceiver | `RfxcomTransceiverErrorPayload` | Sur erreur | rfxcom |
+| `rfxcom:device:raw:received` | Message brut reçu du transceiver | `RfxcomRawReceivedPayload` | Selon activité RF | rfxcom |
+| `rfxcom:command:sent` | Commande RF envoyée avec succès | `RfxcomCommandSentPayload` | Sur envoi | rfxcom |
+| `rfxcom:command:failed` | Échec d'envoi de commande RF | `RfxcomCommandFailedPayload` | Sur échec | rfxcom |
+
+**Types des payloads :**
+```typescript
+// RfxcomTransceiverConnectedPayload
+export interface RfxcomTransceiverConnectedPayload {
+  port: string;
+  baudRate: number;
+  firmwareVersion: string;
+  transceiverType: string;
+  timestamp: string;
+}
+
+// RfxcomTransceiverDisconnectedPayload
+export interface RfxcomTransceiverDisconnectedPayload {
+  port: string;
+  reason: string;
+  timestamp: string;
+}
+
+// RfxcomTransceiverErrorPayload
+export interface RfxcomTransceiverErrorPayload {
+  port: string;
+  error: string;
+  stack?: string;
+  timestamp: string;
+}
+
+// RfxcomRawReceivedPayload
+export interface RfxcomRawReceivedPayload {
+  rawData: Buffer;
+  protocolId: number;
+  subType: number;
+  sensorId: string;
+  signalLevel: number;
+  noiseLevel: number;
+  timestamp: string;
+}
+
+// RfxcomCommandSentPayload
+export interface RfxcomCommandSentPayload {
+  deviceId: string;
+  command: string;
+  protocol: string;
+  subType: string;
+  sensorId: string;
+  sentAt: string;
+  ackReceived: boolean;
+}
+
+// RfxcomCommandFailedPayload
+export interface RfxcomCommandFailedPayload {
+  deviceId: string;
+  command: string;
+  protocol: string;
+  error: string;
+  timestamp: string;
+}
+```
+
+**Exemple d'écoute depuis une autre application :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+
+this.interAppClient.on('rfxcom:transceiver:connected', (payload, fromApp) => {
+  console.log(`Transceiver connecté:`, payload);
+});
+
+this.interAppClient.on('rfxcom:command:sent', (payload, fromApp) => {
+  console.log(`Commande envoyée par ${fromApp}:`, payload);
+});
+
+this.interAppClient.on('rfxcom:device:raw:received', (payload, fromApp) => {
+  console.log(`Message brut reçu de ${fromApp}:`, payload);
+});
+```
+
+### 9.2 Capacités Request/Reply (Appel possible depuis d'autres applications)
+
+| Capacité | Description | Request Type | Reply Type | Timeout conseillé |
+|----------|-------------|--------------|------------|-------------------|
+| `rfxcom:transceiver:status` | Obtenir le statut du transceiver | `RfxcomTransceiverStatusRequest` | `RfxcomTransceiverStatusReply` | 1000ms |
+| `rfxcom:transceiver:reconnect` | Reconnecter le transceiver | `RfxcomReconnectRequest` | `RfxcomReconnectReply` | 5000ms |
+| `rfxcom:protocol:supported` | Lister les protocoles supportés | `RfxcomSupportedProtocolsRequest` | `RfxcomSupportedProtocolsReply` | 1000ms |
+| `rfxcom:device:send:raw` | Envoyer une commande RF brute | `RfxcomSendRawRequest` | `RfxcomSendRawReply` | 3000ms |
+| `rfxcom:device:learn` | Activer le mode apprentissage | `RfxcomLearnRequest` | `RfxcomLearnReply` | 10000ms |
+
+**Types :**
+```typescript
+// Request/Reply pour transceiver:status
+interface RfxcomTransceiverStatusRequest {}
+
+interface RfxcomTransceiverStatusReply {
+  connected: boolean;
+  port: string;
+  baudRate: number;
+  firmwareVersion?: string;
+  transceiverType?: string;
+  lastError?: string;
+}
+
+// Request/Reply pour transceiver:reconnect
+interface RfxcomReconnectRequest {
+  port?: string;
+  baudRate?: number;
+}
+
+interface RfxcomReconnectReply {
+  success: boolean;
+  port: string;
+  message?: string;
+}
+
+// Request/Reply pour protocol:supported
+interface RfxcomSupportedProtocolsRequest {}
+
+interface RfxcomSupportedProtocolsReply {
+  protocols: string[];
+}
+
+// Request/Reply pour device:send:raw
+interface RfxcomSendRawRequest {
+  protocolId: number;
+  subType: number;
+  sensorId: string;
+  data: Buffer | number[];
+  pulseWidth?: number;
+}
+
+interface RfxcomSendRawReply {
+  success: boolean;
+  sentAt: string;
+  ackReceived?: boolean;
+  error?: string;
+}
+
+// Request/Reply pour device:learn
+interface RfxcomLearnRequest {
+  receiverId: string;
+  timeout?: number; // en secondes
+}
+
+interface RfxcomLearnReply {
+  success: boolean;
+  learnedDevice?: {
+    sensorId: string;
+    protocol: string;
+    subType: string;
+  };
+  error?: string;
+}
+```
+
+**Exemple d'appel depuis une autre application :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+import type {
+  RfxcomTransceiverStatusRequest,
+  RfxcomTransceiverStatusReply,
+  RfxcomSendRawRequest,
+  RfxcomSendRawReply,
+  RfxcomLearnRequest,
+  RfxcomLearnReply
+} from '../rfxcom/specs';
+
+// Vérifier le statut du transceiver
+const statusReply = await interAppClient.request<
+  RfxcomTransceiverStatusRequest,
+  RfxcomTransceiverStatusReply
+>(
+  'rfxcom:transceiver:status',
+  {},
+  1000
+);
+
+if (statusReply.status === 'success') {
+  console.log('Statut transceiver:', statusReply.result);
+}
+
+// Envoyer une commande brute
+const rawReply = await interAppClient.request<
+  RfxcomSendRawRequest,
+  RfxcomSendRawReply
+>(
+  'rfxcom:device:send:raw',
+  {
+    protocolId: 0x50, // Lighting1
+    subType: 0x01,
+    sensorId: '0x02b3',
+    data: Buffer.from([0x01, 0x02, 0x03])
+  },
+  3000
+);
+
+if (rawReply.status === 'success') {
+  console.log('Commande brute envoyée');
+}
+
+// Activer le mode apprentissage
+const learnReply = await interAppClient.request<
+  RfxcomLearnRequest,
+  RfxcomLearnReply
+>(
+  'rfxcom:device:learn',
+  { receiverId: 'recepteur_001', timeout: 30 },
+  10000
+);
+
+if (learnReply.status === 'success' && learnReply.result.learnedDevice) {
+  console.log('Device appris:', learnReply.result.learnedDevice);
+}
+```
+
+**Handler côté récepteur (dans l'application RFXCOM) :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+
+// Exemple: handler pour rfxcom:transceiver:status
+this.interAppClient.onRequest('rfxcom:transceiver:status', async (request, reply) => {
+  try {
+    const status = await getTransceiverStatus();
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'success',
+      result: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'error',
+      error: {
+        code: 'RFXCOM_STATUS_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Exemple: handler pour rfxcom:device:send:raw
+this.interAppClient.onRequest('rfxcom:device:send:raw', async (request, reply) => {
+  try {
+    const result = await sendRawCommand(request.payload);
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'success',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'error',
+      error: {
+        code: 'RFXCOM_RAW_SEND_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Exemple: handler pour rfxcom:device:learn
+this.interAppClient.onRequest('rfxcom:device:learn', async (request, reply) => {
+  try {
+    const result = await activateLearnMode(request.payload);
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'success',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'error',
+      error: {
+        code: 'RFXCOM_LEARN_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+```
+

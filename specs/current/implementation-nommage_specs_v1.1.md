@@ -1,10 +1,16 @@
 # Spécifications d'Implémentation - Application NOMMAGE
 
-**Version :** 1.0.0  
-**Date :** 19 Juillet 2026  
-**Auteur :** Mistral Vibe  
+**Version :** 1.1  
+**Date :** 21 Juillet 2026  
+**Auteur :** Mistral Vibe / Claude  
 **Statut :** Document technique pour les développeurs  
-**Document parent :** [fonctionnelles-nommage_specs_v1.0.md](./fonctionnelles-nommage_specs_v1.0.md)
+**Document parent :** [fonctionnelles-nommage_specs_v1.1.md](./fonctionnelles-nommage_specs_v1.1.md)
+
+> **v1.1** : `NommageMqttIntegrationService` gère désormais **N connexions MQTT simultanées** (une
+> par source, §4.1) au lieu d'une seule. La transmission vers HA passe par le **Passthrough MQTT**
+> du socle (§5.3) et remplace l'ancien `nommage:transmit:to-core`. **Correction importante** : le
+> flux ne met **jamais** à jour `HaStructureRegistry` (alimenté nativement par HA via WS
+> uniquement, si `ha.ws_enable=true`) — NOMMAGE ne dépend que de `ha.mqtt_enable`.
 
 ---
 
@@ -23,7 +29,7 @@
 
 ## 1. Introduction
 
-Ce document détaille l'**implémentation technique** de l'application NOMMAGE, en complément des [spécifications fonctionnelles](./fonctionnelles-nommage_specs_v1.0.md).
+Ce document détaille l'**implémentation technique** de l'application NOMMAGE, en complément des [spécifications fonctionnelles](./fonctionnelles-nommage_specs_v1.1.md).
 
 **Public cible :**
 - Développeurs souhaitant étendre ou maintenir l'application
@@ -173,7 +179,7 @@ applications/nommage/
         └── app.ts                 # Logique frontend
 ```
 
-**Fichiers obligatoires (selon [guide-nouvelle-application_specs_v1.0.md](./guide-nouvelle-application_specs_v1.0.md)) :**
+**Fichiers obligatoires (selon [guide-nouvelle-application_specs_v1.4.md](./guide-nouvelle-application_specs_v1.4.md)) :**
 - ✅ `domain/index.ts`
 - ✅ `domain/NommageService.ts`
 - ✅ `presentation/index.html`
@@ -184,40 +190,61 @@ applications/nommage/
 
 ### 4.1 NommageMqttIntegrationService
 
+> **⭐ v1.1** : Gère désormais **une connexion MQTT indépendante par source** (`config.sources[]`,
+> voir `fonctionnelles-nommage_specs` §4.3), **toutes actives simultanément** — pas une seule
+> connexion globale. Chaque source a son propre client `mqtt.MqttClient`, sa propre reconnexion,
+> ses propres topics.
+
 **Fichier :** `ha/integration/nommage/NommageMqttIntegrationService.ts`
 
-**Rôle :** Client MQTT pour écouter les messages de découverte.
+**Rôle :** Gère **N clients MQTT** (un par source configurée) pour écouter les messages de
+découverte en parallèle.
 
 **Fonctionnalités :**
-- Connexion/déconnexion au broker MQTT
-- Abonnements aux topics de découverte
-- Réception et validation des messages
-- Forwarding vers EventBus
+- Connexion/déconnexion **indépendante par source** (une source en échec n'affecte pas les autres)
+- Abonnements aux topics de découverte propres à chaque source
+- Réception et validation des messages, avec l'**identifiant de la source** d'origine
+- Forwarding vers EventBus, `sourceId` inclus dans le payload
 
 **Code clé :**
 ```typescript
-// Connexion MQTT
-const options: mqtt.IClientOptions = {
-  clientId: config.mqtt.clientId,
-  keepalive: config.mqtt.keepalive,
-  reconnectPeriod: config.mqtt.reconnectPeriod,
-  clean: config.mqtt.cleanSession,
-  username: config.mqtt.username,
-  password: config.mqtt.password
-};
+// Une connexion MQTT par source, stockée dans une Map
+private clients: Map<string, mqtt.MqttClient> = new Map();
 
-this.client = mqtt.connect(brokerUrl, options);
-
-// Gestion des messages
-this.client.on('message', (topic, payload) => {
-  if (this.isDiscoveryTopic(topic)) {
-    this.processDiscoveryMessage(topic, payload);
+private connectAllSources(): void {
+  for (const source of this.config.sources) {
+    this.connectSource(source);
   }
-});
+}
 
-// Validation du topic
-private isDiscoveryTopic(topic: string): boolean {
-  const { topicPrefix, discoveryTopics } = this.config.mqtt;
+private connectSource(source: NommageSourceConfig): void {
+  const options: mqtt.IClientOptions = {
+    clientId: source.mqtt.clientId,
+    keepalive: source.mqtt.keepalive,
+    reconnectPeriod: source.mqtt.reconnectPeriod,
+    clean: source.mqtt.cleanSession,
+    username: source.mqtt.username,
+    password: source.mqtt.password
+  };
+
+  const brokerUrl = `mqtt://${source.mqtt.host}:${source.mqtt.port}`;
+  const client = mqtt.connect(brokerUrl, options);
+
+  client.on('message', (topic, payload) => {
+    if (this.isDiscoveryTopic(source, topic)) {
+      this.processDiscoveryMessage(source.id, topic, payload);
+    }
+  });
+
+  // Reconnexion gérée indépendamment par le client mqtt.js de cette source
+  // (une source en erreur n'impacte pas les autres clients de la Map)
+
+  this.clients.set(source.id, client);
+}
+
+// Validation du topic — relative à la source concernée
+private isDiscoveryTopic(source: NommageSourceConfig, topic: string): boolean {
+  const { topicPrefix, discoveryTopics } = source.mqtt;
   
   if (topicPrefix && !topic.startsWith(topicPrefix)) {
     return false;
@@ -228,15 +255,16 @@ private isDiscoveryTopic(topic: string): boolean {
   );
 }
 
-// Extraction du nom
-private processDiscoveryMessage(topic: string, payload: Buffer): void {
+// Extraction du nom — le topic d'origine (préfixe non modifié) est conservé pour le passthrough
+private processDiscoveryMessage(sourceId: string, topic: string, payload: Buffer): void {
   const message = JSON.parse(payload.toString());
   let rawName = message.name || message.raw_name || 
                message.device?.name || JSON.stringify(message);
   
   this.eventBus.emit('nommage:discovery:raw', {
+    sourceId,        // ⭐ v1.1 — identifie la source d'origine
     rawName,
-    topic,
+    topic,            // Topic source, préfixe non modifié (utilisé pour le passthrough, voir §5.3)
     payload: message,
     timestamp: new Date()
   });
@@ -476,63 +504,64 @@ Recherche factory: createNommageService
 Instanciation: new NommageService(eventBus, logger, configProvider)
     │
     ▼
-Connexion MQTT (NommageMqttIntegrationService)
+Connexion MQTT — **une par source configurée**, en parallèle (`NommageMqttIntegrationService`)
     │
     ▼
-Abonnement aux topics de découverte
+Abonnement aux topics de découverte de chaque source
     │
     ▼
 Appel: .start()
     │
     ▼
-✅ Service démarré - Prêt à écouter
+✅ Service démarré - Prêt à écouter (toutes les sources actives)
 ```
 
-### 5.3 Communication avec le Core
+### 5.3 Communication avec le Core — Passthrough MQTT
 
-**Événement pour transmission à HA :**
+> **⭐ v1.1** : Remplace intégralement l'ancien mécanisme `nommage:transmit:to-core` (qui
+> reconstruisait un message HA complet et appelait l'API WebSocket pour créer les Areas).
+> NOMMAGE utilise désormais le **Passthrough MQTT** du socle
+> ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.9.md#856-passthrough-mqtt)).
+
+**Événement émis par NOMMAGE (`integration:nommage:passthrough:discovery`) :**
 ```typescript
-// Émis par NOMMAGE
-type TransmitToCoreEvent = {
-  type: 'nommage:discovery:parsed';
-  discoveryMessage: DiscoveryMessage;
-  parsedTaxonomy: ParsedTaxonomy;
-  timestamp: Date;
+// Émis par NommageService après parsing + enrichissement
+type PassthroughDiscoveryEvent = {
+  sourceTopic: string;    // Topic d'origine, préfixe non modifié (ex: "homeassist/sensor/x/config")
+  payload: Record<string, unknown>;  // Payload source + attributs_taxonomie injectés
 };
 
-// À implémenter dans le core (ex: AppService ou HaMqttIntegrationService)
-this.eventBus.on('nommage:transmit:to-core', (data: TransmitToCoreEvent) => {
-  const { parsedTaxonomy } = data;
-  
-  // 1. Créer les Areas si nécessaire
-  if (parsedTaxonomy.ou.lieu && this.config.ha.autoCreateAreas) {
-    await this.haWsClient.createArea({
-      name: parsedTaxonomy.ou.lieu.raw
-    });
+this.eventBus.emit('integration:nommage:passthrough:discovery', {
+  sourceTopic: discoveryMessage.topic,
+  payload: {
+    ...discoveryMessage.payload,
+    attributs_taxonomie: parsedTaxonomy.haAttributes.attributs_taxonomie
   }
-  
-  // 2. Publier la découverte MQTT vers HA
-  await this.haMqttIntegrationService.publishDiscovery(
-    parsedTaxonomy.haAttributes.device_class || 'sensor',
-    parsedTaxonomy.haEntityId,
-    {
-      name: parsedTaxonomy.quoi.raw,
-      unique_id: parsedTaxonomy.haEntityId,
-      device_class: parsedTaxonomy.haAttributes.device_class,
-      ...parsedTaxonomy.haAttributes
-    }
-  );
-  
-  // 3. Ajouter au référentiel structuré
-  this.haStructureRegistry.addEntity({
-    entity_id: parsedTaxonomy.haEntityId,
-    domain: this.config.ha.defaultDomain,
-    area_id: parsedTaxonomy.haAreaId,
-    quoi_ids: [parsedTaxonomy.quoi.slug],
-    attributes: parsedTaxonomy.haAttributes
-  });
+} satisfies PassthroughDiscoveryEvent);
+```
+
+**Traitement générique dans le core** (`HaMqttIntegrationService`, commun à toutes les
+applications utilisant le passthrough — pas de code spécifique à NOMMAGE dans le core) :
+```typescript
+this.eventBus.on('integration:nommage:passthrough:discovery', (data: PassthroughDiscoveryEvent) => {
+  // Remplace uniquement le premier segment du topic par "homeassistant"
+  const segments = data.sourceTopic.split('/');
+  segments[0] = 'homeassistant';
+  const targetTopic = segments.join('/');
+
+  this.mqttClient.publish(targetTopic, JSON.stringify(data.payload), { qos: 1, retain: true });
 });
 ```
+
+> ⚠️ **Ce que ce flux NE fait PAS** (erreur à ne pas reproduire) :
+> - Il **n'appelle jamais** l'API WebSocket HA pour créer une Area — c'est HA lui-même qui crée
+>   l'Area (via ses propres automatisations MQTT lisant `attributs_taxonomie`/`suggested_area`,
+>   voir `nommage_specs` §6), pas le socle ni NOMMAGE.
+> - Il **ne met jamais à jour `HaStructureRegistry`** — le référentiel structuré n'est alimenté
+>   que par la connexion HA WebSocket native (Mode A), indépendamment de tout message MQTT. Voir
+>   `fonctionnelles-nommage_specs` §6.2 pour le détail de cette indépendance : NOMMAGE ne
+>   nécessite que `ha.mqtt_enable`, jamais `ha.ws_enable`, et fonctionne à l'identique que le
+>   référentiel existe ou non.
 
 ### 5.4 Enregistrement des Événements Persistants
 
@@ -638,23 +667,31 @@ export function registerPersistentEvents(eventBus: IEventBus): void {
 nommage:
   enabled: true
   
-  mqtt:
-    host: "localhost"
-    port: 1883
-    clientId: "nommage-app"
-    discoveryTopics:
-      - "ha/+/+/config"
-      - "homeassistant/+/+/config"
-    topicPrefix: "ha/"
-    qos: 1
-    retain: true
+  # ⭐ v1.1 — sources[] remplace mqtt (objet unique) : toutes connectées simultanément
+  sources:
+    - id: "ha-broker"
+      mqtt:
+        host: "localhost"
+        port: 1883
+        clientId: "nommage-ha-broker"
+        discoveryTopics:
+          - "ha/+/+/config"
+        topicPrefix: "ha/"
+        qos: 1
+        retain: true
+    
+    - id: "zigbee2mqtt"
+      mqtt:
+        host: "localhost"
+        port: 1883
+        clientId: "nommage-zigbee2mqtt"
+        discoveryTopics:
+          - "homeassist/+/+/config"
+        topicPrefix: "homeassist/"
+        qos: 1
+        retain: true
     
   ha:
-    autoTransmit: true
-    defaultComponent: "sensor"
-    defaultDomain: "sensor"
-    objectIdPrefix: "nommage_"
-    autoCreateAreas: true
     injectTaxonomyAttributes: true
     
   logging:
@@ -791,9 +828,9 @@ mosquitto_sub -h localhost -t "$SYS/broker/subscriptions" -v
 
 ## 📚 Références
 
-- [fonctionnelles-nommage_specs_v1.0.md](./fonctionnelles-nommage_specs_v1.0.md) - Spécifications fonctionnelles
-- [techniques-socle-ha-mqtt_specs_v4.6.md](./techniques-socle-ha-mqtt_specs_v4.6.md) - Socle technique
-- [guide-nouvelle-application_specs_v1.0.md](./guide-nouvelle-application_specs_v1.0.md) - Guide de création
+- [fonctionnelles-nommage_specs_v1.1.md](./fonctionnelles-nommage_specs_v1.1.md) - Spécifications fonctionnelles
+- [techniques-socle-ha-mqtt_specs_v4.9.md](./techniques-socle-ha-mqtt_specs_v4.9.md) - Socle technique
+- [guide-nouvelle-application_specs_v1.4.md](./guide-nouvelle-application_specs_v1.4.md) - Guide de création
 - [nommage_specs_v1.0.md](./nommage_specs_v1.0.md) - Protocole de nommage
 - [PROMPT_PROJET.md](../PROMPT_PROJET.md) - Règles générales
 
@@ -803,9 +840,432 @@ mosquitto_sub -h localhost -t "$SYS/broker/subscriptions" -v
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
-| **1.0.0** | 19/07/2026 | Mistral Vibe | Version initiale : Implémentation complète selon specs |
+| **1.1** | 21/07/2026 | Claude | `NommageMqttIntegrationService` gère N connexions simultanées (une par source), transmission via Passthrough MQTT du socle (remplace `nommage:transmit:to-core`), correction : le référentiel HA n'est jamais mis à jour depuis MQTT, NOMMAGE ne dépend que de `ha.mqtt_enable` |
+| **1.0** | 19/07/2026 | Mistral Vibe | Version initiale : Implémentation complète selon specs |
 
 ---
 
 *Document généré par Mistral Vibe*
+*Co-Authored-By: Mistral Vibe <vibe@mistral.ai>*
+
+
+---
+
+## 9. Communication Inter-Applications
+
+> **⚠️ IMPORTANT :** Cette section documente les événements et capacités que cette application **expose** aux autres applications.
+> 
+> **Pour utiliser ces capacités :**
+> - Import depuis le core : `import { InterAppClient } from '../../../core/src/exports'`
+> - Utiliser `interAppClient.request()` pour les Request/Reply
+> - Utiliser `interAppClient.on()` pour écouter les événements Fire & Forget
+> - Voir [inter-app-communication_specs_v1.0.md](../inter-app-communication_specs_v1.0.md) pour les détails
+
+### 9.1 Événements Fire & Forget (Écoute possible par d'autres applications)
+
+| Événement | Description | Payload Type | Fréquence | Émetteur |
+|-----------|-------------|--------------|-----------|----------|
+| `nommage:mqtt:message:received` | Message MQTT reçu pour traitement | `NommageMqttMessageReceivedPayload` | Selon messages MQTT | nommage |
+| `nommage:mqtt:message:processed` | Message MQTT traité avec succès | `NommageMqttMessageProcessedPayload` | Sur traitement | nommage |
+| `nommage:mqtt:message:failed` | Échec de traitement d'un message MQTT | `NommageMqttMessageFailedPayload` | Sur échec | nommage |
+| `nommage:rule:matched` | Une règle de nommage a été appliquée | `NommageRuleMatchedPayload` | Sur matching | nommage |
+| `nommage:rule:applied` | Une règle a été appliquée à une entité | `NommageRuleAppliedPayload` | Sur application | nommage |
+| `nommage:ha:discovery:published` | Publication de découverte HA | `NommageHaDiscoveryPublishedPayload` | Sur découverte | nommage |
+
+**Types des payloads :**
+```typescript
+// NommageMqttMessageReceivedPayload
+export interface NommageMqttMessageReceivedPayload {
+  topic: string;
+  message: string;
+  qos: number;
+  retain: boolean;
+  timestamp: string;
+}
+
+// NommageMqttMessageProcessedPayload
+export interface NommageMqttMessageProcessedPayload {
+  topic: string;
+  originalMessage: string;
+  processedName: string;
+  entityId: string;
+  quoi: string;
+  ou: string;
+  timestamp: string;
+}
+
+// NommageMqttMessageFailedPayload
+export interface NommageMqttMessageFailedPayload {
+  topic: string;
+  message: string;
+  error: string;
+  timestamp: string;
+}
+
+// NommageRuleMatchedPayload
+export interface NommageRuleMatchedPayload {
+  ruleName: string;
+  ruleType: 'quoi' | 'ou' | 'format' | 'validation';
+  input: string;
+  matchResult: Record<string, string>;
+  timestamp: string;
+}
+
+// NommageRuleAppliedPayload
+export interface NommageRuleAppliedPayload {
+  ruleName: string;
+  entityId: string;
+  originalName: string;
+  transformedName: string;
+  transformations: string[];
+  timestamp: string;
+}
+
+// NommageHaDiscoveryPublishedPayload
+export interface NommageHaDiscoveryPublishedPayload {
+  entityId: string;
+  name: string;
+  domain: string;
+  device?: {
+    identifiers: string[];
+    name: string;
+    manufacturer: string;
+    model: string;
+  };
+  timestamp: string;
+}
+```
+
+**Exemple d'écoute depuis une autre application :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+
+// Écouter les messages MQTT reçus
+this.interAppClient.on('nommage:mqtt:message:received', (payload, fromApp) => {
+  console.log(`Message MQTT reçu par ${fromApp}: ${payload.topic}`);
+});
+
+// Écouter les traitements réussis
+this.interAppClient.on('nommage:mqtt:message:processed', (payload, fromApp) => {
+  console.log(`Message traité: ${payload.originalMessage} → ${payload.processedName}`);
+});
+
+// Écouter les applications de règles
+this.interAppClient.on('nommage:rule:applied', (payload, fromApp) => {
+  console.log(`Règle "${payload.ruleName}" appliquée à ${payload.entityId}`);
+});
+
+// Écouter les publications de découverte HA
+this.interAppClient.on('nommage:ha:discovery:published', (payload, fromApp) => {
+  console.log(`Découverte HA publiée: ${payload.entityId} (${payload.name})`);
+});
+```
+
+### 9.2 Capacités Request/Reply (Appel possible depuis d'autres applications)
+
+| Capacité | Description | Request Type | Reply Type | Timeout conseillé |
+|----------|-------------|--------------|------------|-------------------|
+| `nommage:mqtt:process` | Traiter un message MQTT | `NommageMqttProcessRequest` | `NommageMqttProcessReply` | 2000ms |
+| `nommage:rule:test` | Tester une règle sur un nom | `NommageRuleTestRequest` | `NommageRuleTestReply` | 1000ms |
+| `nommage:rule:list` | Lister les règles de nommage chargées | `NommageRuleListRequest` | `NommageRuleListReply` | 500ms |
+| `nommage:rule:reload` | Recharger les règles de nommage | `NommageRuleReloadRequest` | `NommageRuleReloadReply` | 2000ms |
+| `nommage:ha:publish` | Publier une entité vers HA | `NommageHaPublishRequest` | `NommageHaPublishReply` | 3000ms |
+| `nommage:ha:remove` | Supprimer une entité de HA | `NommageHaRemoveRequest` | `NommageHaRemoveReply` | 2000ms |
+
+**Types :**
+```typescript
+// Request/Reply pour mqtt:process
+interface NommageMqttProcessRequest {
+  topic: string;
+  payload: string | Record<string, unknown>;
+  qos?: number;
+  retain?: boolean;
+}
+
+interface NommageMqttProcessReply {
+  success: boolean;
+  entityId: string;
+  normalizedName: string;
+  quoi: string;
+  ou: string;
+  haDiscoveryPublished?: boolean;
+  error?: string;
+}
+
+// Request/Reply pour rule:test
+interface NommageRuleTestRequest {
+  ruleName: string;
+  input: string;
+}
+
+interface NommageRuleTestReply {
+  matched: boolean;
+  result: Record<string, string>;
+  transformations?: string[];
+  error?: string;
+}
+
+// Request/Reply pour rule:list
+interface NommageRuleListRequest {}
+
+interface NommageRuleListReply {
+  rules: {
+    name: string;
+    type: 'quoi' | 'ou' | 'format' | 'validation';
+    pattern: string;
+    description: string;
+    enabled: boolean;
+    priority: number;
+  }[];
+}
+
+// Request/Reply pour rule:reload
+interface NommageRuleReloadRequest {
+  ruleNames?: string[]; // Optionnel: recharger seulement certaines règles
+}
+
+interface NommageRuleReloadReply {
+  success: boolean;
+  reloadedRules: string[];
+  errors: { ruleName: string; error: string }[];
+}
+
+// Request/Reply pour ha:publish
+interface NommageHaPublishRequest {
+  entityId: string;
+  name: string;
+  domain: string;
+  deviceInfo?: {
+    identifiers: string[];
+    name: string;
+    manufacturer: string;
+    model: string;
+  };
+  overrideName?: string; // Forcer un nom spécifique
+}
+
+interface NommageHaPublishReply {
+  success: boolean;
+  entityId: string;
+  publishedName: string;
+  discoveryTopic?: string;
+  error?: string;
+}
+
+// Request/Reply pour ha:remove
+interface NommageHaRemoveRequest {
+  entityId: string;
+  force?: boolean; // Forcer la suppression même si des dépendances existent
+}
+
+interface NommageHaRemoveReply {
+  success: boolean;
+  entityId: string;
+  removedFromHa: boolean;
+  removedFromRegistry: boolean;
+  error?: string;
+}
+```
+
+**Exemple d'appel depuis une autre application :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+import type {
+  NommageMqttProcessRequest,
+  NommageMqttProcessReply,
+  NommageRuleTestRequest,
+  NommageRuleTestReply,
+  NommageRuleListRequest,
+  NommageRuleListReply,
+  NommageHaPublishRequest,
+  NommageHaPublishReply
+} from '../nommage/specs';
+
+// Traiter un message MQTT
+const processReply = await interAppClient.request<
+  NommageMqttProcessRequest,
+  NommageMqttProcessReply
+>(
+  'nommage:mqtt:process',
+  {
+    topic: 'zigbee2mqtt/sensor_temperature_salon',
+    payload: JSON.stringify({ temperature: 22.5 })
+  },
+  2000
+);
+
+if (processReply.status === 'success') {
+  console.log(`Message traité: entité ${processReply.result.entityId} créée`);
+  console.log(`  Nom normalisé: ${processReply.result.normalizedName}`);
+}
+
+// Tester une règle
+const testReply = await interAppClient.request<
+  NommageRuleTestRequest,
+  NommageRuleTestReply
+>(
+  'nommage:rule:test',
+  { ruleName: 'température_rule', input: 'température--salon' },
+  1000
+);
+
+if (testReply.status === 'success') {
+  console.log(`Règle correspond: ${testReply.result.matched}`);
+  console.log(`Résultat:`, testReply.result.result);
+}
+
+// Lister les règles
+const listReply = await interAppClient.request<
+  NommageRuleListRequest,
+  NommageRuleListReply
+>(
+  'nommage:rule:list',
+  {},
+  500
+);
+
+if (listReply.status === 'success') {
+  console.log(`Règles chargées (${listReply.result.rules.length}):`);
+  listReply.result.rules.forEach(r => console.log(`  - ${r.name} (${r.type})`));
+}
+
+// Publier une entité vers HA
+const publishReply = await interAppClient.request<
+  NommageHaPublishRequest,
+  NommageHaPublishReply
+>(
+  'nommage:ha:publish',
+  {
+    entityId: 'sensor_temperature_salon',
+    name: 'température--salon--maison',
+    domain: 'sensor',
+    deviceInfo: {
+      identifiers: ['zigbee2mqtt_sensor_temperature_salon'],
+      name: 'Capteur Température Salon',
+      manufacturer: 'Aqara',
+      model: 'WSDCGQ11LM'
+    }
+  },
+  3000
+);
+
+if (publishReply.status === 'success') {
+  console.log(`Entité publiée: ${publishReply.result.publishedName}`);
+}
+```
+
+**Handler côté récepteur (dans l'application NOMMAGE) :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+
+// Exemple: handler pour nommage:mqtt:process
+this.interAppClient.onRequest('nommage:mqtt:process', async (request, reply) => {
+  try {
+    const result = await processMqttMessage(request.payload);
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'success',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'error',
+      error: {
+        code: 'NOMMAGE_MQTT_PROCESS_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Exemple: handler pour nommage:rule:test
+this.interAppClient.onRequest('nommage:rule:test', async (request, reply) => {
+  try {
+    const result = await testRule(request.payload);
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'success',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'error',
+      error: {
+        code: 'NOMMAGE_RULE_TEST_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Exemple: handler pour nommage:rule:list
+this.interAppClient.onRequest('nommage:rule:list', async (request, reply) => {
+  try {
+    const rules = await getAllRules();
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'success',
+      result: { rules },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'error',
+      error: {
+        code: 'NOMMAGE_RULE_LIST_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Exemple: handler pour nommage:ha:publish
+this.interAppClient.onRequest('nommage:ha:publish', async (request, reply) => {
+  try {
+    const result = await publishToHa(request.payload);
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'success',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'nommage',
+      status: 'error',
+      error: {
+        code: 'NOMMAGE_HA_PUBLISH_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+```
+
+*Document généré par Mistral Vibe*  
 *Co-Authored-By: Mistral Vibe <vibe@mistral.ai>*

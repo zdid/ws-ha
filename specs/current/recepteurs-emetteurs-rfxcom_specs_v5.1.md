@@ -1,8 +1,14 @@
 # Spécifications Fonctionnelles - Récepteurs et Émetteurs RFXCOM
 
-*Version 5.0 - 09 Juillet 2026*
+*Version 5.1 - 21 Juillet 2026*
 *Complément aux [spécifications principales](specs-fonctionnelles-rfxcom-v5.0.md)*
 *Conforme à [spec-nommage-v1.0.md](spec-nommage-v1.0.md) et [specs-techniques-socle-ha-mqtt.md](specs-techniques-socle-ha-mqtt.md)*
+
+> **v5.1** : Refonte de la section 8.5 (topics MQTT) pour se conformer au nouveau format défini
+> dans `techniques-socle-ha-mqtt_specs_v4.9.md` §8.5 : un seul broker, concept de `bridge_instance`,
+> nouveaux topics état/commande `/rfxcom/{bridgeInstance}/{deviceId}/state|set`, LWT par bridge_instance,
+> encodage RFXCOM du `deviceId` (§8.5.1, nouveau), topic de découverte HA standard inchangé (§7).
+> Retrait des topics `rfxcom/scan` (superseded par Socket.io) et mise à jour de l'exécution de scène.
 
 ---
 
@@ -468,14 +474,21 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
 
 ## 7. MQTT Discovery
 
+> **⭐ v5.1** : Le topic de découverte (`.../config`) reste au format HA standard. Les topics
+> `state_topic`/`command_topic` référencés dans le message suivent désormais le format défini en
+> §8.5 (`/{moduleName}/{bridgeInstance}/{deviceId}/state|set`), conforme à
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.9.md#854-format-des-topics-mqtt).
+
 ### 7.1 Discovery pour Device RFXCOM (Capteur ou Émetteur)
 
 **Template général :**
 ```json
 {
   "name": "{{ taxonomy.raw_quoi }}",     // ⭐ QUOI pur (ex: "Température")
-  "unique_id": "{{ protocole }}_{{ sensorId }}",  // ⭐ Avec protocole
+  "unique_id": "{{ protocole }}_{{ sensorId }}",  // ⭐ Avec protocole (object_id HA — inchangé)
   "~": "homeassistant/{{ component }}/{{ protocole }}_{{ sensorId }}",
+  "state_topic": "/rfxcom/{{ bridgeInstance }}/{{ deviceId }}/state",   // ⭐ v5.1 — voir §8.5.1 pour l'encodage de deviceId
+  "command_topic": "/rfxcom/{{ bridgeInstance }}/{{ deviceId }}/set",  // ⭐ v5.1
   "device": {
     "identifiers": ["{{ protocole }}_{{ sensorId }}"],
     "name": "RFXCOM {{ type }} {{ subType }}",
@@ -491,14 +504,14 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
 }
 ```
 
-**Exemple Lighting2 (Émetteur = binary_sensor) :**
+**Exemple Lighting2 (Émetteur = binary_sensor), bridge `rfx_bridge_0001` :**
 ```json
 {
   "name": "Bouton",
   "unique_id": "lighting2_0x02b3",
   "component": "binary_sensor",
   "device_class": "button",
-  "state_topic": "homeassistant/binary_sensor/lighting2_0x02b3/state",
+  "state_topic": "/rfxcom/rfx_bridge_0001/lighting2_ac__0x02b3_1/state",
   "device": {
     "identifiers": ["lighting2_0x02b3"],
     "name": "RFXCOM Lighting2",
@@ -519,7 +532,7 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
 
 ### 7.2 Discovery pour Récepteur
 
-**Récepteur de type light (avec variateur) :**
+**Récepteur de type light (avec variateur), bridge `rfx_bridge_0001` :**
 ```json
 {
   "name": "Lumière",
@@ -532,8 +545,8 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
     "manufacturer": "RFXCOM",
     "model": "ReceiverLight"
   },
-  "command_topic": "homeassistant/light/recepteur_001/set",
-  "state_topic": "homeassistant/light/recepteur_001/state",
+  "command_topic": "/rfxcom/rfx_bridge_0001/recepteur_001/set",
+  "state_topic": "/rfxcom/rfx_bridge_0001/recepteur_001/state",
   "payload_on": "ON",
   "payload_off": "OFF",
   "attributs_taxonomie": {
@@ -544,6 +557,10 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
   }
 }
 ```
+
+> Pour un récepteur logique, `deviceId` = son `receiverId` (ex: `recepteur_001`) — il n'a pas
+> l'encodage protocole/sous-protocole des devices physiques (§8.5.1), puisqu'un récepteur peut
+> agréger plusieurs émetteurs.
 
 ---
 
@@ -705,43 +722,70 @@ Les événements ci-dessous **complètent** ceux définis dans [`specs-technique
 
 ### 8.5 Topics MQTT Spécifiques à RFXCOM
 
-Les topics ci-dessous **complètent** ceux définis dans [`specs-techniques-socle-ha-mqtt-v4.3.md §8.5.3`](specs-techniques-socle-ha-mqtt-v4.3.md#853-format-des-messages-mqtt).
+> **⭐ v5.1** : Refonte complète de cette section pour se conformer au format générique défini dans
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.9.md#854-format-des-topics-mqtt)
+> (un seul broker, `bridge_instance`, `deviceId` opaque). **Remplace entièrement** l'ancien schéma
+> `rfxcom/{receiverId}/...` de la v5.0.
 
-#### 8.5.1 Topics de Commande RFXCOM (HA → App)
+#### 8.5.1 Encodage du `deviceId` RFXCOM
+
+Pour un **device physique** (émetteur ou capteur RFXCOM), le `deviceId` utilisé dans les topics
+d'état et de commande (mais **pas** dans le topic de découverte, voir §7) encode le protocole
+RFXCOM complet, car un même `sensorId` peut être partagé par plusieurs sous-protocoles/canaux :
+
+```
+{protocole}_{sousProtocole}__{sensorId}_{unitCode}
+```
+
+| Segment | Description | Exemple |
+|---|---|---|
+| `protocole` | Protocole RFXCOM (ex: `lighting2`) | `lighting2` |
+| `sousProtocole` | Sous-type RFXCOM (ex: `AC`), en minuscules | `ac` |
+| `__` | Séparateur fixe entre protocole/sous-protocole et device | `__` |
+| `sensorId` | Identifiant hexadécimal du device (`0x...`) | `0x017340ca` |
+| `unitCode` | Code d'unité/canal RFXCOM | `10` |
+
+**Exemple complet :** `lighting2_ac__0x017340ca_10`
+
+Pour un **récepteur logique** (`recepteur_NNN`), `deviceId` = son `receiverId` directement
+(pas de décomposition protocole/sous-protocole, un récepteur pouvant agréger plusieurs émetteurs).
+
+> ⚠️ Ce `deviceId` est **distinct** de `unique_id`/`object_id` (`<protocole>_<sensorId>`,
+> voir §2.2) utilisé dans le topic de découverte HA — les deux coexistent, chacun avec son rôle.
+
+#### 8.5.2 Topics d'État et de Commande (App ↔ HA)
+
 | Topic | Direction | Payload | QoS | Retain | Description |
 |-------|-----------|---------|-----|--------|-------------|
-| `rfxcom/{receiverId}/set` | HA → App | `{ "state": "ON"\|"OFF", "brightness"?: 0-255 }` | 1 | false | Commande pour un récepteur (ex: allumer, éteindre, variateur) |
-| `rfxcom/{receiverId}/toggle` | HA → App | `{}` | 1 | false | Basculer l'état d'un récepteur |
-| `rfxcom/scene/{sceneId}/execute` | HA → App | `{}` | 1 | false | Exécuter une scène RFXCOM |
-| `rfxcom/scan` | HA → App | `{ "duration": number }` | 0 | false | Demander un scan RF433 |
+| `/rfxcom/{bridgeInstance}/{deviceId}/state` | App → HA | `{ "state": "ON"\|"OFF"\|number, "attributes"?: {...} }` | 1 | true | État d'un device ou d'un récepteur |
+| `/rfxcom/{bridgeInstance}/{deviceId}/set` | HA → App | `{ "state": "ON"\|"OFF", "brightness"?: 0-255, "position"?: 0-100 }` | 1 | false | Commande reçue de HA pour un device ou récepteur |
 
-#### 8.5.2 Topics d'État RFXCOM (App → HA)
-| Topic | Direction | Payload | QoS | Retain | Description |
-|-------|-----------|---------|-----|--------|-------------|
-| `rfxcom/{emitterId}/state` | App → HA | `{ "state": "ON"\|"OFF", "last_updated": ISO8601 }` | 1 | true | État d'un émetteur (pour feedback dans HA) |
-| `rfxcom/{receiverId}/state` | App → HA | `{ "state": "ON"\|"OFF", "brightness": 0-255, "last_updated": ISO8601 }` | 1 | true | État d'un récepteur |
+`bridgeInstance` identifie le transceiver physique concerné (ex: `rfx_bridge_0001`, voir
+[`techniques-socle-ha-mqtt_specs` §8.5.1](techniques-socle-ha-mqtt_specs_v4.9.md#851-concept-de-bridge_instance)).
 
 #### 8.5.3 Topics de Découverte RFXCOM (App → HA)
-| Topic | Direction | Payload | QoS | Retain | Description |
-|-------|-----------|---------|-----|--------|-------------|
-| `rfxcom/{receiverId}/config` | App → HA | Message de discovery (voir §7) | 1 | true | Découverte MQTT du récepteur |
-| `rfxcom/{emitterId}/config` | App → HA | Message de discovery (voir §7) | 1 | true | Découverte MQTT de l'émetteur (optionnel) |
 
-#### 8.5.4 Topics de Feedback RFXCOM (App → HA)
-| Topic | Direction | Payload | QoS | Retain | Description |
-|-------|-----------|---------|-----|--------|-------------|
-| `rfxcom/scan/result` | App → HA | `{ "devices": RfxComDeviceInfo[], "timestamp": ISO8601 }` | 0 | false | Résultat d'un scan RF433 |
-| `rfxcom/status` | App → HA | `{ "state": "ready"\|"scanning"\|"error", "lastScan": ISO8601, "deviceCount": number }` | 1 | true | Statut global du module RFXCOM |
+Format standard HA, **inchangé** — voir §7 pour les exemples complets de payload.
 
-#### 8.5.5 Topics de Commande Directe (App → RFXCOM Transceiver)
 | Topic | Direction | Payload | QoS | Retain | Description |
 |-------|-----------|---------|-----|--------|-------------|
-| `rfxcom/internal/{sensorId}/send` | App → Transceiver | `{ "protocol": string, "data": Buffer }` | 0 | false | Commande bas niveau vers le transceiver RFXCOM |
+| `homeassistant/{component}/{object_id}/config` | App → HA | Message de discovery (voir §7) | 1 | true | Découverte MQTT d'un device ou d'un récepteur (`object_id` = `unique_id`) |
 
-#### 8.5.6 Topics LWT (Last Will and Testament)
+#### 8.5.4 LWT (Last Will and Testament)
+
 | Topic | Direction | Payload | QoS | Retain | Description |
 |-------|-----------|---------|-----|--------|-------------|
-| `rfxcom/status` | App → Broker | `"online"` (connect) / `"offline"` (disconnect) | 1 | true | LWT du module RFXCOM |
+| `/rfxcom/{bridgeInstance}/status` | App → Broker | `"online"` (connect) / `"offline"` (disconnect) | 1 | true | LWT **par bridge_instance** — un transceiver hors ligne ne rend indisponibles que ses propres entités |
+
+#### 8.5.5 Scènes et Scan (hors périmètre MQTT)
+
+Les anciens topics `rfxcom/scene/{sceneId}/execute` et `rfxcom/scan` de la v5.0 sont **retirés** :
+- Le **scan RF433** est une action interne à l'application, déjà pilotée exclusivement via
+  Socket.io (`rfxcom:scan:start`, voir `fonctionnelles-rfxcom_specs` §11.3) — il n'y a pas lieu
+  de dupliquer ce contrôle sur MQTT.
+- L'**exécution de scène** depuis une automatisation HA reste un besoin MQTT légitime (HA doit
+  pouvoir déclencher une scène) ; son topic suit désormais le même format que les commandes :
+  `/rfxcom/{bridgeInstance}/scene_{sceneId}/set` (voir `fonctionnelles-rfxcom_specs` §14.3.4).
 
 ---
 
@@ -1043,6 +1087,7 @@ Serveur → Sauvegarde dans config-rfxcom-devices-v1.0.yaml et publie Discovery 
 | 3.0 | 2026-07-08 | Mistral Vibe | Correction noms techniques |
 | 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, appairages N↔N via UI |
 | 5.0 | 2026-07-09 | Mistral Vibe | **Fichier YAML centralisé, primaryEmitter, émetteurs dans récepteur, attributs_taxonomie validé** |
+| 5.1 | 2026-07-21 | Claude | **Refonte topics MQTT §8.5** conforme à `techniques-socle-ha-mqtt_specs_v4.9.md` : un seul broker, `bridge_instance`, nouveaux topics état/commande `/rfxcom/{bridgeInstance}/{deviceId}/state\|set`, LWT par bridge, encodage RFXCOM du `deviceId` (§8.5.1), retrait des topics `rfxcom/scan` (superseded par Socket.io) |
 
 ---
 

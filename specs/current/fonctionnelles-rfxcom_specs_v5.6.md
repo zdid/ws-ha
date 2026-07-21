@@ -1,7 +1,12 @@
 # Spécifications Fonctionnelles - Module RFXCOM
 
-*Version 5.5 - 18 Juillet 2026*
+*Version 5.6 - 21 Juillet 2026*
 *Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: **Spécifications Cover avec Lighting2** (états up/down/intermediate, calcul position%, traduction on/off), **Traduction Commandes HA→RFXCOM par type**, **Arborescence des Programmes**, Détection automatique, toolbar Scanner/Effacer/Rafraîchir, Appairages intégrés, Gestion protocoles, Scènes réactivées, transmitToHa, actions MQTT par le socle, indicateur connexion, traces détaillées.*
+
+> **v5.6** : Alignement des topics `state_topic`/scènes sur le nouveau format MQTT du socle
+> (`techniques-socle-ha-mqtt_specs_v4.9.md` §8.5) : `/{moduleName}/{bridgeInstance}/{deviceId}/state|set`.
+> Le topic de découverte HA standard est inchangé. Voir `recepteurs-emetteurs-rfxcom_specs_v5.1.md`
+> §8.5 pour le détail complet (encodage `deviceId`, LWT par bridge_instance).
 
 ---
 
@@ -339,12 +344,13 @@ const SUBTYPE_TO_QUOI: Record<string, string> = {
 | Lighting4 | - | **binary_sensor** | - | Télécommande |
 
 ### 7.2 Discovery MQTT pour Device RFXCOM
-**Template général (capteur) :**
+**Template général (capteur), bridge `{{ bridgeInstance }}` :**
 ```json
 {
   "name": "{{ taxonomy.raw_quoi }}",
   "unique_id": "{{ protocole }}_{{ sensorId }}",
   "~": "homeassistant/sensor/{{ protocole }}_{{ sensorId }}",
+  "state_topic": "/rfxcom/{{ bridgeInstance }}/{{ deviceId }}/state",
   "device": {
     "identifiers": ["{{ protocole }}_{{ sensorId }}"],
     "name": "RFXCOM {{ type }} {{ subType }}",
@@ -359,6 +365,11 @@ const SUBTYPE_TO_QUOI: Record<string, string> = {
   }
 }
 ```
+
+> **⭐ v5.6** : `state_topic` (et `command_topic` le cas échéant) suit le format
+> `/{moduleName}/{bridgeInstance}/{deviceId}/state|set` — voir
+> [`recepteurs-emetteurs-rfxcom_specs` §8.5](recepteurs-emetteurs-rfxcom_specs_v5.1.md#85-topics-mqtt-spécifiques-à-rfxcom)
+> pour l'encodage exact de `deviceId`. Le topic de découverte (`.../config`, déduit de `~`) reste standard HA.
 
 ---
 
@@ -903,14 +914,14 @@ rfxcom_scenes:
   ```
 
 #### 14.3.4 Intégration avec Home Assistant
-Les scènes sont publiées comme des **automatisations HA** via MQTT Discovery :
+Les scènes sont publiées comme des **automatisations HA** via MQTT Discovery. Bridge `rfx_bridge_0001` :
 
 ```json
 {
   "name": "Soirée Salon",
   "unique_id": "rfxcom_scene_001",
   "automation_type": "trigger",
-  "topic": "rfxcom/scene/scene_001/execute",
+  "topic": "/rfxcom/rfx_bridge_0001/scene_scene_001/set",
   "payload": "{}",
   "device": {
     "identifiers": ["rfxcom_scene_001"],
@@ -921,9 +932,9 @@ Les scènes sont publiées comme des **automatisations HA** via MQTT Discovery :
 }
 ```
 
-**Topics MQTT pour les scènes :**
-- **Exécution** : `rfxcom/scene/{sceneId}/execute` (HA → App, QoS 1, retain false)
-- **Résultat** : `rfxcom/scene/{sceneId}/result` (App → HA, QoS 0, retain false)
+**Topics MQTT pour les scènes** *(⭐ v5.6 — conforme au format §8.5 de `recepteurs-emetteurs-rfxcom_specs`)* :
+- **Exécution** : `/rfxcom/{bridgeInstance}/scene_{sceneId}/set` (HA → App, QoS 1, retain false)
+- **Résultat** : `/rfxcom/{bridgeInstance}/scene_{sceneId}/state` (App → HA, QoS 0, retain false)
 
 #### 14.3.5 Commandes Spécifiques aux Scènes
 | Commande | Description | Payload |
@@ -1130,7 +1141,296 @@ applications/rfxcom/
 | 5.1 | 2026-07-16 | Mistral Vibe | **Détection automatique dans onglet Devices, toolbar Scanner/Effacer/Rafraîchir, deux listes devices (paramétrés vs auto-discovery), Appairages intégrées aux Récepteurs** |
 | 5.4 | 2026-07-17 | Mistral Vibe | **Gestion des protocoles, transmitToHa, scènes réactivées, actions MQTT par le socle, workflow devices complet, nommage automatique ---/--, Lighting2 clarifié (binary_sensor), appairage remplace association** |
 | 5.5 | 2026-07-18 | Mistral Vibe | **Spécifications Cover avec Lighting2 (états up/down/intermediate, calcul position%, traduction on/off), Traduction Commandes HA→RFXCOM par type, Arborescence des Programmes modulaire** |
+| 5.6 | 2026-07-21 | Claude | Alignement des topics `state_topic` et scènes sur le nouveau format MQTT du socle (`/{moduleName}/{bridgeInstance}/{deviceId}/state\|set`), conforme à `techniques-socle-ha-mqtt_specs_v4.9.md` §8.5 |
 
 ---
 
 *Conforme à [spec-nommage-v1.0.md](spec-nommage-v1.0.md) et [specs-techniques-socle-ha-mqtt.md](specs-techniques-socle-ha-mqtt.md)*
+
+
+---
+
+## 9. Communication Inter-Applications
+
+> **⚠️ IMPORTANT :** Cette section documente les événements et capacités que cette application **expose** aux autres applications.
+> 
+> **Pour utiliser ces capacités :**
+> - Import depuis le core : `import { InterAppClient } from '../../../core/src/exports'`
+> - Utiliser `interAppClient.request()` pour les Request/Reply
+> - Utiliser `interAppClient.on()` pour écouter les événements Fire & Forget
+> - Voir [inter-app-communication_specs_v1.0.md](../inter-app-communication_specs_v1.0.md) pour les détails
+
+### 9.1 Événements Fire & Forget (Écoute possible par d'autres applications)
+
+| Événement | Description | Payload Type | Fréquence | Émetteur |
+|-----------|-------------|--------------|-----------|----------|
+| `rfxcom:device:detected` | Nouveau device RFXCOM détecté automatiquement | `RfxcomDeviceDetectedPayload` | Selon détection | rfxcom |
+| `rfxcom:device:removed` | Device RFXCOM supprimé | `RfxcomDeviceRemovedPayload` | Sur action utilisateur | rfxcom |
+| `rfxcom:device:state:updated` | État d'un device RFXCOM mis à jour | `RfxcomDeviceStatePayload` | Fréquente | rfxcom |
+| `rfxcom:message:received` | Message RF433/868 reçu et décodé | `RfxcomRawMessagePayload` | Selon activité RF | rfxcom |
+| `rfxcom:scan:started` | Scan de devices démarré | `RfxcomScanPayload` | Sur demande | rfxcom |
+| `rfxcom:scan:completed` | Scan de devices terminé | `RfxcomScanCompletedPayload` | À la fin du scan | rfxcom |
+| `rfxcom:scan:device:found` | Device trouvé pendant le scan | `RfxcomDeviceFoundPayload` | Pendant le scan | rfxcom |
+
+**Types des payloads :**
+```typescript
+// RfxcomDeviceDetectedPayload
+export interface RfxcomDeviceDetectedPayload {
+  deviceId: string;
+  sensorId: string;
+  subType: string;
+  protocol: string;
+  name: string;
+  quoi: string;
+  ou: string;
+  timestamp: string;
+}
+
+// RfxcomDeviceRemovedPayload
+export interface RfxcomDeviceRemovedPayload {
+  deviceId: string;
+  sensorId: string;
+  timestamp: string;
+}
+
+// RfxcomDeviceStatePayload
+export interface RfxcomDeviceStatePayload {
+  deviceId: string;
+  sensorId: string;
+  state: Record<string, unknown>;
+  timestamp: string;
+}
+
+// RfxcomRawMessagePayload
+export interface RfxcomRawMessagePayload {
+  rawMessage: string;
+  protocol: string;
+  subType: string;
+  sensorId: string;
+  rssi: number;
+  timestamp: string;
+}
+
+// RfxcomScanPayload
+export interface RfxcomScanPayload {
+  scanId: string;
+  protocols: string[];
+  timestamp: string;
+}
+
+// RfxcomScanCompletedPayload
+export interface RfxcomScanCompletedPayload {
+  scanId: string;
+  devicesFound: number;
+  timestamp: string;
+}
+
+// RfxcomDeviceFoundPayload
+export interface RfxcomDeviceFoundPayload {
+  scanId: string;
+  device: RfxcomDeviceDetectedPayload;
+  timestamp: string;
+}
+```
+
+**Exemple d'écoute depuis une autre application :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+
+this.interAppClient.on('rfxcom:device:detected', (payload, fromApp) => {
+  // payload est de type RfxcomDeviceDetectedPayload
+  console.log(`Nouveau device détecté par ${fromApp}:`, payload);
+});
+
+this.interAppClient.on('rfxcom:message:received', (payload, fromApp) => {
+  // payload est de type RfxcomRawMessagePayload
+  console.log(`Message RF reçu de ${fromApp}:`, payload);
+});
+```
+
+### 9.2 Capacités Request/Reply (Appel possible depuis d'autres applications)
+
+| Capacité | Description | Request Type | Reply Type | Timeout conseillé |
+|----------|-------------|--------------|------------|-------------------|
+| `rfxcom:devices:list` | Lister tous les devices RFXCOM configurés | `RfxcomListDevicesRequest` | `RfxcomListDevicesReply` | 2000ms |
+| `rfxcom:device:get` | Obtenir les détails d'un device spécifique | `RfxcomGetDeviceRequest` | `RfxcomGetDeviceReply` | 1000ms |
+| `rfxcom:device:scan` | Lancer un scan de nouveaux devices | `RfxcomScanRequest` | `RfxcomScanReply` | 30000ms |
+| `rfxcom:device:send` | Envoyer une commande RF via un device | `RfxcomSendCommandRequest` | `RfxcomSendCommandReply` | 5000ms |
+| `rfxcom:pairing:create` | Créer un appairage entre émetteur et récepteur | `RfxcomCreatePairingRequest` | `RfxcomCreatePairingReply` | 2000ms |
+| `rfxcom:pairing:delete` | Supprimer un appairage | `RfxcomDeletePairingRequest` | `RfxcomDeletePairingReply` | 2000ms |
+
+**Types :**
+```typescript
+// Request/Reply pour devices:list
+interface RfxcomListDevicesRequest {
+  includeDisabled?: boolean;
+  filterByProtocol?: string;
+}
+
+interface RfxcomListDevicesReply {
+  devices: RfxcomDeviceDetectedPayload[];
+  total: number;
+}
+
+// Request/Reply pour device:get
+interface RfxcomGetDeviceRequest {
+  deviceId: string;
+}
+
+interface RfxcomGetDeviceReply {
+  device: RfxcomDeviceDetectedPayload & {
+    configuration: Record<string, unknown>;
+    pairedEmitters: string[];
+    primaryEmitter?: string;
+  };
+}
+
+// Request/Reply pour device:scan
+interface RfxcomScanRequest {
+  protocols?: string[];
+  duration?: number; // en secondes
+}
+
+interface RfxcomScanReply {
+  scanId: string;
+  status: 'started' | 'completed' | 'cancelled';
+  devicesFound: RfxcomDeviceDetectedPayload[];
+}
+
+// Request/Reply pour device:send
+interface RfxcomSendCommandRequest {
+  deviceId: string;
+  command: string;
+  payload?: Record<string, unknown>;
+}
+
+interface RfxcomSendCommandReply {
+  success: boolean;
+  sentAt: string;
+  ackReceived?: boolean;
+  error?: string;
+}
+
+// Request/Reply pour pairing:create
+interface RfxcomCreatePairingRequest {
+  receiverId: string;
+  emitterId: string;
+  makePrimary?: boolean;
+}
+
+interface RfxcomCreatePairingReply {
+  success: boolean;
+  pairingId: string;
+  receiverId: string;
+  emitterId: string;
+}
+
+// Request/Reply pour pairing:delete
+interface RfxcomDeletePairingRequest {
+  pairingId: string;
+}
+
+interface RfxcomDeletePairingReply {
+  success: boolean;
+  pairingId: string;
+}
+```
+
+**Exemple d'appel depuis une autre application :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+import type {
+  RfxcomListDevicesRequest,
+  RfxcomListDevicesReply,
+  RfxcomSendCommandRequest,
+  RfxcomSendCommandReply
+} from '../rfxcom/specs';
+
+// Lister tous les devices
+const listReply = await interAppClient.request<
+  RfxcomListDevicesRequest,
+  RfxcomListDevicesReply
+>(
+  'rfxcom:devices:list',
+  { includeDisabled: true },
+  2000
+);
+
+if (listReply.status === 'success') {
+  console.log('Devices trouvés:', listReply.result.devices);
+}
+
+// Envoyer une commande
+const sendReply = await interAppClient.request<
+  RfxcomSendCommandRequest,
+  RfxcomSendCommandReply
+>(
+  'rfxcom:device:send',
+  { deviceId: 'lighting2_0x02b3', command: 'ON' },
+  5000
+);
+
+if (sendReply.status === 'success') {
+  console.log('Commande envoyée:', sendReply.result);
+}
+```
+
+**Handler côté récepteur (dans l'application RFXCOM) :**
+```typescript
+import { InterAppClient } from '../../../core/src/exports';
+
+// Exemple: handler pour rfxcom:devices:list
+this.interAppClient.onRequest('rfxcom:devices:list', async (request, reply) => {
+  try {
+    const devices = await getAllDevices(request.payload);
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'success',
+      result: { devices, total: devices.length },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'error',
+      error: {
+        code: 'RFXCOM_LIST_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Exemple: handler pour rfxcom:device:send
+this.interAppClient.onRequest('rfxcom:device:send', async (request, reply) => {
+  try {
+    const result = await sendRfCommand(request.payload);
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'success',
+      result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    reply({
+      requestId: request.requestId,
+      inReplyTo: request.requestId,
+      fromApp: 'rfxcom',
+      status: 'error',
+      error: {
+        code: 'RFXCOM_SEND_ERROR',
+        message: error.message
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+```
+

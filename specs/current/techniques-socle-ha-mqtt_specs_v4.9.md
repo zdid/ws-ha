@@ -1,9 +1,25 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.6  
-**Date :** 19 Juillet 2026  
+**Version :** 4.9  
+**Date :** 21 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
 
+> **v4.9** : Ajout du **Passthrough MQTT** (§8.5.6) : mécanisme pour les applications qui relaient
+> des messages MQTT déjà formés (lus depuis une source tierce) vers le broker HA unique du socle,
+> sans passer par la normalisation de découverte §8.5.0. Deux modes : réécriture de préfixe
+> (`integration:{module}:passthrough:discovery`) et passthrough intégral
+> (`integration:{module}:passthrough:publish`). Cas d'usage type : l'application `nommage`
+> relayant des découvertes Zigbee2MQTT enrichies vers `homeassistant/...`.
+
+> **v4.8** : **Précision du format MQTT (Mode B, §8.5)** : un seul broker pour tout le socle, mission
+> détaillée par intégration (LWT + découverte persistante + état + commandes), nouveau concept de
+> **bridge_instance** (LWT et topics état/commande par instance physique/logique), nouveaux formats
+> de topics état/commande (`/{moduleName}/{bridgeInstance}/{deviceId}/state|set`, remplace l'ancien
+> schéma générique `homeassistant/.../state|set` et l'ancien LWT `ha-integration/{module}/status`).
+> Le topic de découverte HA standard (`homeassistant/{component}/{object_id}/config`) est inchangé.
+> Clarification : le module métier ne fournit que les données essentielles, `HaMqttIntegrationService`
+> normalise et complète l'intégralité du message de découverte.
+> **v4.7** : **Correction de la couche Présentation** : suppression des références à Alpine.js (technologie abandonnée depuis `presentation_specs` v3.0 — TypeScript pur + Web Components natifs). La section 6 renvoie désormais vers `presentation_specs_v3.2.md` pour éviter la duplication et la désynchronisation entre documents.
 > **v4.6** : **Restructuration complète de l'arborescence** : Déplacement de `src/applications/` et `src/applications_desactivees/` vers `applications/` et `applications_desactivees/` à la racine du projet. Chaque application (y compris le core) est maintenant autonome avec ses propres `package.json`, `tsconfig.json`, et `dist/`. **Le core ne peut pas être désactivé**. Mise à jour des mécanismes de détection et d'activation/désactivation via `AppService`.
 > **v4.5** : Ajout du **démarrage automatique des services d'application** avec reconnexion sur changement de configuration. **Traces obligatoires** au démarrage et gestion des erreurs de connexion (matériel absent, mauvais paramètres).
 > **v4.4** : Ajout de la **gestion dynamique d'activation/désactivation** des applications via répertoires `applications/` et `applications_desactivees/`.
@@ -38,7 +54,7 @@ qu'elle choisit d'exposer à l'UI.
 | Protocole IoT | MQTT | 3.1.1 / 5.0 |
 | Broker MQTT | Mosquitto standalone | Externe au conteneur |
 | Serveur HTTP/WS | Express.js + Socket.io | 4.x / 4.x |
-| **Frontend** | **HTML + CSS + Alpine.js** | **3.x** |
+| **Frontend** | **HTML + CSS + TypeScript + Web Components natifs** | **ES2020+** |
 | Containerisation | Docker + Docker Compose | — |
 | Paquets | pnpm | lockfile strict |
 | Validation | Zod | 3.x |
@@ -58,7 +74,7 @@ la couche Métier et la couche Infrastructure.
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                    COUCHE PRÉSENTATION                    │
-│   UI Web (HTML/CSS/Alpine.js + TypeScript)               │
+│   UI Web (HTML/CSS/TypeScript + Web Components natifs)   │
 │   Serveur Express + Socket.io                            │
 │   → Émet et reçoit uniquement des événements Socket.io   │
 │   → Seul /health reste en HTTP pur                       │
@@ -132,10 +148,13 @@ projet/
 ```
 ├── src/                              # Code source du cœur (core) de l'application
 │   ├── index.ts                      # Bootstrap : instancie et câble toutes les couches
+│   ├── exports.ts                    # ⭐ NOUVEAU : Point d'entrée unique pour les imports
+│   │                                   #    Centralise EventBus, Logger, ConfigService, HA types, etc.
 │   ├── types/                        # Interfaces partagées — accessibles par toutes les couches
 │   │   ├── config.ts                 # AppConfig, MqttConfig, HaSyncConfig, WebConfig
 │   │   ├── ha.ts                     # HaEntity, HaDomain, HaState
-│   │   └── events.ts                 # AppEvent, SocketEvent, EventPayloads
+│   │   ├── events.ts                 # AppEvent, SocketEvent, EventPayloads
+│   │   └── interapp.ts               # ⭐ NOUVEAU : Types pour communication inter-applications
 │   ├── infrastructure/
 │   │   ├── config/
 │   │   │   ├── schema.ts             # Schéma Zod — source de vérité de la config
@@ -166,7 +185,8 @@ projet/
 │       ├── AppService.ts             # Cycle de vie, coordination des modules
 │       ├── EventBus.ts               # EventEmitter typé — canal inter-couches
 │       ├── SocketBridge.ts           # Traduit EventBus → émissions Socket.io
-│       └── RestartManager.ts         # process.exit(0) différé après sauvegarde config
+│       ├── RestartManager.ts         # process.exit(0) différé après sauvegarde config
+│       └── InterAppClient.ts         # ⭐ NOUVEAU : Client pour communication inter-applications
 │
 ├── applications/                     # Applications ACTIVÉES — chacune dans son répertoire autonome
 │   └── [app-name]/                  # Ex: rfxcom, zigbee2mqtt, core
@@ -193,9 +213,9 @@ projet/
     │   ├── handlers.ts               # Listeners des événements Socket.io entrants (client → serveur)
     │   └── events.ts                 # Constantes des noms d'événements Socket.io
     └── ui/                           # Servi statiquement par Express
-        ├── index.html                # Page principale avec Alpine.js
+        ├── index.html                # Page principale (Web Components natifs)
         ├── style.css                 # Charte graphique commune (variables CSS)
-        └── app.ts                    # Logique UI TypeScript — Socket.io client + Alpine.js
+        └── app.ts                    # Logique UI TypeScript — Socket.io client + Web Components
 ```
 
 ### 4.3 Gestion Dynamique des Applications
@@ -301,7 +321,7 @@ Socket.io est **l'unique canal** de communication entre l'UI et le serveur.
 L'API REST est supprimée. Seul `/health` reste en HTTP pour le healthcheck Docker.
 
 ```
-UI (app.ts + Alpine.js)  ←──── Socket.io ────→  server.ts
+UI (app.ts)  ←──── Socket.io ────→  server.ts
                                          │
                                     SocketBridge
                                          │
@@ -435,135 +455,160 @@ UI                        SocketBridge / handlers.ts         ConfigWriter / Rest
 
 ---
 
-## 6. Couche Présentation avec Alpine.js
+### 5.5 Communication Inter-Applications
 
-### 6.1 Choix de Alpine.js
+> **⭐ NOUVEAU v4.7** : Toutes les applications (sauf core) partagent le même EventBus et peuvent communiquer entre elles.
+> Voir [inter-app-communication_specs_v1.0.md](inter-app-communication_specs_v1.0.md) pour la spécification complète.
 
-**Pourquoi Alpine.js ?**
+**Principe fondamental :** L'EventBus est **partagé entre toutes les applications**. Cela permet une communication directe et découplée.
 
-| Critère | Alpine.js | Vanilla JS | React/Vue |
-|---------|-----------|------------|-----------|
-| Taille | ~7 KB | 0 KB | 40+ KB |
-| Courbe d'apprentissage | ⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Lisibilité | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
-| Maintenance | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐ |
-| Réactivité | ⭐⭐⭐⭐ | ⭐ | ⭐⭐⭐⭐ |
-| Intégration TypeScript | ✅ Oui | ✅ Oui | ✅ Oui |
+#### 5.5.1 Deux patterns de communication
 
-**Avantages pour ce projet :**
-- **Pas de build step** requis (peut être utilisé via CDN ou import ES module)
-- **Syntaxe HTML-native** : la logique reste dans le HTML, facile à comprendre
-- **Progressif** : peut être ajouté petit à petit
-- **Compatibilité TypeScript** : typage disponible via `@types/alpinejs`
-- **Léger et performant** : impact minimal sur les ressources
+| Pattern | Description | Synchronisation | Utilisation |
+|---------|-------------|-----------------|-------------|
+| **Fire & Forget** | Événement unidirectionnel, aucune réponse attendue | Asynchrone | Notifications, événements de cycle de vie |
+| **Request/Reply** | Question/Réponse avec corrélation via `requestId` | **Asynchrone avec Promises** | Appels de service, requêtes de données |
 
-### 6.2 Intégration Alpine.js + TypeScript
+**Tous les échanges inter-applications sont asynchrones.** Aucun appel synchrone n'est autorisé.
 
-**Option 1 : Via CDN (le plus simple, pas de build)**
-```html
-<!-- Dans index.html -->
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-<script type="module" src="/app.js"></script>
+#### 5.5.2 Système de corrélation Request/Reply
+
+Pour les communications où une réponse est attendue :
+
+```
+Émetteur ──────[Request]──► EventBus ──────► Récepteur
+     │         requestId: "app1-xxx-1"         │
+     │                                        ▼
+     │                               [Traitement ASYNCHRONE]
+     │                                        │
+     └──────────────────[Reply]◄──────────────┘
+              requestId: "app1-xxx-1"
+              inReplyTo: "app1-xxx-1"
 ```
 
-**Option 2 : Via npm (recommandé pour le typage)**
-```bash
-npm install alpinejs @types/alpinejs
-```
+**Structure de base :**
+- **Request** : `{ requestId, capability, payload, fromApp, timestamp }`
+- **Reply** : `{ requestId, inReplyTo, fromApp, status, result?, error?, timestamp }`
+
+**Mécanisme :**
+1. L'émetteur génère un `requestId` unique (`{appId}-{timestamp}-{seq}`)
+2. L'émetteur émet la Request sur l'EventBus
+3. Le récepteur traite la demande de manière **asynchrone**
+4. Le récepteur émet la Reply avec le même `requestId`
+5. L'émetteur reçoit la Reply via son `RequestTracker` (Promise résolue/rejetée)
+6. Si timeout dépassé, la Promise est rejetée
+
+#### 5.5.3 Déclaration des capacités
+
+**Toute application (sauf core) DOIT exporter** ses capacités dans `domain/capabilities.ts` :
 
 ```typescript
-// src/presentation/ui/app.ts
-import Alpine from 'alpinejs';
+// applications/{app-name}/domain/capabilities.ts
+import type { AppRequest, AppReply, ApplicationCapabilities, RequestHandler } from '../../../core/src/types/interapp';
 
-// Initialisation Alpine
-Alpine.start();
+export const {APP_NAME}_CAPABILITIES: ApplicationCapabilities = {
+  id: '{app-name}',
+  name: '{App Name}',
+  description: 'Description des capacités de cette application',
+  version: '1.0',
 
-// Extension des types Alpine (optionnel)
-declare module 'alpinejs' {
-  interface Alpine {
-    // Ajouter vos propres propriétés/méthodes
+  // Capacités gérées (Request/Reply)
+  handledRequests: {
+    '{app-name}:capability': {
+      description: 'Description de cette capacité',
+      requestType: 'AppRequest<MyRequestPayload>',
+      responseType: 'AppReply<MyReplyResult>',
+      handler: myCapabilityHandler
+    }
+  },
+
+  // Événements émettables (Fire & Forget)
+  emittedEvents: {
+    '{app-name}:event': {
+      description: 'Description de l\'événement',
+      payloadType: 'MyEventPayload'
+    }
+  }
+};
+```
+
+#### 5.5.4 Intégration décentralisée
+
+`AppService` dans le core :
+- **Détecte** les applications disponibles
+- **Injecte** le même EventBus à toutes les applications
+- Chaque application **documente** ses capacités dans sa spécification (section 9)
+- Les conflits de noms sont évités par convention entre développeurs
+
+#### 5.5.5 Utilisation via InterAppClient
+
+**Dans une application (appelante) :**
+```typescript
+import { InterAppClient } from '../../../core/src/application/InterAppClient';
+
+class MyAppService {
+  private interApp: InterAppClient;
+
+  constructor(eventBus: IEventBus, logger: Logger) {
+    this.interApp = new InterAppClient(eventBus, logger, '{app-name}');
+  }
+
+  async callScheduler() {
+    // Pose une question (asynchrone)
+    const reply = await this.interApp.request(
+      'scheduler:schedule',
+      { action: 'turn_on', at: '+15m' },
+      5000 // timeout 5 secondes
+    );
+
+    if (reply.status === 'success') {
+      console.log('OK:', reply.result);
+    }
+  }
+
+  notifyEvent() {
+    // Émet un événement (Fire & Forget)
+    this.interApp.emit('myapp:event', { data: 'value' });
   }
 }
 ```
 
-### 6.3 Exemples d'utilisation Alpine.js
-
-**Composant simple avec état :**
-```html
-<div x-data="{ count: 0 }">
-  <button @click="count++">Increment</button>
-  <span x-text="count"></span>
-</div>
+**Dans une application (réceptrice) :**
+```typescript
+class SchedulerService {
+  constructor(eventBus: IEventBus, logger: Logger) {
+    this.interApp = new InterAppClient(eventBus, logger, 'scheduler');
+    
+    // Configurer le handler
+    this.interApp.onRequest(
+      'scheduler:schedule',
+      SCHEDULER_CAPABILITIES.handledRequests['scheduler:schedule'].handler
+    );
+  }
+}
 ```
 
-**Liste dynamique :**
-```html
-<div x-data="{ 
-  devices: [], 
-  async loadDevices() { 
-    const response = await fetch('/api/rfxcom/devices'); 
-    this.devices = await response.json(); 
-  } 
-}" x-init="loadDevices()">
-  <template x-for="device in devices" :key="device.sensorId">
-    <div class="device-card">
-      <h3 x-text="device.name"></h3>
-      <span x-text="device.sensorId"></span>
-    </div>
-  </template>
-</div>
-```
+#### 5.5.6 Points clés à retenir
 
-**Formulaire réactif :**
-```html
-<form x-data="{ 
-  receiver: { 
-    name: '', 
-    type: 'light', 
-    primaryEmitter: '' 
-  } 
-}" @submit.prevent="$socket.emit('rfxcom:receiver:create', receiver)">
-  <input x-model="receiver.name" type="text" placeholder="Nom">
-  <select x-model="receiver.type">
-    <option value="light">Lumière</option>
-    <option value="switch">Interrupteur</option>
-    <option value="cover">Volet</option>
-    <option value="scene">Scène</option>
-  </select>
-  <button type="submit">Créer</button>
-</form>
-```
+1. **⭐ EventBus partagé** : Toutes les applications utilisent la même instance
+2. **⭐ Communication asynchrone** : Aucune communication bloquante
+3. **⭐ Corrélation obligatoire** : Toujours utiliser `requestId` et `inReplyTo`
+4. **⭐ Déclaration explicite** : Toute capacité DOIT être déclarée
+5. **⭐ Typage fort** : Toujours typer les payloads avec TypeScript
+6. **⭐ Pas de couplage direct** : Les applications ne connaissent pas l'implémentation des autres
 
-**Intégration avec Socket.io :**
-```html
-<div x-data="{ 
-  devices: [], 
-  init() { 
-    // Accéder au socket (disponible globalement ou via import)
-    socket.on('rfxcom:devices:list', (data) => { 
-      this.devices = data.devices; 
-    }); 
-    socket.on('rfxcom:device:detected', (device) => { 
-      this.devices.push(device); 
-    }); 
-  } 
-}" x-init="init()">
-  <!-- Contenu -->
-</div>
-```
+> **📖 Pour plus de détails :** Voir [inter-app-communication_specs_v1.0.md](inter-app-communication_specs_v1.0.md)
 
-**Affichage conditionnel :**
-```html
-<div x-data="{ status: 'loading' }">
-  <div x-show="status === 'loading'">Chargement...</div>
-  <div x-show="status === 'error'" class="error">
-    <span x-text="errorMessage"></span>
-  </div>
-  <div x-show="status === 'ready'">
-    <!-- Contenu principal -->
-  </div>
-</div>
-```
+---
+
+## 6. Couche Présentation
+
+> **⚠️ v4.7** : Cette section renvoyait auparavant vers Alpine.js, technologie **abandonnée** depuis `presentation_specs` v3.0 (migration complète vers **TypeScript pur + Web Components natifs**, sans framework UI tiers). Pour éviter toute duplication et désynchronisation entre documents (cf. règle anti-redondance de `PROMPT_PROJET.md` §10), ce socle ne détaille plus l'implémentation de la couche Présentation : elle est **entièrement spécifiée** dans [presentation_specs](presentation_specs_v3.2.md), qui fait référence.
+
+**Rappel des invariants** (détail complet dans `presentation_specs`) :
+- Aucun framework UI tiers (React, Vue, Angular, Alpine.js, etc.) — TypeScript ES2020+ et Web Components natifs uniquement
+- Toute la réactivité passe par des Custom Elements et des événements DOM natifs
+- Communication exclusivement via Socket.io (sauf `/health`)
 
 ---
 
@@ -962,7 +1007,42 @@ Le mode MQTT de la couche HA est **réservé exclusivement** aux applications de
 **intégration** : celles dont la fonction est de faire le pont entre Home Assistant
 et un système tiers (capteur externe, passerelle, service cloud, etc.).
 
-#### 8.5.1 HaMqttIntegrationService — Service MQTT Générique
+> **⭐ v4.8** : Précision du **format des topics** MQTT (état/commande/LWT) et introduction du
+> concept de **bridge_instance**. Remplace intégralement les §8.5.1 à 8.5.4 précédents.
+
+#### 8.5.0 Mission et Principes
+
+Le socle expose **un seul broker MQTT** (`ha.mqtt`, une seule adresse — voir §7.1) partagé par
+toutes les applications d'intégration. Pour chaque intégration active (ex: RFXCOM), le socle a la
+responsabilité de :
+
+1. Publier le **LWT** (Last Will and Testament) — **un par bridge_instance** (voir §8.5.1)
+2. Publier la **découverte** des entités vers HA, de façon **persistante** (retain)
+3. Publier les **changements d'état** du matériel vers HA
+4. **Recevoir les commandes** émises par HA et les router vers le module d'intégration concerné
+
+**Répartition des responsabilités (règle absolue) :**
+- Le **module d'intégration métier** (ex: RFXCOM) ne fournit que les **données essentielles**
+  de chaque entité (nom, classe, valeur, unité, identifiants) — jamais le message MQTT complet.
+- Le **module d'intégration HA du socle** (`HaMqttIntegrationService` / pont d'intégration) est
+  seul responsable de **construire et normaliser l'intégralité** du message de découverte HA
+  (topics, bloc `device`, `availability_topic`, valeurs par défaut, etc.). Un module métier ne
+  doit jamais construire lui-même un payload de découverte HA complet.
+
+#### 8.5.1 Concept de `bridge_instance`
+
+Une application d'intégration peut piloter **plusieurs instances physiques ou logiques** du même
+type de pont (ex: plusieurs transceivers RFXCOM branchés sur la même installation). Chaque
+instance est identifiée par un **`bridge_instance`** unique au sein de l'application
+(ex: `rfx_bridge_0001`, `rfx_bridge_0002`).
+
+- Le `bridge_instance` est défini et attribué par le module d'intégration métier
+  (pas par le socle) — il doit être stable dans le temps (persisté en configuration)
+- **Le LWT est publié par bridge_instance**, pas par application : si un seul transceiver tombe,
+  seules ses entités doivent apparaître indisponibles dans HA, pas toute l'intégration
+- `HaMqttModuleConfig` (voir §8.5.2) porte ce champ
+
+#### 8.5.2 HaMqttIntegrationService — Service MQTT Générique
 
 Le service `HaMqttIntegrationService` fournit une **abstraction générique** pour la communication
 MQTT avec Home Assistant, utilisable par tous les modules d'intégration.
@@ -971,6 +1051,7 @@ MQTT avec Home Assistant, utilisable par tous les modules d'intégration.
 // Configuration d'un module d'intégration
 interface HaMqttModuleConfig {
   moduleName: string;        // Nom unique du module (ex: "rfxcom", "zigbee2mqtt")
+  bridgeInstance: string;    // ⭐ v4.8 — Identifiant du pont physique/logique (ex: "rfx_bridge_0001")
   clientId: string;         // Client ID MQTT
   cleanSession: boolean;   // Nettoyer la session (default: false)
   keepalive: number;       // Keepalive en secondes (default: 60)
@@ -984,28 +1065,32 @@ class HaMqttIntegrationService {
   disconnect(): void
   isConnectedToMqtt(): boolean
   
-  // Publication HA
+  // Publication HA — construit et normalise l'intégralité du message (voir §8.5.0)
   publishDiscovery(component: string, objectId: string, entity: HaMqttDiscoveryEntity, retain?: boolean, qos?: 0|1|2): void
-  publishState(component: string, objectId: string, state: HaMqttStateMessage, retain?: boolean, qos?: 0|1|2): void
+  publishState(deviceId: string, state: HaMqttStateMessage, retain?: boolean, qos?: 0|1|2): void
+  
+  // Passthrough — relais de messages déjà formés, sans normalisation (⭐ v4.9, voir §8.5.6)
+  publishDiscoveryPassthrough(sourceTopic: string, payload: unknown): void
+  publishPassthrough(topic: string, payload: unknown, qos?: 0|1|2, retain?: boolean): void
   
   // Abonnements
-  subscribeToCommands(component: string, objectId: string, qos?: 0|1|2): void
+  subscribeToCommands(deviceId: string, qos?: 0|1|2): void
   subscribeToAllModuleCommands(qos?: 0|1|2): void
-  unsubscribeFromCommands(component: string, objectId: string): void
+  unsubscribeFromCommands(deviceId: string): void
   
   // Callbacks
   onCommand(callback: (event: IntegrationCommandEvent) => void): void
-  onConnectionChange(callback: (module: string, connected: boolean) => void): void
+  onConnectionChange(callback: (module: string, bridgeInstance: string, connected: boolean) => void): void
 }
 ```
 
 **Règles pour HaMqttIntegrationService :**
-- **LWT** : Topic `ha-integration/{module}/status` avec payload `online`/`offline`, QoS 1, retain true
+- **LWT** : Topic `/{moduleName}/{bridgeInstance}/status` (voir §8.5.4) avec payload `online`/`offline`, QoS 1, retain true
 - **QoS par défaut** : Discovery/State = QoS 1 + retain true, Commands = QoS 1 + retain false
 - **Reconnexion automatique** avec backoff configurable
-- **Gestion des erreurs** : Logging + reconnexion automatique
+- **Gestion des erreurs** : Logging + reconnexion automatique, avec les codes normalisés (voir `erreurs_specs`)
 
-#### 8.5.2 Structure des modules d'intégration
+#### 8.5.3 Structure des modules d'intégration
 
 Chaque module d'intégration suit cette structure :
 
@@ -1027,19 +1112,45 @@ src/ha/integration/
 
 **Règles d'implémentation d'un module :**
 1. **Pas d'accès direct** à MQTT dans le service métier (utiliser EventBus)
-2. **Découverte HA** : Le service métier émet `integration:discovery`, HaMqttIntegrationService publie sur MQTT
+2. **Découverte HA** : Le service métier émet `integration:discovery` avec les **données essentielles
+   uniquement** ; `HaMqttIntegrationService` complète et publie le message normalisé sur MQTT (voir §8.5.0)
 3. **État** : Le service métier émet `integration:state`, HaMqttIntegrationService publie sur MQTT
 4. **Commandes** : HaMqttIntegrationService reçoit de MQTT, émet sur EventBus, service métier écoute et exécute
 
-#### 8.5.3 Format des messages MQTT
+#### 8.5.4 Format des Topics MQTT
 
-**Discovery (homeassistant/{component}/{object_id}/config) :**
+Deux familles de topics coexistent, avec des rôles distincts :
+
+| Type | Topic | Direction | Format standard |
+|---|---|---|---|
+| **Découverte** | `homeassistant/{component}/{object_id}/config` | App → HA | **Inchangé** — convention MQTT Discovery standard de HA |
+| **État** | `/{moduleName}/{bridgeInstance}/{deviceId}/state` | App → HA | Espace de nom propre à l'intégration |
+| **Commande** | `/{moduleName}/{bridgeInstance}/{deviceId}/set` | HA → App | Référencé comme `command_topic` dans le message de découverte |
+| **LWT** | `/{moduleName}/{bridgeInstance}/status` | App → Broker | `online` / `offline`, un par bridge_instance |
+
+**Règles :**
+- Le topic de **découverte** (`.../config`) reste au format HA standard : c'est celui que HA scanne
+  automatiquement. `object_id` suit la convention de nommage technique de chaque application
+  (ex: `<protocole>_<sensorId>` pour RFXCOM, voir `nommage_specs`).
+- Les topics d'**état** et de **commande** sont propres à l'espace de noms de l'application
+  (`/{moduleName}/{bridgeInstance}/...`) et sont **référencés depuis le message de découverte**
+  via les champs `state_topic` / `command_topic` — HA ne les déduit pas lui-même.
+- **`deviceId`** est un **identifiant opaque** dont la structure interne est définie par chaque
+  module d'intégration selon ses propres conventions (il peut différer de `object_id`). Voir la
+  spécification propre à chaque application pour son encodage exact
+  (ex: `recepteurs-emetteurs-rfxcom_specs` pour RFXCOM).
+- Ce format **remplace** l'ancien schéma générique `homeassistant/{component}/{object_id}/state|set`
+  utilisé jusqu'en v4.7, ainsi que l'ancien topic LWT `ha-integration/{module}/status` (qui n'avait
+  pas la granularité par bridge_instance).
+
+**Exemple de message de découverte (généré par le socle, données essentielles fournies par le module) :**
 ```json
 {
   "name": "Température Salon",
   "unique_id": "rfxcom_temperature_001",
   "device_class": "temperature",
-  "state_topic": "homeassistant/sensor/rfxcom_temperature_001/state",
+  "state_topic": "/rfxcom/rfx_bridge_0001/rfxsensor_0xa5b3/state",
+  "command_topic": "/rfxcom/rfx_bridge_0001/rfxsensor_0xa5b3/set",
   "unit_of_measurement": "°C",
   "device": {
     "identifiers": ["rfxcom_001"],
@@ -1050,7 +1161,7 @@ src/ha/integration/
 }
 ```
 
-**State (homeassistant/{component}/{object_id}/state) :**
+**State (`/{moduleName}/{bridgeInstance}/{deviceId}/state`) :**
 ```json
 {
   "state": "22.5",
@@ -1061,45 +1172,77 @@ src/ha/integration/
 }
 ```
 
-**Command (homeassistant/{component}/{object_id}/set) :**
+**Command (`/{moduleName}/{bridgeInstance}/{deviceId}/set`) :**
 ```json
 {
   "state": "on"
 }
 ```
 
-#### 8.5.4 Événements EventBus pour les modules
+#### 8.5.5 Événements EventBus pour les modules
 
 **Modules → HaMqttIntegrationService :**
-- `integration:{module}:discovery` → Découverte d'une entité à publier vers HA
+- `integration:{module}:discovery` → Découverte d'une entité à publier vers HA (données essentielles uniquement)
 - `integration:{module}:state` → Changement d'état à publier vers HA
+- `integration:{module}:passthrough:discovery` → Passthrough découverte, réécriture de préfixe (⭐ v4.9, voir §8.5.6)
+- `integration:{module}:passthrough:publish` → Passthrough complet, aucune transformation (⭐ v4.9, voir §8.5.6)
 
 **HaMqttIntegrationService → Modules :**
 - `integration:{module}:command` → Commande reçue de HA à exécuter
 
 **HaMqttIntegrationService → Application :**
-- `ha:integration:connected` → Module MQTT connecté
-- `ha:integration:disconnected` → Module MQTT déconnecté
+- `ha:integration:connected` → Bridge MQTT connecté (payload inclut `bridgeInstance`)
+- `ha:integration:disconnected` → Bridge MQTT déconnecté (payload inclut `bridgeInstance`)
 
-> - **v4.3** : Les applications activent HA WS via `ha.ws_enable` et MQTT via `ha.mqtt_enable`. 
->   Les applications qui ne sont pas des intégrations n'active **pas** ces flags 
+> - Les applications activent HA WS via `ha.ws_enable` et MQTT via `ha.mqtt_enable`
+>   (une seule adresse de broker, partagée par toutes les intégrations — voir §7.1).
+>   Les applications qui ne sont pas des intégrations n'activent **pas** ces flags
 >   dans leur configuration, et n'instancient aucun module sous `src/ha/integration/`
 > - Chaque module d'intégration vit dans son propre sous-dossier `src/ha/integration/[module]/`
 >   et reste indépendant des autres modules d'intégration
-> - Le module d'intégration peut publier vers HA (topics `homeassistant/+/+/set`) ou consommer
->   un flux MQTT externe au broker Mosquitto partagé avec HA — son périmètre exact est défini
->   dans les spécifications propres à l'application concernée
-> - Topics HA standards utilisables par un module d'intégration :
->
-> | Direction | Topic | Description |
-> |---|---|---|
-> | HA → App | `homeassistant/+/+/config` | Discovery des entités |
-> | HA → App | `homeassistant/+/+/state` | États des entités |
-> | App → HA | `homeassistant/+/+/set` | Commande vers une entité |
-> | App → HA | `homeassistant/+/+/attributes` | Attributs additionnels |
->
-> - Connexion MQTT : reconnexion automatique (backoff plafonné à 60s), LWT sur
->   `app/<client_id>/status` avec `retain: true`, QoS 1 pour états/commandes, QoS 0 pour heartbeats
+> - Connexion MQTT : reconnexion automatique (backoff plafonné à 60s), QoS 1 pour états/commandes/LWT
+
+#### 8.5.6 Passthrough MQTT
+
+> **⭐ v4.9** : Nouveau mécanisme, distinct du flux normalisé §8.5.0-8.5.5.
+
+**Cas d'usage.** Certaines applications n'ont pas de matériel à décrire sous forme de devices/entités
+normalisées (comme RFXCOM) : elles disposent déjà d'un **message MQTT complet**, obtenu par lecture
+d'une source tierce (un autre broker, ou un autre topic du même broker), qu'elles doivent simplement
+faire transiter vers le broker HA unique du socle (`ha.mqtt`, §7.1), éventuellement après l'avoir
+modifié. Exemple : l'application `nommage` lit les messages de découverte de Zigbee2MQTT — publiés
+volontairement sur un préfixe différent (ex: `homeassist/...`) pour ne pas être auto-découverts
+directement — les enrichit (attributs de taxonomie) et les republie pour HA.
+
+Pour ce besoin, `HaMqttIntegrationService` expose un canal **passthrough** : l'application ne fournit
+pas de données essentielles à normaliser (contrairement à §8.5.0), mais un message déjà formé.
+**Deux modes :**
+
+**Mode Découverte — réécriture de préfixe**
+- Événement : `integration:{module}:passthrough:discovery`
+- Payload : `{ sourceTopic: string, payload: unknown }`
+- Traitement : le socle remplace le **premier segment** de `sourceTopic` par `homeassistant`, puis
+  publie le résultat avec QoS 1 et retain `true` (règles standard de découverte, §8.5.0)
+- Exemple : `sourceTopic: "homeassist/sensor/temp_cuisine/config"` → publié sur
+  `homeassistant/sensor/temp_cuisine/config`
+
+**Mode Complet — passthrough intégral**
+- Événement : `integration:{module}:passthrough:publish`
+- Payload : `{ topic: string, payload: unknown, qos?: 0|1|2, retain?: boolean }`
+- Traitement : **aucune transformation** — publication telle quelle sur le broker HA unique, avec
+  les QoS/retain fournis (par défaut : QoS 1, retain `false` si non précisés)
+
+**Règles :**
+- Les deux modes utilisent la **connexion MQTT unique du socle** (`ha.mqtt`) — aucune connexion
+  supplémentaire n'est ouverte par `HaMqttIntegrationService` pour le passthrough
+- Le passthrough est **indépendant** du concept de `bridge_instance`/`deviceId` (§8.5.1/§8.5.4) :
+  il ne s'applique pas aux intégrations "device-centric" (RFXCOM), mais aux applications qui
+  relaient des messages déjà formés. `bridgeInstance` reste néanmoins requis dans
+  `HaMqttModuleConfig` pour le LWT (§8.5.2) — une application passthrough-only peut y renseigner
+  une valeur fixe unique si elle ne pilote pas plusieurs instances physiques
+- La **lecture** des sources tierces (autre broker, topics étrangers) reste **entièrement à la
+  charge de l'application** — le socle ne fait que publier vers `ha.mqtt` ; il n'ouvre ni ne gère
+  aucune connexion vers une source externe
 
 ### 8.6 Événements EventBus — Couche HA
 
@@ -1337,8 +1480,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
     "js-yaml":                   "^4.x",
     "zod":                       "^3.x",
     "winston":                   "^3.x",
-    "winston-daily-rotate-file": "^5.x",
-    "alpinejs":                  "^3.x"
+    "winston-daily-rotate-file": "^5.x"
   },
   "devDependencies": {
     "typescript":       "^5.x",
@@ -1346,7 +1488,6 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
     "@types/express":   "^4.x",
     "@types/ws":        "^8.x",
     "@types/js-yaml":   "^4.x",
-    "@types/alpinejs":  "^3.x",
     "tsx":              "^4.x",
     "vitest":           "^1.x"
   }
@@ -1396,7 +1537,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 ---
 
-*Spécifications v4.5 — Ajout du démarrage automatique des services d'application avec reconnexion sur changement de configuration. Document à utiliser comme prompt de base pour la génération de chaque application du projet.*
+*Spécifications v4.7 — Document à utiliser comme prompt de base pour la génération de chaque application du projet.*
 
 ---
 
@@ -1404,6 +1545,9 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **4.9** | 21/07/2026 | Claude | **Ajout du Passthrough MQTT (§8.5.6, sur demande utilisateur)** : mécanisme pour les applications qui relaient des messages MQTT déjà formés (lus depuis une source tierce, ex: `nommage` relayant Zigbee2MQTT) vers le broker HA unique, sans normalisation de découverte. Mode "réécriture de préfixe" (`sourceTopic` → remplacement du 1er segment par `homeassistant`, QoS1/retain true) et mode "complet" (topic + payload intégraux, aucune transformation). Nouvelles méthodes `publishDiscoveryPassthrough`/`publishPassthrough` sur `HaMqttIntegrationService`, nouveaux événements EventBus `integration:{module}:passthrough:discovery`/`:publish`. |
+| **4.8** | 21/07/2026 | Claude | **Précision du format MQTT (§8.5, sur demande utilisateur — analyse d'écart avec le code réel)** : un seul broker pour tout le socle ; mission par intégration = LWT + découverte persistante + état + réception des commandes ; nouveau concept `bridge_instance` (une intégration peut piloter plusieurs bridges physiques, chacun avec son propre LWT) ; nouveaux topics état/commande `/{moduleName}/{bridgeInstance}/{deviceId}/state\|set` (remplace l'ancien schéma `homeassistant/.../state\|set` et l'ancien LWT `ha-integration/{module}/status`) ; le topic de découverte HA standard reste inchangé ; `deviceId` est un identifiant opaque dont l'encodage est propre à chaque module (voir specs RFXCOM pour son encodage) ; répartition claire des responsabilités : le module métier fournit les données essentielles, `HaMqttIntegrationService` normalise et complète l'intégralité du message de découverte. |
+| **4.7** | 21/07/2026 | Claude | **Suppression des références actives à Alpine.js** (stack technique, diagrammes, structure de répertoires, dépendances npm). La section 6 "Couche Présentation" ne duplique plus l'implémentation — elle renvoie vers `presentation_specs` (TypeScript pur + Web Components natifs depuis v3.0), qui reste la seule source de vérité pour cette couche. Les mentions historiques d'Alpine.js dans le changelog (v4.2) sont conservées. |
 | **4.6** | 19/07/2026 | Mistral Vibe | **Restructuration complète de l'arborescence** : Déplacement de `src/applications/` et `src/applications_desactivees/` vers `applications/` et `applications_desactivees/` à la racine du projet. Chaque application (y compris le core) est maintenant autonome avec ses propres `package.json`, `tsconfig.json`, et `dist/`. **Le core ne peut pas être désactivé**. Activation/désactivation via sous-menu Paramètres Techniques. Mise à jour des mécanismes de détection et d'activation/désactivation via `AppService`. |
 | **4.5** | 17/07/2026 | Mistral Vibe | Ajout du **démarrage automatique des services d'application** : AppService instancie et démarre automatiquement les services des applications activées via convention de factory (`create*Service`). Reconnection automatique sur changement de configuration via écoute de `app:module:config:saved`. **Traces obligatoires** au démarrage et gestion des erreurs de connexion (matériel absent, mauvais paramètres) avec logging WARN/ERROR et motif précis. Processus reproductible pour toute nouvelle application. |
 | **4.4** | 14/07/2026 | Mistral Vibe | Ajout §4.3 "Gestion Dynamique des Applications" avec répertoires `applications/` et `applications_desactivees/`. Mécanisme d'activation/désactivation par déplacement de répertoires. |
