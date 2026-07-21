@@ -67,141 +67,21 @@ export const NOMMAGE_UI_METADATA: ModuleUiMetadata = {
   menuPath: '/nommage/config',
   badge: 'MQTT',
   
+  // ⭐ v1.1 : les sources MQTT (config.sources[], une ou plusieurs, ajout/suppression dynamique)
+  // ne sont plus représentables comme des champs plats ici — elles ont leur propre page dédiée
+  // (/nommage/config, voir presentation/nommage/config-app.ts), qui gère le tableau sources[].
   fields: [
     {
-      title: 'MQTT',
-      description: 'Configuration de la connexion MQTT pour la découverte des équipements',
-      icon: '📡',
-      fields: [
-        {
-          name: 'mqtt.host',
-          label: 'Hôte MQTT',
-          type: 'string',
-          placeholder: '192.168.1.100',
-          default: 'localhost',
-          required: true
-        },
-        {
-          name: 'mqtt.port',
-          label: 'Port MQTT',
-          type: 'number',
-          placeholder: '1883',
-          default: 1883,
-          min: 1,
-          max: 65535,
-          required: true
-        },
-        {
-          name: 'mqtt.username',
-          label: 'Utilisateur MQTT',
-          type: 'string',
-          placeholder: 'user',
-          required: false
-        },
-        {
-          name: 'mqtt.password',
-          label: 'Mot de passe MQTT',
-          type: 'password',
-          placeholder: 'password',
-          required: false
-        },
-        {
-          name: 'mqtt.clientId',
-          label: 'Client ID MQTT',
-          type: 'string',
-          placeholder: 'nommage-app',
-          default: 'nommage-app',
-          required: true
-        },
-        {
-          name: 'mqtt.topicPrefix',
-          label: 'Préfixe des Topics',
-          type: 'string',
-          placeholder: 'ha/',
-          default: 'ha/',
-          description: 'Préfixe du premier terme des topics (ex: "ha/" ou "homeassistant/")'
-        },
-        {
-          name: 'mqtt.discoveryTopics',
-          label: 'Topics de Découverte',
-          type: 'string-array',
-          placeholder: 'ha/+/+/config',
-          default: ['ha/+/+/config', 'homeassistant/+/+/config'],
-          description: 'Liste des topics MQTT à écouter pour la découverte (séparés par des virgules)'
-        },
-        {
-          name: 'mqtt.qos',
-          label: 'QoS',
-          type: 'select',
-          options: ['0', '1', '2'],
-          default: '1',
-          description: 'Qualité de Service pour les abonnements'
-        },
-        {
-          name: 'mqtt.retain',
-          label: 'Retain',
-          type: 'boolean',
-          default: true,
-          description: 'Conserver les messages retain'
-        },
-        {
-          name: 'mqtt.useTls',
-          label: 'Utiliser TLS',
-          type: 'boolean',
-          default: false,
-          description: 'Activer la connexion MQTT sécurisée (mqtts://)'
-        }
-      ]
-    },
-    {
       title: 'Home Assistant',
-      description: 'Configuration de la transmission vers Home Assistant',
+      description: 'Configuration de la transmission vers Home Assistant (Passthrough MQTT)',
       icon: '🏠',
       fields: [
-        {
-          name: 'ha.autoTransmit',
-          label: 'Transmission Automatique',
-          type: 'boolean',
-          default: true,
-          description: 'Transmettre automatiquement les structures parsées à HA'
-        },
-        {
-          name: 'ha.defaultComponent',
-          label: 'Composant par défaut',
-          type: 'string',
-          placeholder: 'sensor',
-          default: 'sensor',
-          description: 'Composant HA par défaut pour les entités créées'
-        },
-        {
-          name: 'ha.defaultDomain',
-          label: 'Domaine par défaut',
-          type: 'string',
-          placeholder: 'sensor',
-          default: 'sensor',
-          description: 'Domaine HA par défaut'
-        },
-        {
-          name: 'ha.objectIdPrefix',
-          label: 'Préfixe Object ID',
-          type: 'string',
-          placeholder: 'nommage_',
-          default: 'nommage_',
-          description: 'Préfixe pour les object_id HA générés'
-        },
-        {
-          name: 'ha.autoCreateAreas',
-          label: 'Créer les Areas automatiquement',
-          type: 'boolean',
-          default: true,
-          description: 'Créer automatiquement les Areas dans HA si elles n\'existent pas'
-        },
         {
           name: 'ha.injectTaxonomyAttributes',
           label: 'Injecter les attributs de taxonomie',
           type: 'boolean',
           default: true,
-          description: 'Ajouter les attributs de taxonomie aux entités HA'
+          description: 'Ajouter les attributs de taxonomie au message relayé vers HA'
         }
       ]
     },
@@ -296,7 +176,7 @@ export const NOMMAGE_MENU_CONFIG: ApplicationMenuConfig = {
 export const NOMMAGE_APP: ApplicationModule & { menu?: ApplicationMenuConfig } = {
   id: 'nommage',
   name: 'NOMMAGE',
-  description: 'Application de gestion des conventions de nommage et taxonomie pour Home Assistant. Écoute les messages de découverte MQTT, parse les noms selon le format QUOI---OÙ, et transmet les structures au core pour envoi à HA.',
+  description: 'Application de gestion des conventions de nommage et taxonomie pour Home Assistant. Écoute une ou plusieurs sources MQTT simultanément, parse les noms selon le format QUOI---OÙ, et relaie les messages enrichis vers HA via le Passthrough MQTT du socle.',
   icon: '🏷️',
   
   menu: NOMMAGE_MENU_CONFIG,

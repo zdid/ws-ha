@@ -14,31 +14,34 @@ import type { HaStructuredEntity } from '../../../core/src/exports';
  * Format attendu : "quoi---lieu_precis--lieu--lieu_pere--lieu_grand_pere"
  */
 export interface DiscoveryMessage {
+  // ⭐ v1.1 — Identifiant de la source MQTT d'origine (config.sources[].id)
+  sourceId: string;
+
   // Partiel : Chaîne brute reçue dans le payload MQTT
   rawName: string;
-  
+
   // QUOI (Type de l'appareil)
   rawQuoi: string;
   slugQuoi: string;
-  
+
   // OÙ (Hiérarchie géographique)
   rawLieux: string;
   lieuxSegments: string[];
-  
+
   // Niveaux géographiques (null si non présent)
   nomPrecis?: string;
   slugPrecis?: string;
-  
+
   nomLieu?: string;          // ⭐ OBLIGATOIRE (Pièce/Area HA)
   slugLieu?: string;
-  
+
   nomPere?: string;          // Étage/Floor HA
   slugPere?: string;
-  
+
   nomGrandPere?: string;     // Bâtiment/Label HA
   slugGrandPere?: string;
-  
-  // Métadonnées du message MQTT
+
+  // Métadonnées du message MQTT — topic d'origine, préfixe NON modifié (utilisé pour le passthrough)
   topic: string;
   payload: Record<string, unknown>;
   timestamp: Date;
@@ -100,11 +103,28 @@ export interface TaxonomyLevel {
 }
 
 /**
- * Événement de découverte interne (transmis au core)
+ * ⭐ v1.1 — Événement de découverte émis par NOMMAGE vers le socle, pour publication via le
+ * Passthrough MQTT (mode "découverte") — voir techniques-socle-ha-mqtt_specs §8.5.6 et
+ * implementation-nommage_specs §5.3. `sourceTopic` garde le préfixe d'origine (non réécrit par
+ * NOMMAGE) ; c'est le socle qui le remplace par `homeassistant`.
+ */
+export interface PassthroughDiscoveryEvent {
+  sourceTopic: string;
+  payload: Record<string, unknown>;
+}
+
+/**
+ * Événement de découverte interne (pour l'UI/le suivi — nommage:discovery:parsed)
  */
 export interface NommageDiscoveryEvent {
   type: 'nommage:discovery:parsed';
-  data: ParsedTaxonomy;
+  sourceId: string;
+  discoveryMessage: {
+    rawName: string;
+    topic: string;
+    payload: Record<string, unknown>;
+  };
+  parsedTaxonomy: ParsedTaxonomy;
   timestamp: Date;
 }
 
@@ -128,19 +148,26 @@ export interface TaxonomyStructureUpdate {
   timestamp: Date;
 }
 
-/**
- * Commande de transmission vers HA
- */
-export interface TransmitToHaCommand {
-  type: 'nommage:transmit:to-ha';
-  discoveryMessage: DiscoveryMessage;
-  parsedTaxonomy: ParsedTaxonomy;
-  targetTopic?: string;  // Topic HA cible (ex: homeassistant/sensor/.../config)
-}
-
 // ============================================================================
 // Types pour Socket.io
 // ============================================================================
+
+/**
+ * ⭐ Statut d'une connexion source individuelle (fonctionnelles-nommage_specs §3.5).
+ */
+export interface SourceStatus {
+  id: string;
+  connected: boolean;
+}
+
+/**
+ * ⭐ Nombre d'entrées traitées (messages de découverte parsés avec succès) pour une date donnée
+ * (format ISO "AAAA-MM-JJ"). Utilisé pour l'historique glissant sur 5 jours.
+ */
+export interface DailyCount {
+  date: string;
+  count: number;
+}
 
 /**
  * Statut de l'application NOMMAGE
@@ -152,6 +179,11 @@ export interface NommageStatus {
   parsedMessagesCount: number;
   lastParsedAt?: Date;
   error?: string;
+  // ⭐ Statut détaillé par connexion (une entrée par source configurée)
+  sources: SourceStatus[];
+  // ⭐ Nombre d'entrées traitées par jour, sur les 5 derniers jours (plus ancien → plus récent),
+  // toujours 5 éléments (0 si aucune entrée ce jour-là)
+  dailyCounts: DailyCount[];
 }
 
 /**

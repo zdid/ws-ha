@@ -1,14 +1,17 @@
 /**
  * NommageService
- * 
+ *
  * Service métier principal de l'application NOMMAGE.
- * 
+ *
  * Responsabilités :
- * - Écouter les messages de découverte bruts via EventBus
+ * - Écouter les messages de découverte bruts via EventBus (sources multiples, voir
+ *   NommageMqttIntegrationService)
  * - Parser les messages selon le format QUOI---OÙ (nommage_specs_v1.0.md)
- * - Transmettre les structures au core pour envoi à Home Assistant
+ * - Enrichir le message source avec les attributs de taxonomie et le relayer vers HA via le
+ *   Passthrough MQTT du socle (fonctionnelles-nommage_specs §3.4, remplace l'ancien
+ *   nommage:transmit:to-core)
  * - Gérer le statut et les erreurs
- * 
+ *
  * Couche : Domain (Métier)
  * ⚠️ NE CONNAÎT PAS : MQTT, HA, Socket.io, filesystem
  *    → Tout passe par EventBus et interfaces injectées
@@ -22,8 +25,25 @@ import type {
   ParsedTaxonomy,
   TaxonomyLevel,
   TaxonomyStructure,
-  NommageStatus
+  NommageStatus,
+  PassthroughDiscoveryEvent,
+  DailyCount
 } from './types';
+
+// ============================================================================
+// Constantes
+// ============================================================================
+
+/**
+ * bridge_instance utilisé par NOMMAGE pour s'enregistrer auprès du socle (IntegrationBridge) et
+ * publier ses messages de découverte enrichis via le Passthrough MQTT (une seule connexion vers
+ * le broker HA du socle, indépendante des sources de lecture — voir techniques-socle-ha-mqtt_specs
+ * §8.5.1/§8.5.6).
+ */
+const BRIDGE_INSTANCE = 'main';
+
+/** Nombre de jours affichés dans l'historique glissant des entrées traitées (fonctionnelles-nommage_specs §3.5). */
+const DAILY_STATS_WINDOW_DAYS = 5;
 
 // ============================================================================
 // Interface du service
@@ -50,12 +70,18 @@ export class NommageService implements INommageService {
     mqttConnected: false,
     discoveryTopics: [],
     parsedMessagesCount: 0,
-    error: undefined
+    error: undefined,
+    sources: [],
+    dailyCounts: []
   };
-  
+
   private config: NommageConfig;
   private discoveryTopics: string[] = [];
-  
+
+  // ⭐ Nombre d'entrées traitées par jour (clé "AAAA-MM-JJ", heure locale du serveur), en mémoire —
+  // même limite que parsedMessagesCount/taxonomyStructures : réinitialisé au redémarrage.
+  private dailyCounts: Map<string, number> = new Map();
+
   constructor(
     private eventBus: IEventBus,
     private logger: Logger,
@@ -63,106 +89,112 @@ export class NommageService implements INommageService {
     private mqttService: INommageMqttIntegrationService
   ) {
     this.config = this.configProvider.getAppConfig();
-    this.discoveryTopics = this.config.couples[0]?.mqtt?.discoveryTopics || [];
+    this.discoveryTopics = this.aggregateDiscoveryTopics();
     this.setupEventListeners();
   }
-  
+
   // ==========================================================================
   // Cycle de vie
   // ==========================================================================
-  
+
   async start(): Promise<void> {
     this.logger.info('NommageService', 'Démarrage du service NOMMAGE...');
-    
+
     try {
-      // Se connecter à MQTT
+      // Enregistrer le bridge auprès du socle pour pouvoir publier via le Passthrough MQTT
+      // (une seule connexion socle, indépendante des N sources de lecture ci-dessous).
+      this.eventBus.emit('integration:bridge:register', {
+        moduleName: 'nommage',
+        bridgeInstance: BRIDGE_INSTANCE
+      });
+
+      // Se connecter à toutes les sources MQTT configurées, en parallèle
       await this.mqttService.connect();
-      this.mqttConnected = true;
-      
-      this.logger.info('NommageService', 
-        `Service démarré avec succès. Topics de découverte: ${this.discoveryTopics.join(', ')}`);
-      
+      this.mqttConnected = this.mqttService.isConnected();
+
+      this.logger.info('NommageService',
+        `Service démarré avec succès. ${this.config.sources.length} source(s), topics: ${this.discoveryTopics.join(', ')}`);
+
       this.updateStatus();
-      
-      // Émettre le statut initial
       this.emitStatus();
-      
-      // Émettre les événements persistants pour les nouveaux clients
       this.emitPersistentEvents();
-      
+
     } catch (error) {
-      this.logger.error('NommageService', 
+      this.logger.error('NommageService',
         `Échec du démarrage: ${error}`);
       this.status.error = error instanceof Error ? error.message : String(error);
       this.emitStatus();
       throw error;
     }
   }
-  
+
   async stop(): Promise<void> {
     this.logger.info('NommageService', 'Arrêt du service NOMMAGE...');
-    
+
     try {
       await this.mqttService.disconnect();
       this.mqttConnected = false;
+
+      this.eventBus.emit('integration:bridge:unregister', {
+        moduleName: 'nommage',
+        bridgeInstance: BRIDGE_INSTANCE
+      });
+
       this.updateStatus();
       this.emitStatus();
-      
+
       this.logger.info('NommageService', 'Service arrêté avec succès');
     } catch (error) {
-      this.logger.error('NommageService', 
+      this.logger.error('NommageService',
         `Erreur lors de l'arrêt: ${error}`);
     }
   }
-  
+
   // ==========================================================================
   // Gestion des événements EventBus
   // ==========================================================================
-  
+
   private setupEventListeners(): void {
-    // Écouter les messages de découverte bruts
-    this.eventBus.on('nommage:discovery:raw', 
+    this.eventBus.on('nommage:discovery:raw',
       (data: unknown) => {
         this.handleRawDiscoveryMessage(data as DiscoveryMessage);
       });
-    
-    // Écouter les changements de statut MQTT
+
     this.eventBus.on('nommage:mqtt:status', (data: unknown) => {
       const status = data as { connected: boolean };
       this.mqttConnected = status.connected;
       this.updateStatus();
       this.emitStatus();
     });
-    
-    // Écouter les demandes de statut depuis l'UI
+
     this.eventBus.on('nommage:status:get', () => {
       this.emitStatus();
     });
-    
-    // Écouter les demandes de structure taxonomique
+
     this.eventBus.on('nommage:taxonomy:get', () => {
       this.emitTaxonomyStructure();
     });
-    
-    // Écouter les demandes de sauvegarde de config
+
     this.eventBus.on('nommage:config:save', (data: unknown) => {
       this.saveConfig(data as Partial<NommageConfig>);
     });
   }
-  
+
   // ==========================================================================
   // Parsing des messages de découverte
   // ==========================================================================
-  
+
   private handleRawDiscoveryMessage(discoveryMessage: DiscoveryMessage): void {
-    this.logger.debug('NommageService', 
-      `Message brut reçu: ${discoveryMessage.rawName}`);
-    
+    this.logger.debug('NommageService',
+      `[${discoveryMessage.sourceId}] Message brut reçu: ${discoveryMessage.rawName}`);
+
     try {
-      // Parser selon le format QUOI---OÙ
       const parsed = this.parseDiscoveryName(discoveryMessage.rawName);
-      
+
       if (parsed) {
+        parsed.sourceTopic = discoveryMessage.topic;
+        parsed.sourcePayload = discoveryMessage.payload;
+
         discoveryMessage.rawQuoi = parsed.quoi.raw;
         discoveryMessage.slugQuoi = parsed.quoi.slug;
         discoveryMessage.nomPrecis = parsed.ou.precis?.raw;
@@ -173,53 +205,45 @@ export class NommageService implements INommageService {
         discoveryMessage.slugPere = parsed.ou.pere?.slug;
         discoveryMessage.nomGrandPere = parsed.ou.grandPere?.raw;
         discoveryMessage.slugGrandPere = parsed.ou.grandPere?.slug;
-        
-        // Créer la structure taxonomique
+
         const taxonomyStructure: TaxonomyStructure = {
           entityId: this.generateEntityId(parsed),
-          taxonomy: {
-            ...parsed,
-            sourceTopic: discoveryMessage.topic,
-            sourcePayload: discoveryMessage.payload
-          },
+          taxonomy: parsed,
           lastUpdated: new Date()
         };
-        
-        // Stocker la structure
+
         this.taxonomyStructures.push(taxonomyStructure);
-        
-        // Incrémenter les compteurs
+
         this.parsedCount++;
         this.lastParsedAt = new Date();
-        
-        // Émettre les événements
+        this.recordProcessedEntry(this.lastParsedAt);
+
         this.emitDiscoveryParsed(discoveryMessage, parsed);
-        
-        // Transmettre au core pour envoi à HA
-        this.transmitToCore(discoveryMessage, parsed);
-        
-        this.logger.info('NommageService', 
-          `Message parsed: QUOI="${parsed.quoi.raw}" | LIEU="${parsed.ou.lieu?.raw || 'N/A'}"`);
-        
-        if (this.config.couples[0]?.logging?.showParsedMessages) {
-          this.logger.debug('NommageService', 
+
+        // Relayer vers HA via le Passthrough MQTT du socle (remplace transmitToCore)
+        this.emitPassthroughDiscovery(discoveryMessage, parsed);
+
+        this.logger.info('NommageService',
+          `[${discoveryMessage.sourceId}] Message parsed: QUOI="${parsed.quoi.raw}" | LIEU="${parsed.ou.lieu?.raw || 'N/A'}"`);
+
+        if (this.config.logging?.showParsedMessages) {
+          this.logger.debug('NommageService',
             `Parsed: ${JSON.stringify(parsed, null, 2)}`);
         }
-        
+
         this.updateStatus();
         this.emitStatus();
         this.emitTaxonomyStructure();
-        
+
       } else {
-        this.logger.warn('NommageService', 
+        this.logger.warn('NommageService',
           `Format de nom non valide: ${discoveryMessage.rawName}`);
       }
-      
+
     } catch (error) {
-      this.logger.error('NommageService', 
+      this.logger.error('NommageService',
         `Erreur de parsing: ${error}`);
-      
-      // Émettre une erreur
+
       this.eventBus.emit('nommage:error', {
         message: `Erreur de parsing du message: ${discoveryMessage.rawName}`,
         error: error instanceof Error ? error.message : String(error),
@@ -227,64 +251,53 @@ export class NommageService implements INommageService {
       });
     }
   }
-  
+
   /**
    * Parse un nom selon le format QUOI---OÙ
    * Basé sur nommage_specs_v1.0.md
    */
   private parseDiscoveryName(rawName: string): ParsedTaxonomy | null {
-    // Vérifier la présence du séparateur majeur '---'
     const separatorIndex = rawName.indexOf('---');
-    
+
     let rawQuoi: string;
     let rawLieux: string;
-    
+
     if (separatorIndex === -1) {
-      // Format minimal : seulement QUOI (pas de OÙ)
       rawQuoi = rawName.trim();
       rawLieux = '';
     } else {
       rawQuoi = rawName.substring(0, separatorIndex).trim();
-      rawLieux = rawName.substring(separatorIndex + 3).trim(); // +3 pour sauter '---'
+      rawLieux = rawName.substring(separatorIndex + 3).trim();
     }
-    
-    // Normaliser le QUOI
+
     const slugQuoi = this.slugify(rawQuoi);
-    
-    // Parser les OÙ (séparés par '--')
+
     const lieuxSegments = rawLieux ? rawLieux.split('--').map(s => s.trim()) : [];
     const N = lieuxSegments.length;
-    
-    // Distribuer selon la matrice de nommage_specs_v1.0.md §3.3
+
     let nomPrecis: TaxonomyLevel | undefined;
     let nomLieu: TaxonomyLevel | undefined;
     let nomPere: TaxonomyLevel | undefined;
     let nomGrandPere: TaxonomyLevel | undefined;
-    
+
     if (N === 0) {
-      // Aucun OÙ, seulement QUOI
       nomLieu = undefined;
     } else if (N === 1) {
-      // Un seul segment : c'est le LIEU (obligatoire)
       nomLieu = { raw: lieuxSegments[0], slug: this.slugify(lieuxSegments[0]) };
     } else if (N === 2) {
-      // Deux segments : [0] = LIEU PRÉCIS, [1] = LIEU
       nomPrecis = { raw: lieuxSegments[0], slug: this.slugify(lieuxSegments[0]) };
       nomLieu = { raw: lieuxSegments[1], slug: this.slugify(lieuxSegments[1]) };
     } else if (N === 3) {
-      // Trois segments : [0] = LIEU PRÉCIS, [1] = LIEU, [2] = LIEU PÈRE
       nomPrecis = { raw: lieuxSegments[0], slug: this.slugify(lieuxSegments[0]) };
       nomLieu = { raw: lieuxSegments[1], slug: this.slugify(lieuxSegments[1]) };
       nomPere = { raw: lieuxSegments[2], slug: this.slugify(lieuxSegments[2]) };
     } else if (N >= 4) {
-      // Quatre segments ou plus : [0] = LIEU PRÉCIS, [1] = LIEU, [2] = LIEU PÈRE, [3] = LIEU GRAND-PÈRE
       nomPrecis = { raw: lieuxSegments[0], slug: this.slugify(lieuxSegments[0]) };
       nomLieu = { raw: lieuxSegments[1], slug: this.slugify(lieuxSegments[1]) };
       nomPere = { raw: lieuxSegments[2], slug: this.slugify(lieuxSegments[2]) };
       nomGrandPere = { raw: lieuxSegments[3], slug: this.slugify(lieuxSegments[3]) };
     }
-    
-    // Créer la structure de taxonomie
+
     const taxonomy: ParsedTaxonomy = {
       quoi: { raw: rawQuoi, slug: slugQuoi },
       ou: {
@@ -293,13 +306,9 @@ export class NommageService implements INommageService {
         pere: nomPere,
         grandPere: nomGrandPere
       },
-      // Générer l'Area ID pour HA
       haAreaId: nomLieu ? this.slugify(nomLieu.raw) : undefined,
       haAreaName: nomLieu?.raw,
-      // Générer une entity_id suggérée
-      haEntityId: nomLieu ? `${this.config.couples[0]?.ha?.objectIdPrefix}${slugQuoi}_${nomLieu.slug}` : 
-                   `${this.config.couples[0]?.ha?.objectIdPrefix}${slugQuoi}`,
-      // Attributs pour HA
+      haEntityId: nomLieu ? `nommage_${slugQuoi}_${nomLieu.slug}` : `nommage_${slugQuoi}`,
       haAttributes: {
         attributs_taxonomie: {
           quoi: rawQuoi,
@@ -317,65 +326,112 @@ export class NommageService implements INommageService {
       sourceTopic: '',
       sourcePayload: {}
     };
-    
+
     return taxonomy;
   }
-  
+
   /**
    * Normalisation slugify (basé sur nommage_specs_v1.0.md §2.2)
    */
   private slugify(text: string): string {
     return text
       .toLowerCase()
-      .normalize('NFD') // Décomposer les caractères accentués
-      .replace(/[\u0300-\u036f]/g, '') // Supprimer les diacritiques
-      .replace(/[^a-z0-9]+/g, '_') // Remplacer les non-alphanum par _
-      .replace(/^_+|_+$/g, '') // Supprimer les _ en début/fin
-      .replace(/_+/g, '_'); // Fusionner les _ consécutifs
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_+/g, '_');
   }
-  
+
   /**
-   * Générer une entity_id pour HA
+   * Générer un entity_id informatif pour l'UI (n'est jamais transmis à HA : le passthrough
+   * relaie le message source tel quel, HA détermine lui-même ses propres entity_id/unique_id).
    */
   private generateEntityId(parsed: ParsedTaxonomy): string {
-    const prefix = this.config.couples[0]?.ha?.objectIdPrefix || 'nommage_';
-    const domain = this.config.couples[0]?.ha?.defaultDomain || 'sensor';
     const quoi = parsed.quoi.slug;
     const lieu = parsed.ou.lieu?.slug || 'unknown';
-    
-    return `${domain}.${prefix}${quoi}_${lieu}`;
+
+    return `sensor.nommage_${quoi}_${lieu}`;
   }
-  
+
   // ==========================================================================
-  // Transmission au core
+  // Transmission vers HA — Passthrough MQTT du socle
   // ==========================================================================
-  
+
   /**
-   * Transmettre la structure parsée au core pour envoi à HA
+   * Enrichit le message source avec les attributs de taxonomie et le relaie vers le broker HA du
+   * socle via le Passthrough MQTT (mode "découverte") — remplace l'ancien transmitToCore qui
+   * reconstruisait un message HA de toutes pièces et appelait l'API WebSocket.
+   * Conforme à fonctionnelles-nommage_specs §3.4 et implementation-nommage_specs §5.3.
    */
-  private transmitToCore(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonomy): void {
-    if (!this.config.couples[0]?.ha?.autoTransmit) {
-      this.logger.debug('NommageService', 'Transmission automatique désactivée');
-      return;
-    }
-    
-    // Émettre un événement pour le core
-    // Le core écoutera cet événement et enverra à HA
-    this.eventBus.emit('nommage:transmit:to-core', {
-      type: 'nommage:discovery:parsed',
-      discoveryMessage,
-      parsedTaxonomy: parsed,
-      timestamp: new Date()
-    });
-    
-    this.logger.debug('NommageService', 
-      `Structure transmise au core pour envoi à HA`);
+  private emitPassthroughDiscovery(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonomy): void {
+    const payload: Record<string, unknown> = this.config.ha.injectTaxonomyAttributes
+      ? { ...discoveryMessage.payload, attributs_taxonomie: parsed.haAttributes.attributs_taxonomie }
+      : { ...discoveryMessage.payload };
+
+    const event: PassthroughDiscoveryEvent & { bridgeInstance: string } = {
+      bridgeInstance: BRIDGE_INSTANCE,
+      sourceTopic: discoveryMessage.topic,
+      payload
+    };
+
+    this.eventBus.emit('integration:nommage:passthrough:discovery', event);
+
+    this.logger.debug('NommageService',
+      `[${discoveryMessage.sourceId}] Relayé vers HA via Passthrough MQTT (sourceTopic: ${discoveryMessage.topic})`);
   }
-  
+
+  // ==========================================================================
+  // Statistiques journalières (fenêtre glissante de 5 jours)
+  // ==========================================================================
+
+  private toIsoDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Incrémente le compteur du jour et purge les entrées plus anciennes que la fenêtre affichée
+   * (évite une croissance illimitée de la Map sur un processus longue durée).
+   */
+  private recordProcessedEntry(at: Date): void {
+    const key = this.toIsoDate(at);
+    this.dailyCounts.set(key, (this.dailyCounts.get(key) || 0) + 1);
+
+    const cutoff = new Date(at);
+    cutoff.setDate(cutoff.getDate() - (DAILY_STATS_WINDOW_DAYS - 1));
+    const cutoffKey = this.toIsoDate(cutoff);
+    for (const existingKey of this.dailyCounts.keys()) {
+      if (existingKey < cutoffKey) {
+        this.dailyCounts.delete(existingKey);
+      }
+    }
+  }
+
+  /**
+   * Retourne toujours DAILY_STATS_WINDOW_DAYS entrées (plus ancien → plus récent), 0 pour les
+   * jours sans entrée traitée — conforme à la demande d'affichage "par jour sur 5 jours".
+   */
+  private getDailyCountsLastDays(): DailyCount[] {
+    const result: DailyCount[] = [];
+    const today = new Date();
+
+    for (let i = DAILY_STATS_WINDOW_DAYS - 1; i >= 0; i--) {
+      const day = new Date(today);
+      day.setDate(day.getDate() - i);
+      const key = this.toIsoDate(day);
+      result.push({ date: key, count: this.dailyCounts.get(key) || 0 });
+    }
+
+    return result;
+  }
+
   // ==========================================================================
   // Émission des événements Socket.io
   // ==========================================================================
-  
+
   private emitStatus(): void {
     this.status = {
       ...this.status,
@@ -384,20 +440,27 @@ export class NommageService implements INommageService {
       discoveryTopics: this.discoveryTopics,
       parsedMessagesCount: this.parsedCount,
       lastParsedAt: this.lastParsedAt || undefined,
-      error: undefined
+      error: undefined,
+      sources: this.mqttService.getSourceStatuses(),
+      dailyCounts: this.getDailyCountsLastDays()
     };
-    
+
     this.eventBus.emit('nommage:status', this.status);
   }
-  
+
   private emitDiscoveryParsed(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonomy): void {
     this.eventBus.emit('nommage:discovery:parsed', {
-      rawMessage: discoveryMessage,
+      sourceId: discoveryMessage.sourceId,
+      discoveryMessage: {
+        rawName: discoveryMessage.rawName,
+        topic: discoveryMessage.topic,
+        payload: discoveryMessage.payload
+      },
       parsedTaxonomy: parsed,
       timestamp: new Date()
     });
   }
-  
+
   private emitTaxonomyStructure(): void {
     this.eventBus.emit('nommage:taxonomy:structure', {
       structures: this.taxonomyStructures,
@@ -405,58 +468,61 @@ export class NommageService implements INommageService {
       timestamp: new Date()
     });
   }
-  
+
   private emitPersistentEvents(): void {
-    // Émettre les événements persistants pour les nouveaux clients
     this.emitStatus();
     this.emitTaxonomyStructure();
   }
-  
+
   // ==========================================================================
   // Gestion de la configuration
   // ==========================================================================
-  
+
+  private aggregateDiscoveryTopics(): string[] {
+    return this.config.sources.flatMap((source) => source.mqtt.discoveryTopics);
+  }
+
   private async saveConfig(partialConfig: Partial<NommageConfig>): Promise<void> {
     try {
       await this.configProvider.savePartialConfig(partialConfig as NommageConfig);
       this.config = this.configProvider.getAppConfig();
-      this.discoveryTopics = this.config.couples[0]?.mqtt?.discoveryTopics || [];
-      
-      // Reconfigurer le service MQTT si nécessaire
+      this.discoveryTopics = this.aggregateDiscoveryTopics();
+
+      // Reconfigurer toutes les connexions MQTT (déconnexion + reconnexion de toutes les sources)
       await this.mqttService.disconnect();
       await this.mqttService.connect();
-      
+      this.mqttConnected = this.mqttService.isConnected();
+
       this.logger.info('NommageService', 'Configuration sauvegardée et appliquée');
-      
-      // Notifier l'UI
+
       this.eventBus.emit('nommage:config:saved', {
         success: true,
         config: this.config
       });
-      
+
     } catch (error) {
-      this.logger.error('NommageService', 
+      this.logger.error('NommageService',
         `Erreur de sauvegarde de la config: ${error}`);
-      
+
       this.eventBus.emit('nommage:config:saved', {
         success: false,
         error: error instanceof Error ? error.message : String(error)
       });
     }
   }
-  
+
   // ==========================================================================
   // Getters
   // ==========================================================================
-  
+
   getStatus(): NommageStatus {
     return { ...this.status };
   }
-  
+
   getTaxonomyStructures(): TaxonomyStructure[] {
     return [...this.taxonomyStructures];
   }
-  
+
   private updateStatus(): void {
     this.status = {
       ...this.status,
@@ -465,14 +531,16 @@ export class NommageService implements INommageService {
       discoveryTopics: this.discoveryTopics,
       parsedMessagesCount: this.parsedCount,
       lastParsedAt: this.lastParsedAt || undefined,
-      error: undefined
+      error: undefined,
+      sources: this.mqttService.getSourceStatuses(),
+      dailyCounts: this.getDailyCountsLastDays()
     };
   }
-  
+
   // ==========================================================================
   // Factory
   // ==========================================================================
-  
+
   static create(
     eventBus: IEventBus,
     logger: Logger,
