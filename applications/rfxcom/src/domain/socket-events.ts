@@ -33,6 +33,8 @@ export const RFXCOM_SOCKET_EVENTS = {
   SCAN_FAILED: 'rfxcom:scan:failed',
 
   // --- Scènes ---
+  SCENES_LIST: 'rfxcom:scenes:list',
+  SCENE_STATUS: 'rfxcom:scene:status',
   SCENE_EXECUTED: 'rfxcom:scene:executed',
   SCENE_CREATED: 'rfxcom:scene:created',
   SCENE_UPDATED: 'rfxcom:scene:updated',
@@ -56,6 +58,7 @@ export const RFXCOM_CLIENT_EVENTS = {
   GET_STATUS: 'rfxcom:status:get',
   GET_DEVICES: 'rfxcom:devices:list:get',
   GET_RECEIVERS: 'rfxcom:receivers:list:get',
+  GET_SCENES: 'rfxcom:scenes:list:get',
 
   // --- Devices ---
   DEVICES_REFRESH: 'rfxcom:devices:refresh',
@@ -101,5 +104,6 @@ export type RfxComAllEvents = typeof RFXCOM_ALL_EVENTS;
 export const RFXCOM_PERSISTENT_EVENTS: (keyof RfxComSocketEvents)[] = [
   'STATUS',
   'DEVICES_LIST',
-  'RECEIVERS_LIST'
+  'RECEIVERS_LIST',
+  'SCENES_LIST'
 ];

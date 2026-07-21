@@ -1,7 +1,15 @@
 # Spécifications Fonctionnelles - Module RFXCOM
 
-*Version 5.6 - 21 Juillet 2026*
-*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: **Spécifications Cover avec Lighting2** (états up/down/intermediate, calcul position%, traduction on/off), **Traduction Commandes HA→RFXCOM par type**, **Arborescence des Programmes**, Détection automatique, toolbar Scanner/Effacer/Rafraîchir, Appairages intégrés, Gestion protocoles, Scènes réactivées, transmitToHa, actions MQTT par le socle, indicateur connexion, traces détaillées.*
+*Version 5.7 - 21 Juillet 2026*
+*Intègre le fichier de configuration centralisé config-rfxcom-devices-v1.0.yaml avec primaryEmitter et émetteurs appairés dans les récepteurs. NOUVEAU: **Spécifications Cover avec Lighting2** (états up/down/intermediate, calcul position%, traduction on/off), **Traduction Commandes HA→RFXCOM par type**, **Arborescence des Programmes**, Détection automatique, toolbar Scanner/Effacer/Rafraîchir, Appairages intégrés, Gestion protocoles, Scènes implémentées et testées, transmitToHa, actions MQTT par le socle, indicateur connexion, traces détaillées.*
+
+> **v5.7** : **Scènes implémentées et testées** (§14.3 — le code n'existait pas malgré le "réactivées"
+> de v5.4, voir `recepteurs-emetteurs-rfxcom_specs_v5.2.md` pour le détail architecture). Noms
+> d'événements Socket.io réellement utilisés (`rfxcom:scenes:list`/`:list:get`, §14.3.5). Documente
+> deux simplifications connues : topic de découverte `device_automation` à un seul segment (§14.3.4)
+> et `SceneExecutionResult` ne distinguant pas `scene_failed` de `scene_cancelled` (§14.3.6). Corrige
+> aussi un gap du socle sans lequel les scènes (et tout récepteur RFXCOM) ne recevaient jamais aucune
+> commande HA→app en pratique — voir `techniques-socle-ha-mqtt_specs_v4.11.md`.
 
 > **v5.6** : Alignement des topics `state_topic`/scènes sur le nouveau format MQTT du socle
 > (`techniques-socle-ha-mqtt_specs_v4.10.md` §8.5) : `/{moduleName}/{bridgeInstance}/{deviceId}/state|set`.
@@ -368,7 +376,7 @@ const SUBTYPE_TO_QUOI: Record<string, string> = {
 
 > **⭐ v5.6** : `state_topic` (et `command_topic` le cas échéant) suit le format
 > `/{moduleName}/{bridgeInstance}/{deviceId}/state|set` — voir
-> [`recepteurs-emetteurs-rfxcom_specs` §8.5](recepteurs-emetteurs-rfxcom_specs_v5.1.md#85-topics-mqtt-spécifiques-à-rfxcom)
+> [`recepteurs-emetteurs-rfxcom_specs` §8.5](recepteurs-emetteurs-rfxcom_specs_v5.2.md#85-topics-mqtt-spécifiques-à-rfxcom)
 > pour l'encodage exact de `deviceId`. Le topic de découverte (`.../config`, déduit de `~`) reste standard HA.
 
 ---
@@ -936,14 +944,31 @@ Les scènes sont publiées comme des **automatisations HA** via MQTT Discovery. 
 - **Exécution** : `/rfxcom/{bridgeInstance}/scene_{sceneId}/set` (HA → App, QoS 1, retain false)
 - **Résultat** : `/rfxcom/{bridgeInstance}/scene_{sceneId}/state` (App → HA, QoS 0, retain false)
 
+> **⭐ v5.7 — Simplification connue, non vérifiée sur une instance HA réelle** : le schéma HA
+> canonique du component `device_automation` utilise deux segments d'identifiant dans le topic de
+> découverte (`homeassistant/device_automation/{device_id}/{trigger_id}/config`). Le socle ne
+> construit qu'un `objectId` unique pour tous les components (`buildDiscoveryPayload`,
+> `techniques-socle-ha-mqtt_specs` §8.5.0) — la découverte de scène RFXCOM utilise donc
+> `homeassistant/device_automation/rfxcom_scene_{sceneId}/config`, testé uniquement contre le
+> broker MQTT (souscription/publication effectives), jamais contre une instance HA réelle qui
+> validerait l'enregistrement de l'entité côté HA.
+
 #### 14.3.5 Commandes Spécifiques aux Scènes
+
+> **⭐ v5.7** : noms d'événements réellement implémentés — alignés sur la convention
+> `rfxcom:{ressource}s:list` déjà utilisée pour devices/récepteurs (`RFXCOM_SOCKET_EVENTS`/
+> `RFXCOM_CLIENT_EVENTS` dans `domain/socket-events.ts`), plutôt que le singulier `rfxcom:scene:list`
+> initialement documenté ci-dessous.
+
 | Commande | Description | Payload |
 |----------|-------------|---------|
 | `rfxcom:scene:execute` | Exécuter une scène | `{ sceneId: string }` |
-| `rfxcom:scene:cancel` | Annuler une scène en cours | `{ sceneId: string }` |
-| `rfxcom:scene:list` | Lister toutes les scènes | `{ scenes: SceneConfig[] }` |
-| `rfxcom:scene:created` | Scène créée | `{ scene: SceneConfig }` |
-| `rfxcom:scene:updated` | Scène mise à jour | `{ scene: SceneConfig }` |
+| `rfxcom:scene:cancel` | Annuler une scène en cours (best-effort : n'interrompt qu'un mode `sequential` entre deux commandes, ne peut pas annuler un envoi RF433 déjà lancé) | `{ sceneId: string }` |
+| `rfxcom:scenes:list:get` *(⭐ v5.7, remplace `rfxcom:scene:list`)* | Demander la liste des scènes | — |
+| `rfxcom:scenes:list` *(⭐ v5.7, remplace `rfxcom:scene:list`)* | Liste des scènes (réponse + événement persistant) | `{ scenes: ReceiverSceneConfig[] }` |
+| `rfxcom:scene:create` / `rfxcom:scene:update` / `rfxcom:scene:delete` | CRUD scène (distinct de `rfxcom:receiver:*`, qui rejette explicitement `type: 'scene'`) | `{ config }` / `{ sceneId, config }` / `{ sceneId }` |
+| `rfxcom:scene:created` | Scène créée | `{ scene: ReceiverSceneConfig }` |
+| `rfxcom:scene:updated` | Scène mise à jour | `{ scene: ReceiverSceneConfig }` |
 | `rfxcom:scene:deleted` | Scène supprimée | `{ sceneId: string }` |
 
 #### 14.3.6 États des Scènes
@@ -954,6 +979,12 @@ Les scènes sont publiées comme des **automatisations HA** via MQTT Discovery. 
 | `scene_completed` | Scène terminée avec succès | `rfxcom:scene:executed` | `rfxcom:scene:executed` |
 | `scene_failed` | Scène terminée avec erreurs | `rfxcom:scene:executed` | `rfxcom:scene:executed` |
 | `scene_cancelled` | Scène annulée | `rfxcom:scene:executed` | `rfxcom:scene:executed` |
+
+> **⭐ v5.7 — Simplification connue** : `SceneExecutionResult` (§14.3.3) ne porte qu'un booléen
+> `success`, pas un état distinct par cause. En pratique, `scene_failed` et `scene_cancelled`
+> produisent donc le même résultat (`success: false`) — le payload `rfxcom:scene:executed` ne permet
+> pas à l'UI de distinguer "annulée par l'utilisateur" de "échec d'une commande" sans inspecter
+> `errors[]` (vide en cas d'annulation, peuplé en cas d'échec réel).
 
 ### 14.4 Commandes Spécifiques aux Récepteurs Dimmables
 
@@ -1142,6 +1173,7 @@ applications/rfxcom/
 | 5.4 | 2026-07-17 | Mistral Vibe | **Gestion des protocoles, transmitToHa, scènes réactivées, actions MQTT par le socle, workflow devices complet, nommage automatique ---/--, Lighting2 clarifié (binary_sensor), appairage remplace association** |
 | 5.5 | 2026-07-18 | Mistral Vibe | **Spécifications Cover avec Lighting2 (états up/down/intermediate, calcul position%, traduction on/off), Traduction Commandes HA→RFXCOM par type, Arborescence des Programmes modulaire** |
 | 5.6 | 2026-07-21 | Claude | Alignement des topics `state_topic` et scènes sur le nouveau format MQTT du socle (`/{moduleName}/{bridgeInstance}/{deviceId}/state\|set`), conforme à `techniques-socle-ha-mqtt_specs_v4.10.md` §8.5 |
+| 5.7 | 2026-07-21 | Claude | **Scènes implémentées et testées** (§14.3) : `SceneManager`/`SceneExecutor` (voir `recepteurs-emetteurs-rfxcom_specs_v5.2.md` §6.1), onglet UI dédié. Événements Socket.io réels documentés (`rfxcom:scenes:list`/`:list:get`, §14.3.5). Deux simplifications connues documentées (topic `device_automation` à un segment, `SceneExecutionResult` sans distinction failed/cancelled). Correction du socle (auto-abonnement aux commandes, `techniques-socle-ha-mqtt_specs_v4.11.md`) sans lequel aucune commande HA→app RFXCOM n'était jamais reçue. |
 
 ---
 

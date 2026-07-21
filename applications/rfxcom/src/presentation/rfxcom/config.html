@@ -81,6 +81,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="devices">📋 Devices</button>
       <button class="tab-btn" data-tab="receivers">🔌 Récepteurs</button>
+      <button class="tab-btn" data-tab="scenes">🎬 Scènes</button>
     </div>
 
     <!-- Onglet Devices -->
@@ -119,6 +120,66 @@
           <button class="btn btn-primary" id="btn-add-receiver">+ Ajouter un récepteur</button>
         </div>
         <div id="receivers-list"></div>
+      </div>
+    </div>
+
+    <!-- Onglet Scènes -->
+    <div class="tab-panel" id="tab-scenes">
+      <div class="card">
+        <div class="toolbar">
+          <button class="btn btn-primary" id="btn-add-scene">+ Ajouter une scène</button>
+        </div>
+        <div id="scenes-list"></div>
+      </div>
+    </div>
+
+    <!-- Formulaire scène (créée/éditée) -->
+    <div class="card hidden" id="scene-form-card">
+      <h3 id="scene-form-title">Nouvelle scène</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Identifiant</label>
+          <input type="text" class="form-control" id="sc-sceneId" placeholder="scene_001">
+        </div>
+        <div class="form-group">
+          <label>Nom (QUOI---OÙ)</label>
+          <input type="text" class="form-control" id="sc-name" placeholder="Soirée---Salon">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" class="form-control" id="sc-description" placeholder="Optionnel">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Mode d'exécution</label>
+          <select class="select-control" id="sc-sceneType">
+            <option value="sequential">sequential</option>
+            <option value="parallel">parallel</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Délai entre commandes (ms, mode sequential)</label>
+          <input type="number" class="form-control" id="sc-delayBetweenCommands" min="0" value="500">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="checkbox-group">
+          <input type="checkbox" id="sc-transmitToHa">
+          <label for="sc-transmitToHa" style="margin:0;cursor:pointer;">Transmettre vers Home Assistant (automatisation)</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Commandes de la scène</label>
+        <div id="sc-actions-container"></div>
+        <button type="button" class="btn btn-add" id="sc-add-action">+ Ajouter une commande</button>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn btn-secondary" id="sc-cancel">Annuler</button>
+        <button class="btn btn-primary" id="sc-save">💾 Enregistrer</button>
       </div>
     </div>
 
@@ -207,6 +268,6 @@
 
   <script src="/applications/rfxcom/presentation/rfxcom/config-app.js"></script>
 
-  <!-- Derniere modification: 2026-07-21 19:00:00 - Création de la page de configuration RFXCOM -->
+  <!-- Derniere modification: 2026-07-21 21:00:00 - Ajout de l'onglet Scènes -->
 </body>
 </html>

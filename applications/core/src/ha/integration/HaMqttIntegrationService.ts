@@ -111,6 +111,10 @@ export class HaMqttIntegrationService {
   /**
    * Publie une découverte à partir des données essentielles fournies par le module
    * (voir techniques-socle-ha-mqtt_specs §8.5.0 : cette méthode normalise le message complet).
+   *
+   * Une entité `commandEnabled` est automatiquement abonnée à son topic de commande —
+   * sans ce couplage, aucun module ne recevait jamais les commandes HA→app en pratique,
+   * `subscribeCommandsFor` n'étant appelé par aucun module métier.
    */
   publishDiscoveryFor(
     moduleName: string,
@@ -131,6 +135,10 @@ export class HaMqttIntegrationService {
       objectId,
     });
     publishDiscovery(transport, component, objectId, entity);
+
+    if (essential.commandEnabled) {
+      subscribeCommands(transport, moduleName, bridgeInstance, deviceId);
+    }
   }
 
   publishState(moduleName: string, bridgeInstance: string, deviceId: string, state: HaMqttStateMessage): void {

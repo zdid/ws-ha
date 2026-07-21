@@ -1,8 +1,19 @@
 # Spécifications Fonctionnelles - Récepteurs et Émetteurs RFXCOM
 
-*Version 5.1 - 21 Juillet 2026*
+*Version 5.2 - 21 Juillet 2026*
 *Complément aux [spécifications principales](specs-fonctionnelles-rfxcom-v5.0.md)*
 *Conforme à [spec-nommage-v1.0.md](spec-nommage-v1.0.md) et [specs-techniques-socle-ha-mqtt.md](specs-techniques-socle-ha-mqtt.md)*
+
+> **v5.2** : **Implémentation réelle des Scènes** (§6, §10, §12.1 — checklist mise à jour, toutes
+> tâches de cette passe désormais ✅). Corrige un défaut de conception hérité de v5.0 :
+> `ReceiverSceneConfig` dérivait de `BaseReceiverConfig` et exigeait donc `primaryEmitter`/`emitters`,
+> deux champs sans signification pour une scène (constaté en pratique : la validation Zod rejetait
+> toute création de scène avec `primaryEmitter: Required`) — `ReceiverSceneConfig` a son propre schéma
+> minimal (§10). Architecture clarifiée (§6.1) : les scènes ne sont pas un 4ème `IReceiverModule`,
+> elles sont gérées par `SceneManager`/`SceneExecutor`, un sous-système séparé qui réutilise
+> `ReceiverManager` pour appliquer chaque commande à son récepteur cible. Documente également le
+> correctif du socle (`techniques-socle-ha-mqtt_specs_v4.11.md` §8.5.2) sans lequel les scènes ne
+> pouvaient de toute façon jamais recevoir de commande d'exécution HA→app.
 
 > **v5.1** : Refonte de la section 8.5 (topics MQTT) pour se conformer au nouveau format défini
 > dans `techniques-socle-ha-mqtt_specs_v4.10.md` §8.5 : un seul broker, concept de `bridge_instance`,
@@ -371,7 +382,9 @@ const ReceiverConfigSchema = z.discriminatedUnion('type', [
     defaultLevel: z.number().min(0).max(100).optional(),
     emitters: z.array(AssociatedEmitterSchema),
   }),
-  // ... autres types (cover, scene)
+  // ... autres types (cover)
+  // ⭐ v5.2 : le variant 'scene' n'a NI primaryEmitter NI emitters (voir §10 —
+  // ReceiverSceneConfig ne dérive pas de BaseReceiverConfig).
 ]);
 
 // Schéma complet du fichier
@@ -386,6 +399,14 @@ const RfxComConfigSchema = z.object({
 ## 6. Modules Dédiés
 
 ### 6.1 Architecture Modulaire
+
+> **⭐ v5.2 — CORRIGÉ** : les scènes ne sont **pas** un 4ème `IReceiverModule`. `ReceiverManager` ne
+> charge que switch/light/cover (il ignore explicitement `type: 'scene'` lors du chargement) ; les
+> scènes sont gérées par un sous-système séparé, `SceneManager` (registre CRUD) + `SceneExecutor` (exécution
+> parallel/sequential, §14.3.3 de `fonctionnelles-rfxcom_specs`), qui **réutilisent** `ReceiverManager`
+> pour appliquer chaque commande de scène à son récepteur cible — une scène ne pilote jamais le
+> matériel RF433 directement, elle orchestre des récepteurs déjà existants.
+
 ```
                         RfxComService
                   (Gestion centrale)
@@ -396,14 +417,14 @@ const RfxComConfigSchema = z.object({
 │  ReceiverSwitchModule │   │   ReceiverLightModule │   │  ReceiverCoverModule │
 │  (pour switch)        │   │   (pour light)        │   │  (pour cover)        │
 └─────────────────────┘   └─────────────────────┘   └─────────────────────┘
-          │                           │                           │
+          ▲                           ▲                           ▲
+          │           commande sur le récepteur cible              │
           └───────────────────────────┼───────────────────────────┘
-                                  │
-                                  v
-                     ┌─────────────────────────┐
-                     │   ReceiverSceneModule   │
-                     │   (pour scene)           │
-                     └─────────────────────────┘
+                                       │
+                     ┌─────────────────────────┐      ┌──────────────────┐
+                     │      SceneManager        │◄────►│  SceneExecutor   │
+                     │  (registre CRUD scènes)  │      │ (parallel/sequential) │
+                     └─────────────────────────┘      └──────────────────┘
 ```
 
 ### 6.2 Interface Commune
@@ -418,6 +439,14 @@ interface IReceiverModule {
   shutdown(): Promise<void>;
 }
 ```
+
+> **Note d'implémentation** : l'interface réelle (`IReceiverModule` dans `receivers/BaseReceiver.ts`)
+> est **synchrone** et diffère dans le détail — `config` est injecté par le constructeur (pas
+> `initialize`), et les méthodes sont `translateHaCommand(command, value?)` /
+> `applyEmitterCommand(action, value?)` / `getState()` / `getDiscoveryEssential()`. `RfxComService`
+> orchestre l'appel à `translateHaCommand` puis l'envoi RF433 et la publication d'état — le module ne
+> publie pas lui-même vers MQTT. `config` a le type `CommandableReceiverConfig` (switch/light/cover
+> uniquement, §10) : les scènes ne l'implémentent pas (§6.1).
 
 ### 6.3 ReceiverLightModule (avec variateur)
 
@@ -477,7 +506,7 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
 > **⭐ v5.1** : Le topic de découverte (`.../config`) reste au format HA standard. Les topics
 > `state_topic`/`command_topic` référencés dans le message suivent désormais le format défini en
 > §8.5 (`/{moduleName}/{bridgeInstance}/{deviceId}/state|set`), conforme à
-> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.10.md#854-format-des-topics-mqtt).
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.11.md#854-format-des-topics-mqtt).
 
 ### 7.1 Discovery pour Device RFXCOM (Capteur ou Émetteur)
 
@@ -723,7 +752,7 @@ Les événements ci-dessous **complètent** ceux définis dans [`specs-technique
 ### 8.5 Topics MQTT Spécifiques à RFXCOM
 
 > **⭐ v5.1** : Refonte complète de cette section pour se conformer au format générique défini dans
-> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.10.md#854-format-des-topics-mqtt)
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.11.md#854-format-des-topics-mqtt)
 > (un seul broker, `bridge_instance`, `deviceId` opaque). **Remplace entièrement** l'ancien schéma
 > `rfxcom/{receiverId}/...` de la v5.0.
 
@@ -761,7 +790,7 @@ Pour un **récepteur logique** (`recepteur_NNN`), `deviceId` = son `receiverId` 
 | `/rfxcom/{bridgeInstance}/{deviceId}/set` | HA → App | `{ "state": "ON"\|"OFF", "brightness"?: 0-255, "position"?: 0-100 }` | 1 | false | Commande reçue de HA pour un device ou récepteur |
 
 `bridgeInstance` identifie le transceiver physique concerné (ex: `rfx_bridge_0001`, voir
-[`techniques-socle-ha-mqtt_specs` §8.5.1](techniques-socle-ha-mqtt_specs_v4.10.md#851-concept-de-bridge_instance)).
+[`techniques-socle-ha-mqtt_specs` §8.5.1](techniques-socle-ha-mqtt_specs_v4.11.md#851-concept-de-bridge_instance)).
 
 #### 8.5.3 Topics de Découverte RFXCOM (App → HA)
 
@@ -920,16 +949,32 @@ export interface ReceiverCoverConfig extends BaseReceiverConfig {
 }
 
 // Récepteur scene
-export interface ReceiverSceneConfig extends BaseReceiverConfig {
+// ⭐ v5.2 — CORRIGÉ : une scène ne dérive PAS de BaseReceiverConfig. Elle ne réagit à aucun
+// appairage RF433 (primaryEmitter/emitters n'ont pas de sens pour elle — elle PILOTE d'autres
+// récepteurs, elle n'est jamais elle-même déclenchée par un émetteur physique). La version
+// précédente de ce document la faisait dériver de BaseReceiverConfig, rendant primaryEmitter/
+// emitters faussement obligatoires — bloquait la validation Zod de toute scène créée (`primaryEmitter:
+// Required`), corrigé lors de l'implémentation réelle (voir recepteurs-emetteurs-rfxcom_specs
+// changelog v5.2).
+export interface ReceiverSceneConfig {
+  receiverId: string;        // scene_<seq>
+  name: string;               // QUOI---OÙ
   type: 'scene';
-  actions: SceneAction[];    // ⭐ OBLIGATOIRE
+  transmitToHa: boolean;
+  icon?: string;
+  description?: string;
+  sceneType: 'parallel' | 'sequential';   // défaut: sequential
+  delayBetweenCommands?: number;           // ms, défaut 500
+  actions: SceneAction[];    // ⭐ OBLIGATOIRE, min 1
 }
 
-export type ReceiverConfig =
+/** Récepteurs pilotables via un primaryEmitter — tout ReceiverConfig sauf les scènes. */
+export type CommandableReceiverConfig =
   | ReceiverSwitchConfig
   | ReceiverLightConfig
-  | ReceiverCoverConfig
-  | ReceiverSceneConfig;
+  | ReceiverCoverConfig;
+
+export type ReceiverConfig = CommandableReceiverConfig | ReceiverSceneConfig;
 
 // Device RFXCOM détecté
 export interface RfxComDeviceInfo {
@@ -1063,10 +1108,11 @@ Serveur → Sauvegarde dans config-rfxcom-devices-v1.0.yaml et publie Discovery 
 | [x] Lighting2 variateur via configuration | ⭐⭐⭐ | ✅ |
 | [x] Types TypeScript complets | ⭐⭐ | ✅ |
 | [x] Schéma Zod pour validation | ⭐⭐ | ✅ |
-| [ ] Implémenter Receiver*Module | ⭐⭐⭐ | ⬜ |
-| [ ] Implémenter RfxComService | ⭐⭐⭐ | ⬜ |
-| [ ] Implémenter Discovery MQTT | ⭐⭐⭐ | ⬜ |
-| [ ] Implémenter Socket.io handlers | ⭐⭐ | ⬜ |
+| [x] Implémenter Receiver*Module | ⭐⭐⭐ | ✅ |
+| [x] Implémenter RfxComService | ⭐⭐⭐ | ✅ |
+| [x] Implémenter Discovery MQTT | ⭐⭐⭐ | ✅ |
+| [x] Implémenter Socket.io handlers | ⭐⭐ | ✅ |
+| [x] Implémenter Scènes (SceneManager/SceneExecutor + UI) | ⭐⭐ | ✅ |
 
 ### 12.2 Conformité
 - ✅ [spec-nommage-v1.0.md](spec-nommage-v1.0.md)
@@ -1088,6 +1134,7 @@ Serveur → Sauvegarde dans config-rfxcom-devices-v1.0.yaml et publie Discovery 
 | 4.0 | 2026-07-08 | Mistral Vibe | QUOI pur, entity_id avec protocole pour TOUS, auto-détermination, Lighting=binary_sensor, appairages N↔N via UI |
 | 5.0 | 2026-07-09 | Mistral Vibe | **Fichier YAML centralisé, primaryEmitter, émetteurs dans récepteur, attributs_taxonomie validé** |
 | 5.1 | 2026-07-21 | Claude | **Refonte topics MQTT §8.5** conforme à `techniques-socle-ha-mqtt_specs_v4.10.md` : un seul broker, `bridge_instance`, nouveaux topics état/commande `/rfxcom/{bridgeInstance}/{deviceId}/state\|set`, LWT par bridge, encodage RFXCOM du `deviceId` (§8.5.1), retrait des topics `rfxcom/scan` (superseded par Socket.io) |
+| 5.2 | 2026-07-21 | Claude | **Implémentation réelle des Scènes** (§6, §10, §12.1) : correction de `ReceiverSceneConfig` (ne dérive plus de `BaseReceiverConfig`, primaryEmitter/emitters retirés — bloquaient la validation Zod en pratique), architecture `SceneManager`/`SceneExecutor` clarifiée (pas un 4ème `IReceiverModule`), checklist §12.1 mise à jour (Receiver*Module/RfxComService/Discovery MQTT/Socket.io handlers/Scènes tous ✅). |
 
 ---
 

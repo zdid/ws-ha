@@ -87,7 +87,10 @@ export const receiverCoverSchema = z.object({
 
 export const receiverSceneSchema = z.object({
   type: z.literal('scene'),
-  ...baseReceiverFields,
+  receiverId: z.string().min(1),
+  name: z.string().min(1),
+  transmitToHa: z.boolean().default(false),
+  icon: z.string().optional(),
   description: z.string().optional(),
   sceneType: z.enum(['parallel', 'sequential']).default('sequential'),
   delayBetweenCommands: z.number().int().nonnegative().default(500),

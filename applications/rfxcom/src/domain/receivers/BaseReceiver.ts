@@ -6,7 +6,7 @@
  */
 
 import type { EssentialEntityData, HaMqttStateMessage } from '../../../../core/src/exports';
-import type { EmitterAction, ReceiverConfig } from '../types';
+import type { EmitterAction, CommandableReceiverConfig } from '../types';
 
 /** Commande RFXCOM résultant de la traduction d'une commande HA. */
 export interface ReceiverCommandResult {
@@ -15,7 +15,7 @@ export interface ReceiverCommandResult {
 }
 
 export interface IReceiverModule {
-  readonly config: ReceiverConfig;
+  readonly config: CommandableReceiverConfig;
 
   /**
    * Traduit une commande HA (turn_on, turn_off, toggle, set_level, open, close, stop, ...) en

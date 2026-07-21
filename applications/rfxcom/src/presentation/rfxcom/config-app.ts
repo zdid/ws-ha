@@ -49,6 +49,35 @@ interface ReceiverConfig {
   closeTimeSec?: number;
 }
 
+interface SceneAction {
+  target: string;
+  command: string;
+  value?: number;
+  delayMs?: number;
+}
+
+interface ReceiverSceneConfig {
+  receiverId: string;
+  name: string;
+  type: 'scene';
+  description?: string;
+  sceneType: 'parallel' | 'sequential';
+  delayBetweenCommands?: number;
+  actions: SceneAction[];
+  transmitToHa: boolean;
+}
+
+interface SceneExecutionResult {
+  sceneId: string;
+  success: boolean;
+  executedCommands: number;
+  failedCommands: number;
+  errors: Array<{ receiverId: string; action: string; error: string }>;
+  duration: number;
+}
+
+const SCENE_COMMANDS = ['turn_on', 'turn_off', 'toggle', 'set_level', 'open', 'close', 'stop', 'set_position'];
+
 // ============================================================================
 // État
 // ============================================================================
@@ -58,6 +87,8 @@ let configuredDevices: RfxComDeviceInfo[] = [];
 let discoveredDevices: RfxComDiscoveredDevice[] = [];
 let receivers: ReceiverConfig[] = [];
 let editingReceiverId: string | null = null;
+let scenes: ReceiverSceneConfig[] = [];
+let editingSceneId: string | null = null;
 
 // ============================================================================
 // Initialisation
@@ -72,6 +103,7 @@ function init(): void {
 
   socket.emit('rfxcom:devices:list:get');
   socket.emit('rfxcom:receivers:list:get');
+  socket.emit('rfxcom:scenes:list:get');
 
   hideLoading();
 }
@@ -101,6 +133,26 @@ function setupSocketListeners(): void {
   socket.on('rfxcom:scan:complete', () => showAlert('Scan terminé', 'info'));
   socket.on('rfxcom:scan:failed', (data: { error: string }) => showAlert(`Scan échoué: ${data.error}`, 'error'));
   socket.on('rfxcom:error', (error: { message: string }) => showAlert(error.message, 'error'));
+
+  socket.on('rfxcom:scenes:list', (data: { scenes: ReceiverSceneConfig[] }) => {
+    scenes = data.scenes;
+    renderScenes();
+  });
+
+  socket.on('rfxcom:scene:created', () => showAlert('Scène créée', 'success'));
+  socket.on('rfxcom:scene:updated', () => showAlert('Scène mise à jour', 'success'));
+  socket.on('rfxcom:scene:deleted', () => showAlert('Scène supprimée', 'success'));
+  socket.on('rfxcom:scene:status', (data: { sceneId: string; status: string }) => {
+    if (data.status === 'scene_executing') showAlert(`Scène ${data.sceneId} en cours d'exécution...`, 'info');
+  });
+  socket.on('rfxcom:scene:executed', (result: SceneExecutionResult) => {
+    showAlert(
+      result.success
+        ? `Scène ${result.sceneId} exécutée (${result.executedCommands} commande(s))`
+        : `Scène ${result.sceneId}: ${result.failedCommands} commande(s) en échec sur ${result.executedCommands + result.failedCommands}`,
+      result.success ? 'success' : 'error'
+    );
+  });
 }
 
 // ============================================================================
@@ -140,6 +192,11 @@ function setupUiListeners(): void {
 
   document.getElementById('rf-type')?.addEventListener('change', updateTypeSpecificFields);
 
+  document.getElementById('btn-add-scene')?.addEventListener('click', () => openSceneForm(null));
+  document.getElementById('sc-cancel')?.addEventListener('click', closeSceneForm);
+  document.getElementById('sc-save')?.addEventListener('click', saveScene);
+  document.getElementById('sc-add-action')?.addEventListener('click', () => addActionRow());
+
   // Délégation d'événements pour les boutons générés dynamiquement
   document.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
@@ -152,6 +209,14 @@ function setupUiListeners(): void {
     if (action === 'edit-receiver' && id) return openReceiverForm(id);
     if (action === 'delete-receiver' && id) return deleteReceiver(id);
     if (action === 'remove-emitter-row') {
+      target.closest('.emitter-row')?.remove();
+      return;
+    }
+    if (action === 'edit-scene' && id) return openSceneForm(id);
+    if (action === 'delete-scene' && id) return deleteScene(id);
+    if (action === 'execute-scene' && id) return executeScene(id);
+    if (action === 'cancel-scene' && id) return cancelScene(id);
+    if (action === 'remove-action-row') {
       target.closest('.emitter-row')?.remove();
       return;
     }
@@ -371,6 +436,150 @@ function saveReceiver(): void {
 function deleteReceiver(receiverId: string): void {
   if (!confirm(`Supprimer le récepteur ${receiverId} ?`)) return;
   socket.emit('rfxcom:receiver:delete', { receiverId });
+}
+
+// ============================================================================
+// Scènes
+// ============================================================================
+
+function renderScenes(): void {
+  const listEl = document.getElementById('scenes-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = scenes.map((s) => `
+    <div class="receiver-item">
+      <div class="header">
+        <strong>${escapeHtml(s.receiverId)}</strong> — ${escapeHtml(s.name)} (${escapeHtml(s.sceneType)})
+        <div>
+          <button class="btn btn-primary" data-action="execute-scene" data-id="${escapeHtml(s.receiverId)}">▶️ Exécuter</button>
+          <button class="btn btn-secondary" data-action="cancel-scene" data-id="${escapeHtml(s.receiverId)}">⏹️ Annuler</button>
+          <button class="btn btn-secondary" data-action="edit-scene" data-id="${escapeHtml(s.receiverId)}">✏️</button>
+          <button class="btn btn-danger" data-action="delete-scene" data-id="${escapeHtml(s.receiverId)}">🗑️</button>
+        </div>
+      </div>
+      ${s.description ? `<div>${escapeHtml(s.description)}</div>` : ''}
+      <div>Vers HA: <span class="badge ${s.transmitToHa ? 'on' : 'off'}">${s.transmitToHa ? 'oui' : 'non'}</span></div>
+      <div>Commandes: ${s.actions.map((a) => `<span class="mono">${escapeHtml(a.target)}</span> → ${escapeHtml(a.command)}${a.value !== undefined ? `(${a.value})` : ''}`).join(', ') || 'aucune'}</div>
+    </div>
+  `).join('') || '<p>Aucune scène configurée</p>';
+}
+
+function openSceneForm(sceneId: string | null): void {
+  editingSceneId = sceneId;
+  const card = document.getElementById('scene-form-card');
+  const title = document.getElementById('scene-form-title');
+  if (!card) return;
+
+  card.classList.remove('hidden');
+
+  const existing = sceneId ? scenes.find((s) => s.receiverId === sceneId) : null;
+
+  if (title) title.textContent = existing ? `Modifier ${existing.receiverId}` : 'Nouvelle scène';
+
+  setValue('sc-sceneId', existing?.receiverId || `scene_${String(scenes.length + 1).padStart(3, '0')}`);
+  (document.getElementById('sc-sceneId') as HTMLInputElement).disabled = !!existing;
+  setValue('sc-name', existing?.name || '');
+  setValue('sc-description', existing?.description || '');
+  setValue('sc-sceneType', existing?.sceneType || 'sequential');
+  setValue('sc-delayBetweenCommands', String(existing?.delayBetweenCommands ?? 500));
+  setChecked('sc-transmitToHa', existing?.transmitToHa || false);
+
+  const actionsContainer = document.getElementById('sc-actions-container');
+  if (actionsContainer) {
+    actionsContainer.innerHTML = '';
+    (existing?.actions || []).forEach((a) => addActionRow(a));
+    if (!existing) addActionRow();
+  }
+
+  card.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeSceneForm(): void {
+  document.getElementById('scene-form-card')?.classList.add('hidden');
+  editingSceneId = null;
+}
+
+function addActionRow(existing?: SceneAction): void {
+  const container = document.getElementById('sc-actions-container');
+  if (!container) return;
+
+  const targetOptions = receivers
+    .filter((r) => r.type !== 'scene')
+    .map((r) => `<option value="${escapeHtml(r.receiverId)}" ${existing?.target === r.receiverId ? 'selected' : ''}>${escapeHtml(r.receiverId)} (${escapeHtml(r.name)})</option>`)
+    .join('');
+
+  const row = document.createElement('div');
+  row.className = 'emitter-row';
+  row.innerHTML = `
+    <select class="select-control action-target">${targetOptions}</select>
+    <select class="select-control action-command">
+      ${SCENE_COMMANDS.map((c) => `<option value="${c}" ${existing?.command === c ? 'selected' : ''}>${c}</option>`).join('')}
+    </select>
+    <input type="number" class="form-control action-value" placeholder="valeur" value="${existing?.value ?? ''}">
+    <input type="number" class="form-control action-delay" placeholder="délai (ms)" min="0" value="${existing?.delayMs ?? ''}">
+    <button type="button" class="btn btn-danger" data-action="remove-action-row">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function saveScene(): void {
+  const receiverId = getValue('sc-sceneId').trim();
+  const name = getValue('sc-name').trim();
+
+  if (!receiverId || !name) {
+    showAlert('Identifiant et nom sont requis', 'error');
+    return;
+  }
+
+  const actions: SceneAction[] = Array.from(document.querySelectorAll('#sc-actions-container .emitter-row')).map((row) => {
+    const target = (row.querySelector('.action-target') as HTMLSelectElement).value;
+    const command = (row.querySelector('.action-command') as HTMLSelectElement).value;
+    const valueStr = (row.querySelector('.action-value') as HTMLInputElement).value;
+    const delayStr = (row.querySelector('.action-delay') as HTMLInputElement).value;
+    return {
+      target,
+      command,
+      value: valueStr ? Number(valueStr) : undefined,
+      delayMs: delayStr ? Number(delayStr) : undefined
+    };
+  }).filter((a) => a.target);
+
+  if (actions.length === 0) {
+    showAlert('Au moins une commande est requise', 'error');
+    return;
+  }
+
+  const config: ReceiverSceneConfig = {
+    receiverId,
+    name,
+    type: 'scene',
+    description: getValue('sc-description').trim() || undefined,
+    sceneType: getValue('sc-sceneType') as 'parallel' | 'sequential',
+    delayBetweenCommands: Number(getValue('sc-delayBetweenCommands') || 500),
+    actions,
+    transmitToHa: isChecked('sc-transmitToHa')
+  };
+
+  if (editingSceneId) {
+    socket.emit('rfxcom:scene:update', { sceneId: editingSceneId, config });
+  } else {
+    socket.emit('rfxcom:scene:create', { config });
+  }
+
+  closeSceneForm();
+}
+
+function deleteScene(sceneId: string): void {
+  if (!confirm(`Supprimer la scène ${sceneId} ?`)) return;
+  socket.emit('rfxcom:scene:delete', { sceneId });
+}
+
+function executeScene(sceneId: string): void {
+  socket.emit('rfxcom:scene:execute', { sceneId });
+}
+
+function cancelScene(sceneId: string): void {
+  socket.emit('rfxcom:scene:cancel', { sceneId });
 }
 
 // ============================================================================

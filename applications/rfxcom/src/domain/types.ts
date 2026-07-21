@@ -131,19 +131,30 @@ export interface ReceiverCoverConfig extends BaseReceiverConfig {
   closeTimeSec: number;           // ⭐ obligatoire
 }
 
-export interface ReceiverSceneConfig extends BaseReceiverConfig {
+/**
+ * Une scène n'a ni primaryEmitter ni emitters (elle ne réagit pas à un appairage RF433, elle
+ * pilote d'autres récepteurs) — ne dérive donc pas de BaseReceiverConfig, contrairement aux
+ * switch/light/cover (fonctionnelles-rfxcom_specs §14.3.1).
+ */
+export interface ReceiverSceneConfig {
+  receiverId: string;              // scene_<seq>
+  name: string;                    // QUOI---OÙ
   type: 'scene';
+  transmitToHa: boolean;
+  icon?: string;
   description?: string;
   sceneType: 'parallel' | 'sequential';
   delayBetweenCommands?: number;  // ms, défaut 500
   actions: SceneAction[];
 }
 
-export type ReceiverConfig =
+/** Récepteurs pilotables via un primaryEmitter — tout ReceiverConfig sauf les scènes. */
+export type CommandableReceiverConfig =
   | ReceiverSwitchConfig
   | ReceiverLightConfig
-  | ReceiverCoverConfig
-  | ReceiverSceneConfig;
+  | ReceiverCoverConfig;
+
+export type ReceiverConfig = CommandableReceiverConfig | ReceiverSceneConfig;
 
 /** État courant d'un récepteur cover (fonctionnelles-rfxcom_specs §16.4). */
 export interface CoverRuntimeState {

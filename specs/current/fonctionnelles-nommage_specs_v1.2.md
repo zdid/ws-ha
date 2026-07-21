@@ -199,7 +199,7 @@ attributs_taxonomie:
 ### 3.4 Transmission vers Home Assistant — Passthrough MQTT
 
 > **⭐ v1.1** : Le mécanisme de transmission repose désormais sur le **Passthrough MQTT** du socle
-> ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.10.md#856-passthrough-mqtt)),
+> ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.11.md#856-passthrough-mqtt)),
 > et **remplace** l'ancien mécanisme `nommage:transmit:to-core` (qui restait vague sur "WebSocket ou MQTT").
 
 **Description :** Le message de découverte d'origine (lu sur une source, §3.1) est **enrichi** avec
@@ -788,7 +788,7 @@ Toute configuration est **validée avec Zod** avant application.
 ## 📚 Références
 
 - [nommage_specs_v1.0.md](./nommage_specs_v1.0.md) - Protocole de nommage QUOI/OÙ
-- [techniques-socle-ha-mqtt_specs_v4.10.md](./techniques-socle-ha-mqtt_specs_v4.10.md) - Socle technique
+- [techniques-socle-ha-mqtt_specs_v4.11.md](./techniques-socle-ha-mqtt_specs_v4.11.md) - Socle technique
 - [guide-nouvelle-application_specs_v1.6.md](./guide-nouvelle-application_specs_v1.6.md) - Guide de création
 - [PROMPT_PROJET.md](../PROMPT_PROJET.md) - Règles de développement
 

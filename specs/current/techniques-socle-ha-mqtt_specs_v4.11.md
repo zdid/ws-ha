@@ -1,8 +1,20 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.10  
+**Version :** 4.11  
 **Date :** 21 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
+
+> **v4.11** : **Correction d'un gap fonctionnel réel** (découvert en implémentant les scènes RFXCOM,
+> §8.5.2) : `publishDiscoveryFor` abonne désormais **automatiquement** le bridge au topic de commande
+> (`subscribeCommands`) lorsque l'entité publiée a `commandEnabled: true`. Avant ce correctif, aucun
+> module métier n'appelait jamais la méthode d'abonnement dédiée (`subscribeCommandsFor`) — les
+> commandes HA→app pour *tous* les modules publiant via la découverte normale (§8.5.0) n'étaient donc
+> **jamais reçues en pratique** (le broker ne recevait aucun `SUBSCRIBE` sur le topic `/set`), bien que
+> le code de réception (`parseIncomingCommand`, routage `integration:{module}:command`) fonctionne
+> correctement une fois l'abonnement effectué. Non détecté plus tôt car les tests précédents du socle
+> ne validaient que la réception RF433→MQTT (device→HA), jamais le sens HA→device en conditions
+> réelles. `subscribeCommandsFor` reste appelable directement si un module a besoin d'un abonnement de
+> commande sans publier de découverte associée (cas non rencontré à ce jour).
 
 > **v4.10** : Séparation de `exports.ts` (point d'entrée backend Node.js du core) et **`ui-exports.ts`**
 > (point d'entrée navigateur) — voir §4.2. Le code UI (ex: `SocketService`, dépendant de `window`/
@@ -1135,6 +1147,11 @@ class HaMqttIntegrationService {
 - **QoS par défaut** : Discovery/State = QoS 1 + retain true, Commands = QoS 1 + retain false
 - **Reconnexion automatique** avec backoff configurable
 - **Gestion des erreurs** : Logging + reconnexion automatique, avec les codes normalisés (voir `erreurs_specs`)
+- **⭐ v4.11 — Abonnement automatique aux commandes** : `publishDiscoveryFor` (nom réel de la méthode de
+  publication de découverte normalisée) abonne automatiquement le bridge au topic de commande
+  correspondant si l'entité essentielle fournie par le module a `commandEnabled: true`. Un module
+  métier n'a donc **jamais** besoin d'appeler explicitement `subscribeCommandsFor` pour une entité
+  déjà publiée via la découverte normale — l'abonnement est couplé 1:1 à la publication.
 
 #### 8.5.3 Structure des modules d'intégration
 
@@ -1591,6 +1608,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **4.11** | 21/07/2026 | Claude | **Correction d'un gap fonctionnel réel (§8.5.2, découvert en implémentant les scènes RFXCOM)** : `publishDiscoveryFor` abonne désormais automatiquement le bridge au topic de commande d'une entité `commandEnabled: true` — avant ce correctif, aucun module métier n'appelait jamais `subscribeCommandsFor`, donc aucune commande HA→app n'était réellement reçue pour aucun module utilisant la découverte normale (§8.5.0), en dépit d'un code de réception/routage par ailleurs correct. |
 | **4.10** | 21/07/2026 | Claude | **Séparation `exports.ts` (backend) / `ui-exports.ts` (navigateur)** (§4.2.1, suite à investigation "le core met-il ses objets dans dist et pas dans src ?") : `SocketService` retiré de `exports.ts` et déplacé dans le nouveau `ui-exports.ts`, `src/ui-exports.ts` exclu du build backend du core. Corrige une pollution constatée dans `nommage` et `arbreouquoi`, dont le `dist` backend contenait une copie morte de `SocketService.js` (code navigateur, inexécutable côté Node) simplement parce qu'ils importaient des types backend depuis `exports.ts`. `tsconfig.ui.json` du core gagne `declaration: true`/`declarationMap: true` pour permettre aux applications à `rootDir` restreint (ex: `arbreouquoi`) de consommer le `dist` UI du core avec des types corrects, sans `@ts-ignore`. |
 | **4.9** | 21/07/2026 | Claude | **Ajout du Passthrough MQTT (§8.5.6, sur demande utilisateur)** : mécanisme pour les applications qui relaient des messages MQTT déjà formés (lus depuis une source tierce, ex: `nommage` relayant Zigbee2MQTT) vers le broker HA unique, sans normalisation de découverte. Mode "réécriture de préfixe" (`sourceTopic` → remplacement du 1er segment par `homeassistant`, QoS1/retain true) et mode "complet" (topic + payload intégraux, aucune transformation). Nouvelles méthodes `publishDiscoveryPassthrough`/`publishPassthrough` sur `HaMqttIntegrationService`, nouveaux événements EventBus `integration:{module}:passthrough:discovery`/`:publish`. |
 | **4.8** | 21/07/2026 | Claude | **Précision du format MQTT (§8.5, sur demande utilisateur — analyse d'écart avec le code réel)** : un seul broker pour tout le socle ; mission par intégration = LWT + découverte persistante + état + réception des commandes ; nouveau concept `bridge_instance` (une intégration peut piloter plusieurs bridges physiques, chacun avec son propre LWT) ; nouveaux topics état/commande `/{moduleName}/{bridgeInstance}/{deviceId}/state\|set` (remplace l'ancien schéma `homeassistant/.../state\|set` et l'ancien LWT `ha-integration/{module}/status`) ; le topic de découverte HA standard reste inchangé ; `deviceId` est un identifiant opaque dont l'encodage est propre à chaque module (voir specs RFXCOM pour son encodage) ; répartition claire des responsabilités : le module métier fournit les données essentielles, `HaMqttIntegrationService` normalise et complète l'intégralité du message de découverte. |

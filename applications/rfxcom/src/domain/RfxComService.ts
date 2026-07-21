@@ -11,18 +11,22 @@
 
 import * as path from 'node:path';
 import type { IEventBus, Logger, IAppConfigProvider, EssentialEntityData } from '../../../core/src/exports';
-import { createRfxComError } from '../../../core/src/exports';
+import { createRfxComError, getCommandTopic } from '../../../core/src/exports';
 import { rfxcomConfigSchema, type RfxComConfig } from './config-schema';
 import type { RfxComDevicesConfigFile, ReceiverConfigEntry } from './devices-config-schema';
-import type { RfxComRawMessage, RfxComStatus, RfxComDeviceInfo, ReceiverConfig } from './types';
+import type { RfxComRawMessage, RfxComStatus, RfxComDeviceInfo, ReceiverConfig, ReceiverSceneConfig, SceneExecutionResult } from './types';
 import { DeviceManager } from './devices/DeviceManager';
 import { ReceiverManager } from './receivers/ReceiverManager';
+import { SceneManager } from './scenes/SceneManager';
+import { SceneExecutor } from './scenes/SceneExecutor';
 import { RfxComTransceiver } from './transceiver/RfxComTransceiver';
 import { ConfigFileManager } from './yaml/ConfigFileManager';
 import { getDefaultComponent, getDefaultUnit, buildStateDeviceId } from './classification';
 import { extractTaxonomy, buildAttributsTaxonomie } from './taxonomy';
 
 const MODULE_NAME = 'rfxcom';
+/** Préfixe du deviceId d'une scène dans les topics MQTT (fonctionnelles-rfxcom_specs §14.3.4). */
+const SCENE_DEVICE_ID_PREFIX = 'scene_';
 
 export interface IRfxComService {
   start(): Promise<void>;
@@ -36,9 +40,13 @@ export class RfxComService implements IRfxComService {
   private configFileManager: ConfigFileManager;
   private deviceManager: DeviceManager;
   private receiverManager: ReceiverManager;
+  private sceneManager: SceneManager;
+  private sceneExecutor: SceneExecutor;
   private transceiver: RfxComTransceiver;
 
   private lastDiscovery: string | null = null;
+  /** Scènes dont l'exécution séquentielle en cours doit s'arrêter à la prochaine étape. */
+  private cancelledScenes: Set<string> = new Set();
 
   constructor(
     private readonly eventBus: IEventBus,
@@ -50,6 +58,8 @@ export class RfxComService implements IRfxComService {
     this.devicesConfig = { rfxcom_devices: {}, rfxcom_receivers: {} };
     this.deviceManager = new DeviceManager(this.logger);
     this.receiverManager = new ReceiverManager(this.deviceManager, this.logger);
+    this.sceneManager = new SceneManager(this.logger);
+    this.sceneExecutor = new SceneExecutor(this.logger);
     this.transceiver = new RfxComTransceiver(this.logger);
   }
 
@@ -77,6 +87,7 @@ export class RfxComService implements IRfxComService {
     this.devicesConfig = this.configFileManager.load();
     this.deviceManager.loadConfigured(this.devicesConfig.rfxcom_devices);
     this.receiverManager.loadReceivers(this.devicesConfig.rfxcom_receivers);
+    this.sceneManager.loadScenes(this.devicesConfig.rfxcom_receivers);
 
     this.setupSocleEventListeners();
     this.setupSocketEventListeners();
@@ -108,6 +119,7 @@ export class RfxComService implements IRfxComService {
     this.emitStatus();
     this.emitDevicesList();
     this.emitReceiversList();
+    this.emitScenesList();
 
     this.logger.info('RfxComService', 'Service RFXCOM démarré');
   }
@@ -185,6 +197,11 @@ export class RfxComService implements IRfxComService {
     for (const receiver of this.receiverManager.getAllReceivers()) {
       if (receiver.config.transmitToHa) {
         this.publishReceiverDiscovery(receiver.config.receiverId);
+      }
+    }
+    for (const scene of this.sceneManager.getAllScenes()) {
+      if (scene.transmitToHa) {
+        this.publishSceneDiscovery(scene);
       }
     }
     this.lastDiscovery = new Date().toISOString();
@@ -278,12 +295,74 @@ export class RfxComService implements IRfxComService {
   }
 
   // ==========================================================================
+  // Discovery / State — scènes
+  // ==========================================================================
+
+  /**
+   * Publiée comme automatisation HA (déclenchement, pas d'état commandable classique) —
+   * fonctionnelles-rfxcom_specs §14.3.4. ⚠️ Simplification connue : le schéma HA canonique du
+   * component `device_automation` utilise deux segments d'identifiant dans le topic de découverte
+   * (device_id/trigger_id) ; le socle ne construit qu'un objectId unique, comme pour tous les
+   * autres components — non vérifié contre une instance HA réelle (seul le broker MQTT l'a été).
+   */
+  private publishSceneDiscovery(scene: ReceiverSceneConfig): void {
+    const taxonomy = extractTaxonomy(scene.name);
+    const deviceId = `${SCENE_DEVICE_ID_PREFIX}${scene.receiverId}`;
+    const commandTopic = getCommandTopic(MODULE_NAME, this.config.bridgeInstance, deviceId);
+
+    const essential: EssentialEntityData = {
+      name: taxonomy.rawQuoi,
+      icon: scene.icon ?? 'mdi:script-text-play',
+      commandEnabled: true,
+      device: {
+        identifiers: [`rfxcom_scene_${scene.receiverId}`],
+        name: `RFXCOM Scène ${taxonomy.rawQuoi}`,
+        manufacturer: 'RFXCOM',
+        model: 'Scene'
+      },
+      extra: {
+        automation_type: 'trigger',
+        topic: commandTopic,
+        payload: '{}',
+        attributs_taxonomie: buildAttributsTaxonomie(taxonomy)
+      }
+    };
+
+    this.eventBus.emitGeneric(`integration:${MODULE_NAME}:discovery`, {
+      bridgeInstance: this.config.bridgeInstance,
+      component: 'device_automation',
+      objectId: `rfxcom_scene_${scene.receiverId}`,
+      deviceId,
+      essential
+    });
+  }
+
+  private publishSceneResult(sceneId: string, result: SceneExecutionResult): void {
+    this.eventBus.emitGeneric(`integration:${MODULE_NAME}:state`, {
+      bridgeInstance: this.config.bridgeInstance,
+      deviceId: `${SCENE_DEVICE_ID_PREFIX}${sceneId}`,
+      state: {
+        state: result.success ? 'completed' : 'failed',
+        attributes: {
+          executed_commands: result.executedCommands,
+          failed_commands: result.failedCommands,
+          duration_ms: result.duration
+        }
+      }
+    });
+  }
+
+  // ==========================================================================
   // Commandes HA → récepteur → device RFXCOM
   // ==========================================================================
 
   private handleHaCommand(deviceId: string, payload: Record<string, unknown>): void {
-    const receiver = this.receiverManager.getReceiver(deviceId);
-    if (!receiver) {
+    if (deviceId.startsWith(SCENE_DEVICE_ID_PREFIX)) {
+      void this.executeScene(deviceId.slice(SCENE_DEVICE_ID_PREFIX.length));
+      return;
+    }
+
+    if (!this.receiverManager.getReceiver(deviceId)) {
       this.logger.warn('RfxComService', `Commande reçue pour un récepteur inconnu: ${deviceId}`);
       return;
     }
@@ -294,17 +373,33 @@ export class RfxComService implements IRfxComService {
       return;
     }
 
-    const result = receiver.translateHaCommand(parsed.command, parsed.value);
+    const result = this.applyReceiverCommand(deviceId, parsed.command, parsed.value);
+    if (!result.success) {
+      this.logger.error('RfxComService', `Échec de la commande ${parsed.command} pour ${deviceId}: ${result.error}`);
+      this.eventBus.emitGeneric('rfxcom:error',
+        createRfxComError('RFXCOM_COMMAND_FAILED', result.error ?? 'Erreur inconnue', 'rfxcom:command', { deviceId }));
+    }
+  }
+
+  /**
+   * Traduit puis envoie une commande RF433 pour un récepteur donné (switch/light/cover — pas les
+   * scènes). Factorisé pour être réutilisé à la fois par handleHaCommand (payload JSON `/set` du
+   * socle) et par SceneExecutor (commande/valeur déjà discrètes, une par action de scène).
+   */
+  private applyReceiverCommand(receiverId: string, command: string, value?: number): { success: boolean; error?: string } {
+    const receiver = this.receiverManager.getReceiver(receiverId);
+    if (!receiver) {
+      return { success: false, error: `Récepteur inconnu: ${receiverId}` };
+    }
+
+    const result = receiver.translateHaCommand(command, value);
     if (!result) {
-      this.logger.debug('RfxComService', `Commande ${parsed.command} ignorée pour ${deviceId} (état inchangé ou non supportée)`);
-      return;
+      return { success: false, error: `Commande ${command} non applicable à ${receiverId} (état inchangé ou non supportée)` };
     }
 
     const primaryDevice = this.deviceManager.getDevice(receiver.config.primaryEmitter);
     if (!primaryDevice || !primaryDevice.commandDeviceId) {
-      this.logger.error('RfxComService',
-        `primaryEmitter ${receiver.config.primaryEmitter} introuvable ou jamais vu en émission pour ${deviceId}`);
-      return;
+      return { success: false, error: `primaryEmitter ${receiver.config.primaryEmitter} introuvable ou jamais vu en émission` };
     }
 
     try {
@@ -316,11 +411,40 @@ export class RfxComService implements IRfxComService {
         result.value
       );
       this.publishReceiverState(receiver);
+      return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error('RfxComService', `Échec d'envoi de la commande RF433 pour ${deviceId}: ${message}`);
-      this.eventBus.emitGeneric('rfxcom:error',
-        createRfxComError('RFXCOM_COMMAND_FAILED', message, 'rfxcom:command', { deviceId }));
+      return { success: false, error: message };
+    }
+  }
+
+  // ==========================================================================
+  // Scènes — exécution
+  // ==========================================================================
+
+  private async executeScene(sceneId: string): Promise<void> {
+    const scene = this.sceneManager.getScene(sceneId);
+    if (!scene) {
+      this.logger.warn('RfxComService', `Scène inconnue: ${sceneId}`);
+      return;
+    }
+
+    this.cancelledScenes.delete(sceneId);
+    this.eventBus.emitGeneric('rfxcom:scene:status', { sceneId, status: 'scene_executing' });
+
+    const result = await this.sceneExecutor.execute(
+      scene,
+      (target, command, value) => this.applyReceiverCommand(target, command, value),
+      () => this.cancelledScenes.has(sceneId)
+    );
+
+    this.cancelledScenes.delete(sceneId);
+    this.publishSceneResult(sceneId, result);
+    this.eventBus.emitGeneric('rfxcom:scene:executed', result);
+
+    if (!result.success) {
+      this.logger.warn('RfxComService',
+        `Scène ${sceneId} terminée avec erreurs: ${result.failedCommands} commande(s) en échec sur ${scene.actions.length}`);
     }
   }
 
@@ -369,6 +493,10 @@ export class RfxComService implements IRfxComService {
     this.eventBus.emitGeneric('rfxcom:receivers:list', { receivers: this.receiverManager.getAllReceivers().map((r) => r.config) });
   }
 
+  private emitScenesList(): void {
+    this.eventBus.emitGeneric('rfxcom:scenes:list', { scenes: this.sceneManager.getAllScenes() });
+  }
+
   // ==========================================================================
   // Socket.io (via SocketBridge, EventBus générique)
   // ==========================================================================
@@ -377,6 +505,7 @@ export class RfxComService implements IRfxComService {
     this.eventBus.onGeneric('rfxcom:status:get', () => this.emitStatus());
     this.eventBus.onGeneric('rfxcom:devices:list:get', () => this.emitDevicesList());
     this.eventBus.onGeneric('rfxcom:receivers:list:get', () => this.emitReceiversList());
+    this.eventBus.onGeneric('rfxcom:scenes:list:get', () => this.emitScenesList());
 
     this.eventBus.onGeneric('rfxcom:devices:refresh', () => this.emitDevicesList());
 
@@ -405,6 +534,10 @@ export class RfxComService implements IRfxComService {
     });
 
     this.eventBus.onGeneric<{ config: ReceiverConfig }>('rfxcom:receiver:create', (data) => {
+      if (data.config.type === 'scene') {
+        this.logger.warn('RfxComService', `Scène reçue sur rfxcom:receiver:create — utiliser rfxcom:scene:create (${data.config.receiverId})`);
+        return;
+      }
       this.receiverManager.addReceiver(data.config);
       this.persistDevicesConfig();
       if (data.config.transmitToHa) this.publishReceiverDiscovery(data.config.receiverId);
@@ -434,6 +567,43 @@ export class RfxComService implements IRfxComService {
       this.eventBus.emitGeneric('rfxcom:receiver:deleted', { receiverId: data.receiverId });
     });
 
+    this.eventBus.onGeneric<{ config: ReceiverSceneConfig }>('rfxcom:scene:create', (data) => {
+      this.sceneManager.addScene(data.config);
+      this.persistDevicesConfig();
+      if (data.config.transmitToHa) this.publishSceneDiscovery(data.config);
+      this.emitScenesList();
+      this.eventBus.emitGeneric('rfxcom:scene:created', { scene: data.config });
+    });
+
+    this.eventBus.onGeneric<{ sceneId: string; config: Partial<ReceiverSceneConfig> }>('rfxcom:scene:update', (data) => {
+      const existing = this.sceneManager.getScene(data.sceneId);
+      if (!existing) {
+        this.logger.warn('RfxComService', `Scène inconnue pour mise à jour: ${data.sceneId}`);
+        return;
+      }
+      const updated = { ...existing, ...data.config } as ReceiverSceneConfig;
+      this.sceneManager.addScene(updated);
+      this.persistDevicesConfig();
+      if (updated.transmitToHa) this.publishSceneDiscovery(updated);
+      this.emitScenesList();
+      this.eventBus.emitGeneric('rfxcom:scene:updated', { scene: updated });
+    });
+
+    this.eventBus.onGeneric<{ sceneId: string }>('rfxcom:scene:delete', (data) => {
+      this.sceneManager.removeScene(data.sceneId);
+      this.persistDevicesConfig();
+      this.emitScenesList();
+      this.eventBus.emitGeneric('rfxcom:scene:deleted', { sceneId: data.sceneId });
+    });
+
+    this.eventBus.onGeneric<{ sceneId: string }>('rfxcom:scene:execute', (data) => {
+      void this.executeScene(data.sceneId);
+    });
+
+    this.eventBus.onGeneric<{ sceneId: string }>('rfxcom:scene:cancel', (data) => {
+      this.cancelledScenes.add(data.sceneId);
+    });
+
     this.eventBus.onGeneric('rfxcom:config:get', () => {
       this.eventBus.emitGeneric('rfxcom:config:get:response', this.config);
     });
@@ -446,11 +616,14 @@ export class RfxComService implements IRfxComService {
     });
   }
 
-  /** Sauvegarde l'état courant des devices/récepteurs dans config-rfxcom-devices-v1.0.yaml. */
+  /** Sauvegarde l'état courant des devices/récepteurs/scènes dans config-rfxcom-devices-v1.0.yaml. */
   private persistDevicesConfig(): void {
     const receivers: Record<string, ReceiverConfigEntry> = {};
     for (const receiver of this.receiverManager.getAllReceivers()) {
       receivers[receiver.config.receiverId] = receiver.config as ReceiverConfigEntry;
+    }
+    for (const scene of this.sceneManager.getAllScenes()) {
+      receivers[scene.receiverId] = scene as ReceiverConfigEntry;
     }
     const result = this.configFileManager.save({
       rfxcom_devices: this.deviceManager.getConfiguredDevicesRecord(),
