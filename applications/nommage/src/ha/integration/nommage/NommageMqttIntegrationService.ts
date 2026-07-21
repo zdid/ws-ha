@@ -14,7 +14,7 @@
  */
 
 import type { IEventBus, Logger, IAppConfigProvider } from '../../../../../core/src/exports';
-import type { NommageConfig, NommageSourceConfig } from '../../../domain/config-schema';
+import { nommageConfigSchema, type NommageConfig, type NommageSourceConfig } from '../../../domain/config-schema';
 import type { DiscoveryMessage, SourceStatus } from '../../../domain/types';
 import * as mqtt from 'mqtt';
 
@@ -48,7 +48,15 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
     private logger: Logger,
     private configProvider: IAppConfigProvider<NommageConfig>
   ) {
-    this.config = this.configProvider.getAppConfig();
+    this.config = this.loadConfig();
+  }
+
+  /**
+   * Charge la config depuis le provider et applique les valeurs par défaut du schéma (le
+   * provider retourne {} si la section 'nommage' n'existe pas encore dans config.yaml).
+   */
+  private loadConfig(): NommageConfig {
+    return nommageConfigSchema.parse(this.configProvider.getAppConfig());
   }
 
   // ==========================================================================
@@ -56,7 +64,7 @@ export class NommageMqttIntegrationService implements INommageMqttIntegrationSer
   // ==========================================================================
 
   async connect(): Promise<void> {
-    this.config = this.configProvider.getAppConfig();
+    this.config = this.loadConfig();
 
     this.logger.info('NommageMqttIntegrationService',
       `Connexion de ${this.config.sources.length} source(s) MQTT en parallèle...`);

@@ -19,7 +19,7 @@
 
 import type { IEventBus, Logger, IAppConfigProvider } from '../../../core/src/exports';
 import type { INommageMqttIntegrationService } from '../ha/integration/nommage/NommageMqttIntegrationService';
-import type { NommageConfig } from './config-schema';
+import { nommageConfigSchema, type NommageConfig } from './config-schema';
 import type {
   DiscoveryMessage,
   ParsedTaxonomy,
@@ -88,9 +88,18 @@ export class NommageService implements INommageService {
     private configProvider: IAppConfigProvider<NommageConfig>,
     private mqttService: INommageMqttIntegrationService
   ) {
-    this.config = this.configProvider.getAppConfig();
+    this.config = this.loadConfig();
     this.discoveryTopics = this.aggregateDiscoveryTopics();
     this.setupEventListeners();
+  }
+
+  /**
+   * Charge la config depuis le provider et applique les valeurs par défaut du schéma (le
+   * provider retourne {} si la section 'nommage' n'existe pas encore dans config.yaml —
+   * première installation, jamais configuré via l'UI).
+   */
+  private loadConfig(): NommageConfig {
+    return nommageConfigSchema.parse(this.configProvider.getAppConfig());
   }
 
   // ==========================================================================
@@ -485,7 +494,7 @@ export class NommageService implements INommageService {
   private async saveConfig(partialConfig: Partial<NommageConfig>): Promise<void> {
     try {
       await this.configProvider.savePartialConfig(partialConfig as NommageConfig);
-      this.config = this.configProvider.getAppConfig();
+      this.config = this.loadConfig();
       this.discoveryTopics = this.aggregateDiscoveryTopics();
 
       // Reconfigurer toutes les connexions MQTT (déconnexion + reconnexion de toutes les sources)
