@@ -1,0 +1,90 @@
+/**
+ * ReceiverLight — récepteur logique light, avec variateur optionnel (isDimmable).
+ *
+ * Conforme à fonctionnelles-rfxcom_specs_v5.6.md §16.3/§14.4 et recepteurs-emetteurs-rfxcom_specs_v5.1.md §6.3.
+ * Le niveau RFXCOM natif est 0-15 (converti en 0-15 dans RfxComTransceiver) — ici, tout est en
+ * pourcentage 0-100, converti en brightness HA (0-255) uniquement à la publication d'état.
+ */
+
+import type { EssentialEntityData, HaMqttStateMessage } from '../../../../core/src/exports';
+import type { EmitterAction, ReceiverLightConfig } from '../types';
+import type { IReceiverModule, ReceiverCommandResult } from './BaseReceiver';
+import { extractTaxonomy, buildAttributsTaxonomie } from '../taxonomy';
+
+export class ReceiverLight implements IReceiverModule {
+  private on = false;
+  private level = 0; // 0-100%, pertinent seulement si isDimmable
+
+  constructor(public readonly config: ReceiverLightConfig) {
+    this.level = config.defaultLevel ?? 100;
+  }
+
+  /** `value` en pourcentage 0-100 (converti depuis brightness HA 0-255 par l'appelant). */
+  translateHaCommand(command: string, value?: number): ReceiverCommandResult | null {
+    if (!this.config.isDimmable) {
+      switch (command) {
+        case 'turn_on': return { action: 'on' };
+        case 'turn_off': return { action: 'off' };
+        case 'toggle': return { action: this.on ? 'off' : 'on' };
+        default: return null;
+      }
+    }
+
+    switch (command) {
+      case 'turn_on':
+        return { action: 'on', value: this.level || this.config.defaultLevel || 100 };
+      case 'turn_off':
+        return { action: 'off' };
+      case 'toggle':
+        return this.on ? { action: 'off' } : { action: 'on', value: this.level || 100 };
+      case 'set_level':
+        return { action: 'set_level', value: value ?? this.level };
+      default:
+        return null;
+    }
+  }
+
+  applyEmitterCommand(action: EmitterAction, value?: number): void {
+    if (action === 'toggle') {
+      this.on = !this.on;
+    } else if (action === 'on') {
+      this.on = true;
+      if (value !== undefined) this.level = value;
+    } else if (action === 'off') {
+      this.on = false;
+    } else if (action === 'set_level') {
+      this.on = (value ?? 0) > 0;
+      if (value !== undefined) this.level = value;
+    }
+  }
+
+  getState(): HaMqttStateMessage {
+    if (!this.config.isDimmable) {
+      return { state: this.on ? 'ON' : 'OFF' };
+    }
+    return {
+      state: this.on ? 'ON' : 'OFF',
+      attributes: { brightness: Math.round((this.level / 100) * 255) }
+    };
+  }
+
+  getDiscoveryEssential(): { component: string; essential: EssentialEntityData } {
+    const taxonomy = extractTaxonomy(this.config.name);
+    return {
+      component: 'light',
+      essential: {
+        name: taxonomy.rawQuoi,
+        commandEnabled: true,
+        payloadOn: 'ON',
+        payloadOff: 'OFF',
+        device: {
+          identifiers: [this.config.receiverId],
+          name: taxonomy.rawQuoi,
+          manufacturer: 'RFXCOM',
+          model: this.config.isDimmable ? 'ReceiverLight (variateur)' : 'ReceiverLight'
+        },
+        extra: { attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
+      }
+    };
+  }
+}

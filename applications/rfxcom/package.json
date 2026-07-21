@@ -1,0 +1,22 @@
+{
+  "name": "rfxcom",
+  "version": "1.0.0",
+  "description": "Intégration RFXCOM (RF433) pour Home Assistant via MQTT Discovery",
+  "main": "dist/domain/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "rfxcom": "^2.6.2",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
