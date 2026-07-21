@@ -110,13 +110,28 @@ export class PresentationServer {
     this.app.use('/styles', express.static(path.join(coreRoot, 'dist/presentation/ui/styles')));
     this.app.use('/styles', express.static(path.join(coreRoot, 'src/presentation/ui/styles')));
     
-    // Servir le reste des applications
-    this.app.use('/applications', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'dist/applications')));
-    this.app.use('/applications', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'src/applications')));
-    
-    // Servir les pages spécifiques des applications sous leur propre chemin (ex: /nommage/*)
-    this.app.use('/nommage', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'src/applications/nommage/presentation')));
-    this.app.use('/nommage', express.static(path.join(process.env.PROJECT_ROOT || this.projectRoot, 'dist/applications/nommage/presentation')));
+    // Servir les assets des applications : /applications/{appId}/* correspond à
+    // applications/{appId}/dist/* (prioritaire) puis applications/{appId}/src/* (fallback dev).
+    // Chaque application est autonome avec son propre dist/src (voir CLAUDE.md). Le segment
+    // "presentation/" fait partie du chemin demandé lui-même (ex: /applications/nommage/presentation/
+    // index.html), pas de la racine de mapping — conforme à ModuleContainer.ts et presentation_specs
+    // §4.3. Remplace l'ancien mapping vers un inexistant dist/applications racine et l'ancien
+    // raccourci /nommage codé en dur avec un chemin src/applications/nommage/... qui n'existe plus.
+    this.app.use('/applications/:appId', (req: Request, res: Response, next: NextFunction) => {
+      const fs = require('fs');
+      if (!req.params.appId) return next();
+      const appsRoot = path.join(process.env.PROJECT_ROOT || this.projectRoot, 'applications', req.params.appId);
+      const distPath = path.join(appsRoot, 'dist', req.path);
+      const srcPath = path.join(appsRoot, 'src', req.path);
+
+      if (fs.existsSync(distPath) && fs.statSync(distPath).isFile()) {
+        return res.sendFile(distPath);
+      }
+      if (fs.existsSync(srcPath) && fs.statSync(srcPath).isFile()) {
+        return res.sendFile(srcPath);
+      }
+      next();
+    });
 
     // CORS - À configurer pour la production
     this.app.use((req: Request, res: Response, next: NextFunction) => {
