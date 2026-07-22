@@ -1,31 +1,13 @@
-import type { ApplicationModule, ModuleUiMetadata } from '../../../core/dist/types/config';
+import type { ApplicationModule } from '../../../core/dist/types/config';
 import { ARBREOUQUOI_SOCKET_EVENTS } from './socket-events';
 
-// Métadonnées UI pour la génération automatique
-export const ARBREOUQUOI_UI_METADATA: ModuleUiMetadata = {
-  title: 'Arbre Ou Quoi - Visualisation du Référentiel HA',
-  description: 'Visualise la hiérarchie des entités Home Assistant organisées par OU → QUOI → Entités',
-  icon: '🌳',
-  fields: [
-    {
-      name: 'filterByArea',
-      label: 'Filtrer par OU',
-      type: 'select',
-      options: []
-    },
-    {
-      name: 'filterByQuoi',
-      label: 'Filtrer par type (QUOI)',
-      type: 'select',
-      options: []
-    },
-    {
-      name: 'showOnlyActive',
-      label: 'Afficher uniquement les entités actives',
-      type: 'boolean'
-    }
-  ]
-};
+// ⚠️ ARBREOUQUOI n'a aucun réglage persisté : filterByArea/filterByQuoi/showOnlyActive étaient
+// déclarés ici comme configUi (donc affichés à tort sous "Paramètres Techniques"), alors que ce
+// sont des filtres de vue transitoires. showOnlyActive est désormais un vrai contrôle dans la
+// barre d'outils de la fenêtre ARBREOUQUOI elle-même (voir presentation/index.html + ts/app.ts),
+// câblé sur l'événement arbreouquoi:filter:set déjà géré côté serveur. filterByArea/filterByQuoi
+// n'ont pas d'équivalent backend réel (FilterOptions ne porte que showOnlyActive/sortBy/sortOrder)
+// et ne sont donc pas repris — les construire serait une nouvelle fonctionnalité, pas un correctif.
 
 // Déclaration du module
 export const ARBREOUQUOI_APP: ApplicationModule = {
@@ -38,7 +20,6 @@ export const ARBREOUQUOI_APP: ApplicationModule = {
   requiredMqtt: false,
   requiredHaWs: true,
   socketEvents: ARBREOUQUOI_SOCKET_EVENTS,
-  configUi: ARBREOUQUOI_UI_METADATA,
   configSection: 'arbreouquoi'
 };
 

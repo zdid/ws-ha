@@ -8,7 +8,10 @@
 import { z } from 'zod';
 
 const evoo7MqttConfigSchema = z.object({
-  host: z.string().default('localhost'),
+  // Défaut = adresse réelle du broker EVOO7 de ce déploiement (vue dans l'onglet Paramétrage
+  // d'EVOO7 lui-même) — pas un placeholder générique, même convention que le port série par
+  // défaut de RFXCOM (/dev/ttyUSB0, également l'appareil réel de ce déploiement).
+  host: z.string().default('192.168.1.53'),
   port: z.number().min(1).max(65535).default(1883),
   username: z.string().optional(),
   password: z.string().optional(),
@@ -46,7 +49,7 @@ export const DEFAULT_EVOO7_CONFIG: Evoo7Config = {
   enabled: true,
   bridgeInstance: 'evoo7_bridge_0001',
   mqtt: {
-    host: 'localhost',
+    host: '192.168.1.53',
     port: 1883,
     clientId: 'evoo7-app',
     keepalive: 60,

@@ -81,6 +81,11 @@ html, body {
 .btn-secondary { background-color: var(--secondary-color); color: white; }
 .btn-secondary:hover { background-color: #7f8c8d; }
 
+.filter-toggle {
+  display: flex; align-items: center; gap: var(--spacer-xs);
+  cursor: pointer; font-size: 0.9rem; user-select: none;
+}
+
 .search-box { display: flex; gap: var(--spacer-sm); align-items: center; }
 .search-box input {
   padding: var(--spacer-sm) var(--spacer-md);

@@ -33,23 +33,39 @@ export interface ApplicationMenuConfig {
 export interface ModuleUiMetadata {
   title: string;
   description: string;
-  fields: ConfigField[];
+  // ⭐ Supporte les champs plats OU des groupes (title/description/fields) — miroir de
+  // applications/core/src/types/config.ts, jusqu'ici absent côté navigateur (cause du bug
+  // "undefined undefined" : ModuleManager traitait chaque groupe comme un champ unique).
+  fields: ConfigField[] | ConfigFieldGroup[];
   icon?: string;
+}
+
+/** Groupe de champs de configuration (ex: "MQTT", "Logging") — miroir de core/src/types/config.ts. */
+export interface ConfigFieldGroup {
+  title?: string;
+  description?: string;
+  icon?: string;
+  fields: ConfigField[];
 }
 
 export interface ConfigField {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'boolean' | 'select' | 'password';
+  type: 'text' | 'string' | 'number' | 'boolean' | 'select' | 'password';
   default?: any;
   placeholder?: string;
   required?: boolean;
   min?: number;
   max?: number;
   step?: number;
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: string }[] | string[];
   hint?: string;
   autocomplete?: string;
+}
+
+/** Vrai si l'élément est un groupe de champs plutôt qu'un champ isolé. */
+export function isConfigFieldGroup(item: ConfigField | ConfigFieldGroup): item is ConfigFieldGroup {
+  return 'fields' in item;
 }
 
 export interface LogEntry {

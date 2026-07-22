@@ -189,6 +189,12 @@ function initEventListeners(): void {
     showLoading();
   });
 
+  document.getElementById('filter-active-only')?.addEventListener('change', (e) => {
+    const checked = (e.target as HTMLInputElement).checked;
+    state.filters.showOnlyActive = checked;
+    socket.emit(ARBREOUQUOI_SOCKET_EVENTS.FILTER_SET, { showOnlyActive: checked });
+  });
+
   document.getElementById('expand-all-btn')?.addEventListener('click', () => {
     state.displayConfig.expandAll = true;
     renderTree();

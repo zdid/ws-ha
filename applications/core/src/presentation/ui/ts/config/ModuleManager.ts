@@ -1,4 +1,4 @@
-import { Module, ModuleUiMetadata, ConfigField } from '../types';
+import { Module, ModuleUiMetadata, ConfigField, ConfigFieldGroup, isConfigFieldGroup } from '../types';
 
 /**
  * Manager de modules
@@ -227,20 +227,26 @@ export class ModuleManager {
     
     const config = this.moduleConfigs[moduleId];
     const fields = metadata.fields || [];
-    
+
     let html = `
       <div class="module-config-header">
         <h3>${metadata.icon || ''} ${metadata.title}</h3>
         <p class="section-description">${metadata.description}</p>
       </div>
-      <form class="config-grid module-config-form" onsubmit="return false">
+      <form class="module-config-form" onsubmit="return false">
     `;
-    
-    // Générer les champs
-    fields.forEach(field => {
-      html += this.generateFieldHtml(field, config, moduleId);
+
+    // Générer les champs — supporte les champs plats (ConfigField[]) ET les groupes
+    // (ConfigFieldGroup[], ex: nommage/rfxcom/evoo7) : un groupe entier traité comme un champ
+    // unique produisait auparavant une ligne "undefined" (field.name/type inexistants).
+    fields.forEach(item => {
+      if (isConfigFieldGroup(item)) {
+        html += this.generateFieldGroupHtml(item, config, moduleId);
+      } else {
+        html += `<div class="config-grid">${this.generateFieldHtml(item, config, moduleId)}</div>`;
+      }
     });
-    
+
     html += `
       </form>
       <div class="section-actions module-config-actions">
@@ -250,8 +256,22 @@ export class ModuleManager {
         </button>
       </div>
     `;
-    
+
     return html;
+  }
+
+  /**
+   * Génère le HTML pour un groupe de champs (title/description/fields imbriqués).
+   */
+  private generateFieldGroupHtml(group: ConfigFieldGroup, config: ModuleConfig, moduleId: string): string {
+    const fieldsHtml = group.fields.map(field => this.generateFieldHtml(field, config, moduleId)).join('');
+    return `
+      <div class="module-config-group">
+        <h4>${group.icon || ''} ${group.title || ''}</h4>
+        ${group.description ? `<p class="section-description">${group.description}</p>` : ''}
+        <div class="config-grid">${fieldsHtml}</div>
+      </div>
+    `;
   }
   
   /**
@@ -259,9 +279,10 @@ export class ModuleManager {
    */
   private generateFieldHtml(field: ConfigField, config: ModuleConfig, moduleId: string): string {
     const fieldName = field.name;
-    const value = config[fieldName] !== undefined ? config[fieldName] : field.default || '';
-    const id = `field-${moduleId}-${fieldName}`;
-    
+    const resolved = this.getNestedValue(config, fieldName);
+    const value = resolved !== undefined ? resolved : field.default ?? '';
+    const id = `field-${moduleId}-${fieldName.replace(/\./g, '-')}`;
+
     let html = `
       <div class="form-group" id="${id}">
         <label for="${id}">
@@ -269,13 +290,14 @@ export class ModuleManager {
           ${field.required ? '<span class="required-badge">Requis</span>' : ''}
         </label>
     `;
-    
+
     // Générer l'input en fonction du type
     switch (field.type) {
       case 'text':
+      case 'string':
         html += `
-          <input 
-            type="text" 
+          <input
+            type="text"
             id="${id}"
             value="${value || ''}"
             data-module="${moduleId}"
@@ -285,7 +307,7 @@ export class ModuleManager {
           ${field.hint ? '<div class="field-hint">' + field.hint + '</div>' : ''}
         `;
         break;
-        
+
       case 'number':
         html += `
           <input 
@@ -318,14 +340,17 @@ export class ModuleManager {
         
       case 'select':
         html += `
-          <select 
+          <select
             id="${id}"
             data-module="${moduleId}"
             data-field="${fieldName}"
           >
-            ${field.options?.map(opt => 
-              `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`
-            ).join('') || ''}
+            ${field.options?.map(opt => {
+              // options accepte soit string[] (ex: ['debug','info',...]) soit {value,label}[]
+              const optValue = typeof opt === 'string' ? opt : opt.value;
+              const optLabel = typeof opt === 'string' ? opt : opt.label;
+              return `<option value="${optValue}" ${value === optValue ? 'selected' : ''}>${optLabel}</option>`;
+            }).join('') || ''}
           </select>
           ${field.hint ? '<div class="field-hint">' + field.hint + '</div>' : ''}
         `;
@@ -350,7 +375,26 @@ export class ModuleManager {
     html += '</div>';
     return html;
   }
-  
+
+  /**
+   * Résout un chemin de champ (ex: "mqtt.host") en valeur imbriquée dans l'objet config
+   * (ex: config.mqtt.host) — accès plat config[fieldName] auparavant, qui ne trouvait jamais
+   * rien pour les noms de champs pointés utilisés par nommage/rfxcom/evoo7 (mirroring
+   * ConfigForm.getFieldValue, applications/core/src/presentation/ui/ts/components/ConfigForm.ts).
+   */
+  private getNestedValue(config: ModuleConfig, fieldPath: string): any {
+    const parts = fieldPath.split('.');
+    let current: any = config;
+    for (const part of parts) {
+      if (current && current[part] !== undefined) {
+        current = current[part];
+      } else {
+        return undefined;
+      }
+    }
+    return current;
+  }
+
   /**
    * Retourne la classe CSS pour le statut d'un module
    */

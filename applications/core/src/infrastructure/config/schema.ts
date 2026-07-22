@@ -61,7 +61,12 @@ export const configSchema = z.object({
   web: webSchema,
   logging: loggingSchema,
   // Les sections spécifiques aux modules seront ajoutées dynamiquement
-});
+}).passthrough();
+// ⚠️ .passthrough() est indispensable : sans lui, Zod strippe silencieusement toute clé de
+// premier niveau non déclarée ci-dessus (nommage/rfxcom/arbreouquoi/evoo7/...) à chaque
+// ConfigLoader.load() — la config des modules, pourtant bien écrite sur disque par
+// ConfigWriter, disparaissait alors systématiquement de ConfigService.getConfig() dès le
+// redémarrage suivant (bug réel constaté : toute config module sauvegardée était perdue).
 
 // =============================================================================
 // Types TypeScript (générés à partir du schéma)

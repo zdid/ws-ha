@@ -457,9 +457,11 @@ export class ConfigForm extends HTMLElement {
             data-field="${field.name}"
             class="${statusClass}"
           >
-            ${field.options?.map(opt => `
-              <option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>
-            `).join('') || ''}
+            ${field.options?.map(opt => {
+              const optValue = typeof opt === 'string' ? opt : opt.value;
+              const optLabel = typeof opt === 'string' ? opt : opt.label;
+              return `<option value="${optValue}" ${value === optValue ? 'selected' : ''}>${optLabel}</option>`;
+            }).join('') || ''}
           </select>
           ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
           ${isInvalid ? `<div class="field-feedback">${this.escapeHtml(this.validationErrors[field.name])}</div>` : ''}
