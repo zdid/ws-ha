@@ -329,9 +329,11 @@ export class HaWsClient {
    */
   private handleTransportConnect(): void {
     this.logger.info('ha:ws', 'Connexion WebSocket établie');
-    
-    // Authentifier immédiatement
-    this.authenticate();
+    // ⚠️ Ne PAS authentifier ici : le protocole WS de Home Assistant impose que le client
+    // attende le message serveur `auth_required` avant d'envoyer `auth` (voir le handler
+    // case 'auth_required' ci-dessous). Authentifier immédiatement à la connexion envoyait le
+    // jeton hors séquence protocolaire, en plus de l'envoi correct déclenché par auth_required
+    // — deux authentifications par connexion, log "Authentification en cours..." dupliqué.
   }
 
   /**
