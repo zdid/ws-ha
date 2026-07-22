@@ -2,7 +2,7 @@
 // Types partagés pour l'application UI
 // ======================================================================
 
-import { Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 
 export interface Module {
   id: string;
@@ -75,4 +75,4 @@ export interface LogEntry {
   message: string;
 }
 
-export { Socket };
+export type { Socket };
