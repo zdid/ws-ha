@@ -36,12 +36,14 @@ export class SocketService {
       this._isConnected = true;
       console.log('[SocketService] Connecté au serveur');
       window.dispatchEvent(new CustomEvent('socket:connected'));
+      if (window.Alpine) window.Alpine.store('ws').connected = true;
     });
-    
+
     this.socket.on('disconnect', () => {
       this._isConnected = false;
       console.log('[SocketService] Déconnecté du serveur');
       window.dispatchEvent(new CustomEvent('socket:disconnected'));
+      if (window.Alpine) window.Alpine.store('ws').connected = false;
     });
     
     this.socket.on('connect_error', (error: Error) => {

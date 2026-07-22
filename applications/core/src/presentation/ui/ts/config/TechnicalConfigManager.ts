@@ -320,6 +320,7 @@ export class TechnicalConfigManager {
     window.dispatchEvent(new CustomEvent('ha:status:changed', {
       detail: { isConnected: this.isHaConnected }
     }));
+    if (window.Alpine) window.Alpine.store('ws').connected = this.isHaConnected;
   }
   
   // ======================================================================

@@ -6,6 +6,7 @@
   <meta name="description" content="HA WS/MQTT Application - Configuration Interface">
   <title>HA/MQTT</title>
   <link rel="icon" type="image/png" href="/images/maisonsouriante.png">
+  <!-- Derniere modification: 2026-07-22 - Ajout du chargement d'Alpine.js (vendorise + bootstrap), avant app.js -->
   
   <!-- Styles - Chargés depuis des fichiers externes -->
   <link rel="stylesheet" href="/styles/general.css">
@@ -61,8 +62,13 @@
   
   <!-- Socket.io - Chargé en premier depuis CDN -->
   <script defer src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  
-  <!-- Bundle TypeScript compilé - Chargé après Socket.io -->
+
+  <!-- Alpine.js (vendorisé + bootstrap des stores, voir alpinejs-implementation_specs_v1.0.md).
+       Doit rester une balise <script> classique (pas type="module") chargée avant app.js, pour
+       que window.Alpine existe déjà quand app.js démarre (§3.3 de la spec). -->
+  <script defer src="/vendor/alpine.js"></script>
+
+  <!-- Bundle TypeScript compilé - Chargé après Socket.io et Alpine.js -->
   <script type="module" src="/js/ts/app.js"></script>
 </body>
 </html>

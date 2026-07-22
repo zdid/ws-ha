@@ -237,7 +237,6 @@ const createTemplate = (): HTMLTemplateElement => {
 
 export class ConfigForm extends HTMLElement {
   private config: any = {};
-  private saveInProgress: boolean = false;
   private validationErrors: Record<string, string> = {};
   private moduleId: string | null = null;
   private moduleConfigFormHtml: string = '';
@@ -274,10 +273,16 @@ export class ConfigForm extends HTMLElement {
   }
   
   private setupEventListeners(): void {
-    // Écouter les mises à jour de configuration
+    // Écouter les mises à jour de configuration (sections statiques ha/mqtt/web/logging
+    // uniquement). En mode module, ne pas re-render : buildFormSections() réinjecterait
+    // moduleConfigFormHtml — figé au moment de l'ouverture de l'onglet — et écraserait
+    // l'édition en cours ou tout juste sauvegardée. Le module a son propre canal de
+    // rafraîchissement (module:config:loaded, voir plus bas).
     window.addEventListener('config:updated', (e: CustomEvent) => {
       this.config = { ...e.detail.config };
-      this.render();
+      if (!this.moduleId) {
+        this.render();
+      }
     });
     
     // Écouter les validations
@@ -295,6 +300,19 @@ export class ConfigForm extends HTMLElement {
       console.log('[ConfigForm] Événement module:config:show reçu:', customEvent.detail);
       this.moduleId = customEvent.detail?.moduleId || null;
       this.loadModuleConfigForm();
+    }) as EventListener);
+
+    // Régénérer le formulaire quand la vraie config du module arrive (premier chargement
+    // asynchrone, ou rafraîchissement après une sauvegarde) — sans ça, le formulaire reste
+    // figé sur les valeurs par défaut affichées lors du premier rendu synchrone.
+    window.addEventListener('module:config:loaded', ((e: Event) => {
+      const customEvent = e as CustomEvent;
+      const moduleId = customEvent.detail?.moduleId;
+      if (moduleId && moduleId === this.moduleId && window.app?.moduleManager) {
+        console.log('[ConfigForm] Configuration réelle reçue pour module', moduleId, '- régénération du formulaire');
+        this.moduleConfigFormHtml = window.app.moduleManager.generateModuleConfigForm(moduleId);
+        this.render();
+      }
     }) as EventListener);
     
     // Écouter les changements de section pour réinitialiser le mode module
@@ -342,9 +360,14 @@ export class ConfigForm extends HTMLElement {
   private render(): void {
     const container = this.shadowRoot!.getElementById('config-form');
     if (!container) return;
-    
+
     container.innerHTML = this.buildFormSections();
     this.setupFormListeners();
+    // render() est rappelé bien après le montage initial (config:updated, changement de section,
+    // module:config:show/loaded...) — chaque appel remplace le contenu du Shadow DOM, ce qui exige
+    // un nouveau scan Alpine à chaque fois (alpinejs-implementation_specs_v1.0.md §3.4), pas
+    // seulement au premier rendu.
+    window.Alpine?.initTree(container);
   }
   
   private get activeSection(): string {
@@ -491,40 +514,52 @@ export class ConfigForm extends HTMLElement {
   
   private buildSaveButton(): string {
     return `
-      <div class="section-actions">
-        <button 
+      <div class="section-actions" x-data="{ saving: false }">
+        <button
           type="button"
-          id="save-btn"
           class="btn btn-primary"
-          ${this.saveInProgress ? 'disabled' : ''}
+          :disabled="saving"
+          @click="saving = true; window.app.configManager.saveConfig(); setTimeout(() => saving = false, 1000)"
         >
-          ${this.saveInProgress ? 'Sauvegarde en cours...' : 'Sauvegarder'}
+          <span x-text="saving ? 'Sauvegarde en cours...' : 'Sauvegarder'"></span>
         </button>
       </div>
     `;
   }
 
   private setupFormListeners(): void {
-    const saveBtn = this.shadowRoot!.getElementById('save-btn');
-    saveBtn?.addEventListener('click', () => {
-      this.saveConfig();
-    });
-    
+    // Le bouton de sauvegarde (état saving/disabled) est géré déclarativement par Alpine
+    // (x-data/@click dans buildSaveButton()) — plus besoin d'écouteur ni de re-requête DOM ici.
+
     // Écouter les changements sur tous les inputs
     this.shadowRoot!.querySelectorAll('input, select').forEach(input => {
       const field = input.getAttribute('data-field');
       const module = input.getAttribute('data-module');
-      
-      if (field) {
-        // Si le champ appartient à un module, préfixer avec le module
-        const fieldPath = module ? `${module}.${field}` : field;
-        
+
+      if (!field) return;
+
+      if (module) {
+        // Champ d'un module : écrire directement dans ModuleManager.moduleConfigs,
+        // jamais touché par config:current — évite que l'édition en cours soit
+        // écrasée par une resynchronisation serveur avant que l'utilisateur sauvegarde.
+        const moduleManager = window.app?.moduleManager;
+        if (!moduleManager) return;
+
+        if (input.tagName === 'SELECT') {
+          input.addEventListener('change', (e) => moduleManager.setSelectField(e, module, field));
+        } else if ((input as HTMLInputElement).type === 'checkbox') {
+          input.addEventListener('change', () => moduleManager.toggleModuleField(module, field));
+        } else {
+          input.addEventListener('input', (e) => moduleManager.setModuleField(e, module, field));
+          input.addEventListener('change', (e) => moduleManager.setModuleField(e, module, field));
+        }
+      } else {
         input.addEventListener('input', (e) => {
-          this.handleFieldChange(e, fieldPath);
+          this.handleFieldChange(e, field);
         });
-        
+
         input.addEventListener('change', (e) => {
-          this.handleFieldChange(e, fieldPath);
+          this.handleFieldChange(e, field);
         });
       }
     });
@@ -570,32 +605,6 @@ export class ConfigForm extends HTMLElement {
       partialCurrent[parts[parts.length - 1]] = value;
       window.app.configManager.updateConfig(partialConfig, true);
     }
-  }
-  
-  private saveConfig(): void {
-    if (this.saveInProgress) return;
-    
-    const currentSection = this.getAttribute('data-section') || 'inconnu';
-    console.log('[ConfigForm] Sauvegarde demandée - section:', currentSection);
-    console.log('[ConfigForm] Config à sauvegarder:', JSON.stringify(this.config, null, 2));
-    
-    this.saveInProgress = true;
-    const saveBtn = this.shadowRoot!.getElementById('save-btn');
-    if (saveBtn) {
-      saveBtn.setAttribute('disabled', 'true');
-      saveBtn.textContent = 'Sauvegarde en cours...';
-    }
-    
-    window.app.configManager.saveConfig();
-    
-    // Reset après un délai
-    setTimeout(() => {
-      this.saveInProgress = false;
-      if (saveBtn) {
-        saveBtn.removeAttribute('disabled');
-        saveBtn.textContent = 'Sauvegarder';
-      }
-    }, 1000);
   }
   
   private getFieldValue(fieldPath: string): any {

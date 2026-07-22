@@ -112,6 +112,10 @@ export class ModuleContainer extends HTMLElement {
         container.innerHTML = `<div class="module-content">${this.moduleContents[moduleId]}</div>`;
         console.log(`[ModuleContainer] Contenu réaffiché pour ${moduleId}`);
         console.log(`[ModuleContainer] Conteneur innerHTML length:`, container.innerHTML.length);
+        // Le scan Alpine (initial + MutationObserver) ne traverse jamais une frontière Shadow
+        // DOM (alpinejs-implementation_specs_v1.0.md §3.4) — sans cet appel, le contenu
+        // réaffiché resterait inerte (aucune directive Alpine évaluée).
+        window.Alpine?.initTree(container);
         // Notifier que le module est chargé (pour les eventuels listeners)
         window.dispatchEvent(new CustomEvent('module:content:loaded', {
           detail: { moduleId }
@@ -148,10 +152,17 @@ export class ModuleContainer extends HTMLElement {
         console.log(`[ModuleContainer] Contenu HTML reçu pour ${moduleId}, longueur: ${html.length}`);
         
         container.innerHTML = `<div class="module-content">${html}</div>`;
-        
-        // Le contenu HTML charge lui-même ses Web Components via <script>
-        // Pas besoin d'initialisation supplémentaire
-        
+
+        // innerHTML n'exécute jamais les <script> qu'il insère (comportement standard du DOM,
+        // quel que soit le navigateur) — il faut les recréer explicitement pour qu'ils tournent.
+        // Seulement ici, au premier chargement : ne pas rejouer au ré-affichage depuis le cache
+        // (voir plus haut), sous peine de ré-exécuter des customElements.define() déjà appelés.
+        this.executeScripts(container);
+
+        // Même règle que dans la branche de réaffichage ci-dessus (§3.4) : le premier scan
+        // d'Alpine ne traverse pas cette frontière Shadow DOM non plus.
+        window.Alpine?.initTree(container);
+
         this.moduleInited[moduleId] = true;
         console.log(`[ModuleContainer] Module ${moduleId} marqué comme initialisé`);
         
@@ -178,6 +189,21 @@ export class ModuleContainer extends HTMLElement {
     }
   }
   
+  /**
+   * Recrée chaque <script> trouvé dans le conteneur pour forcer son exécution — un <script>
+   * inséré via innerHTML reste inerte, y compris pour type="module" (même règle du DOM).
+   */
+  private executeScripts(container: HTMLElement): void {
+    container.querySelectorAll('script').forEach((oldScript) => {
+      const newScript = document.createElement('script');
+      for (const attr of Array.from(oldScript.attributes)) {
+        newScript.setAttribute(attr.name, attr.value);
+      }
+      newScript.textContent = oldScript.textContent;
+      oldScript.replaceWith(newScript);
+    });
+  }
+
   /**
    * Retourne le contenu d'un module (pour accès externe)
    */

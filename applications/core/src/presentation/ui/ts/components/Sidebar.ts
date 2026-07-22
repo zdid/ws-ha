@@ -274,14 +274,16 @@ const createTemplate = (): HTMLTemplateElement => {
         <p>Configuration Interface</p>
       </div>
       
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" x-data="{ openSection: null }">
         <!-- PARAMETRES TECHNIQUES - Accordéon -->
         <div class="nav-section">
-          <div class="nav-section-header collapsed" id="params-header">
+          <div class="nav-section-header" id="params-header"
+               :class="{ expanded: openSection === 'params', collapsed: openSection !== 'params' }"
+               @click="openSection = (openSection === 'params' ? null : 'params')">
             <span class="nav-section-title">Paramètres Techniques</span>
-            <span class="toggle-icon">▲</span>
+            <span class="toggle-icon" x-text="openSection === 'params' ? '▼' : '▲'">▲</span>
           </div>
-          <div class="nav-section-collapse" id="params-collapse">
+          <div class="nav-section-collapse" id="params-collapse" :class="{ visible: openSection === 'params' }">
             <ul class="nav-section-list">
               <li class="nav-item">
                 <a href="#ha" class="nav-link" data-section="ha">
@@ -318,23 +320,25 @@ const createTemplate = (): HTMLTemplateElement => {
             </ul>
           </div>
         </div>
-        
+
         <!-- MODULES/APPLICATIONS -->
         <div class="nav-section">
-          <div class="nav-section-header collapsed">
+          <div class="nav-section-header"
+               :class="{ expanded: openSection === 'applications', collapsed: openSection !== 'applications' }"
+               @click="openSection = (openSection === 'applications' ? null : 'applications')">
             <span class="nav-section-title">Applications</span>
-            <span class="toggle-icon">▲</span>
+            <span class="toggle-icon" x-text="openSection === 'applications' ? '▼' : '▲'">▲</span>
           </div>
-          <div class="nav-section-collapse">
+          <div class="nav-section-collapse" :class="{ visible: openSection === 'applications' }">
             <ul class="nav-section-list" id="modules-container">
               <!-- Les modules seront insérés ici dynamiquement -->
             </ul>
           </div>
         </div>
       </nav>
-      
+
       <div class="sidebar-footer">
-        <div class="status-indicator" id="status-indicator">
+        <div class="status-indicator" id="status-indicator" :class="{ connected: $store.ws.connected }">
           <span class="status-dot"></span>
           <span>Web-Services</span>
         </div>
@@ -350,22 +354,25 @@ const createTemplate = (): HTMLTemplateElement => {
 export class Sidebar extends HTMLElement {
   private modules: Module[] = [];
   private activeModule: string | null = null;
-  private _isConnected: boolean = false;
   private uptime: number = 0;
   private customMenus: Record<string, ApplicationMenuConfig> = {};
-  
+
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    
+
     const template = createTemplate();
     this.shadowRoot!.appendChild(template.content.cloneNode(true));
   }
-  
+
   connectedCallback() {
     this.setupEventListeners();
     this.render();
     this.setupMenuClicks();
+    // Le template est cloné dans le constructeur (pas injecté après coup) : le scan initial
+    // d'Alpine ne traverse pas cette frontière Shadow DOM (alpinejs-implementation_specs_v1.0.md
+    // §3.4), il faut donc l'appeler explicitement une fois le contenu en place.
+    window.Alpine?.initTree(this.shadowRoot!);
   }
   
   private setupEventListeners(): void {
@@ -417,24 +424,10 @@ export class Sidebar extends HTMLElement {
     // Installer l'écouteur
     setupSocketMenuListener();
 
-    
-    // Écouter le statut de connexion HA
-    window.addEventListener('ha:status:changed', (e: CustomEvent) => {
-      this._isConnected = e.detail.isConnected;
-      this.updateStatusIndicator();
-    });
-    
-    // Écouter la connexion socket
-    window.addEventListener('socket:connected', () => {
-      this._isConnected = true;
-      this.updateStatusIndicator(true);
-    });
-    
-    window.addEventListener('socket:disconnected', () => {
-      this._isConnected = false;
-      this.updateStatusIndicator(false);
-    });
-    
+    // L'indicateur de connexion (ha:status:changed / socket:connected / socket:disconnected)
+    // est désormais piloté par $store.ws.connected directement dans le template — voir
+    // SocketService.ts et TechnicalConfigManager.ts, qui écrivent dans ce store.
+
     // Écouter l'uptime
     window.addEventListener('app:started', (e: CustomEvent) => {
       this.uptime = e.detail.uptime || Date.now();
@@ -453,19 +446,18 @@ export class Sidebar extends HTMLElement {
   private setupMenuClicks(): void {
     // Masquer toutes les sections au départ
     this.hideAllContentSections();
-    
-    // Gestion de l'accordéon pour les sections
+
+    // L'ouverture/repliage visuel de l'accordéon (expanded/collapsed, icône, panneau visible)
+    // est géré déclarativement par Alpine (x-data/@click dans le template, voir createTemplate).
+    // Un clic sur un header reste un "changement de menu" côté contenu principal : effacer la
+    // zone de contenu affichée, quel que soit le sens du clic (ouverture ou fermeture).
     const headers = this.shadowRoot!.querySelectorAll('.nav-section-header');
-    console.log('[Sidebar] setupMenuClicks - Nombre de headers trouvés:', headers.length);
-    headers.forEach((header, index) => {
-      console.log(`[Sidebar] Header ${index}:`, header.id || header.textContent?.trim());
-      header.addEventListener('click', (e) => {
-        e.preventDefault();
-        console.log('[Sidebar] Clic sur header accordéon:', header.id || header.textContent?.trim(), header.classList);
-        this.toggleSection(header as HTMLElement);
+    headers.forEach(header => {
+      header.addEventListener('click', () => {
+        this.hideAllContentSections();
       });
     });
-    
+
     // Écouter les clics sur les liens de navigation
     this.shadowRoot!.querySelectorAll('.nav-link[data-section]').forEach(link => {
       link.addEventListener('click', (e) => {
@@ -476,75 +468,7 @@ export class Sidebar extends HTMLElement {
       });
     });
   }
-  
-  private toggleSection(header: HTMLElement): void {
-    console.log('[Sidebar] toggleSection appelé pour header:', header.id || header.classList);
-    
-    // Dès qu'un clic est fait sur un menu principal, effacer la zone de données
-    console.log('[Sidebar] toggleSection - Effacement de la zone de données');
-    this.hideAllContentSections();
-    
-    // Déterminer le nouvel état AVANT de toggler
-    const willBeExpanded = !header.classList.contains('expanded');
-    
-    // Si on va déplier ce menu, replier tous les autres (comportement accordéon)
-    if (willBeExpanded) {
-      this.collapseAllOtherSections(header);
-    }
-    
-    // Trouver le collapseDiv
-    const navSection = header.closest('.nav-section');
-    const collapseDiv = navSection?.querySelector('.nav-section-collapse') as HTMLElement;
-    
-    // Basculer l'état
-    header.classList.toggle('expanded');
-    header.classList.toggle('collapsed');
-    
-    // Gérer l'affichage via la classe CSS .visible
-    if (collapseDiv) {
-      collapseDiv.classList.toggle('visible', header.classList.contains('expanded'));
-      console.log('[Sidebar] toggleSection - collapseDiv.classList.toggle visible:', header.classList.contains('expanded'));
-    } else {
-      console.log('[Sidebar] ERROR: collapseDiv non trouvé !');
-    }
-    
-    // Mettre à jour l'icône
-    const toggleIcon = header.querySelector('.toggle-icon');
-    if (toggleIcon) {
-      toggleIcon.textContent = header.classList.contains('expanded') ? '▼' : '▲';
-    }
-    
-    console.log('[Sidebar] toggleSection - header expanded:', header.classList.contains('expanded'));
-    console.log('[Sidebar] toggleSection - header collapsed:', header.classList.contains('collapsed'));
-  }
 
-  private collapseAllOtherSections(currentHeader: HTMLElement): void {
-    console.log('[Sidebar] collapseAllOtherSections - Repliage de tous les autres menus');
-    const allHeaders = this.shadowRoot!.querySelectorAll('.nav-section-header');
-    allHeaders.forEach(header => {
-      if (header !== currentHeader) {
-        // Replier le header
-        header.classList.remove('expanded');
-        header.classList.add('collapsed');
-        
-        // Replier le collapseDiv
-        const navSection = header.closest('.nav-section');
-        const collapseDiv = navSection?.querySelector('.nav-section-collapse') as HTMLElement;
-        if (collapseDiv) {
-          collapseDiv.classList.remove('visible');
-        }
-        
-        // Mettre à jour l'icône
-        const toggleIcon = header.querySelector('.toggle-icon');
-        if (toggleIcon) {
-          toggleIcon.textContent = '▲';
-        }
-        
-        console.log('[Sidebar] collapseAllOtherSections - Menu replié:', header.id || header.textContent?.trim());
-      }
-    });
-  }
-  
   private hideAllContentSections(): void {
     // Méthode 1 : via main.main-content
     const mainContent = document.querySelector('main.main-content');
@@ -654,7 +578,6 @@ export class Sidebar extends HTMLElement {
   private render(): void {
     this.renderModules();
     this.renderAppParamsSubmenu();
-    this.updateStatusIndicator();
     this.updateUptime();
   }
   
@@ -803,18 +726,29 @@ export class Sidebar extends HTMLElement {
       
       const link = this.shadowRoot!.querySelector(mainSelector);
       link?.addEventListener('click', (e) => {
+        // Une entrée pointant vers un vrai fichier servi par le serveur (/applications/:appId/...)
+        // navigue réellement vers cette page dédiée. Les autres (routes internes à la SPA, ex:
+        // sections statiques #ha/#mqtt) restent gérées par showModuleConfig().
+        if (entry?.path && entry.path.startsWith('/applications/')) {
+          console.log(`[Sidebar] Navigation vers la page dédiée: ${module.id} (${entry.path})`);
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         console.log(`[Sidebar] Clic sur sous-menu Paramètres Techniques: ${module.id} (${module.name})`);
         this.showModuleConfig(module.id);
       });
-      
+
       // Ajouter les écouteurs pour les sous-pages
       if (menuConfig?.pages) {
         menuConfig.pages.forEach(page => {
           if (page.id !== 'dashboard' && page.path && page.path !== entry?.path) {
             const pageLink = this.shadowRoot!.querySelector(`a[href="${page.path}"]`);
             pageLink?.addEventListener('click', (e) => {
+              if (page.path.startsWith('/applications/')) {
+                console.log(`[Sidebar] Navigation vers la page dédiée: ${page.id} (${page.path})`);
+                return;
+              }
               e.preventDefault();
               e.stopPropagation();
               console.log(`[Sidebar] Clic sur page de menu: ${page.id} (${page.label})`);
@@ -901,21 +835,6 @@ export class Sidebar extends HTMLElement {
       error: '✘'
     };
     return icons[status] || '';
-  }
-  
-  private updateStatusIndicator(connected?: boolean): void {
-    const indicator = this.shadowRoot!.getElementById('status-indicator');
-    if (connected !== undefined) {
-      this._isConnected = connected;
-    }
-    
-    if (indicator) {
-      if (this._isConnected) {
-        indicator.classList.add('connected');
-      } else {
-        indicator.classList.remove('connected');
-      }
-    }
   }
   
   private updateUptime(): void {
