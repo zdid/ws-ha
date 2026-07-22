@@ -77,5 +77,4 @@ export interface HaCommandWithStatus extends HaCommand {
   maxRetries: number;
   error?: string;
   result?: unknown;
-  requestId?: number;              // ID de la requête WebSocket associée
 }

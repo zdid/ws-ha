@@ -5,7 +5,7 @@
 **Auteur :** Mistral Vibe  
 **Statut :** En développement  
 **Type :** Application standalone  
-**Dépend de :** techniques-socle-ha-mqtt_specs_v4.11.md, guide-nouvelle-application_specs_v1.6.md, nommage_specs_v1.0.md  
+**Dépend de :** techniques-socle-ha-mqtt_specs_v4.12.md, guide-nouvelle-application_specs_v1.6.md, nommage_specs_v1.0.md  
 
 ---
 
@@ -28,7 +28,7 @@
 
 ### 1.1 Conformité à l'Architecture 5 Couches
 
-L'application **ARBREOUQUOI** respecte strictement l'architecture en 5 couches définie dans [techniques-socle-ha-mqtt_specs_v4.11.md](techniques-socle-ha-mqtt_specs_v4.11.md) :
+L'application **ARBREOUQUOI** respecte strictement l'architecture en 5 couches définie dans [techniques-socle-ha-mqtt_specs_v4.12.md](techniques-socle-ha-mqtt_specs_v4.12.md) :
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -1078,7 +1078,7 @@ Voir [nommage_specs_v1.0.md](nommage_specs_v1.0.md) pour les règles complètes.
 
 - [PROMPT.md](../../PROMPT.md) — Instructions pour Vibe
 - [PROMPT_PROJET.md](../../PROMPT_PROJET.md) — Règles de développement
-- [techniques-socle-ha-mqtt_specs_v4.11.md](techniques-socle-ha-mqtt_specs_v4.11.md) — Spécifications techniques socle
+- [techniques-socle-ha-mqtt_specs_v4.12.md](techniques-socle-ha-mqtt_specs_v4.12.md) — Spécifications techniques socle
 - [guide-nouvelle-application_specs_v1.6.md](guide-nouvelle-application_specs_v1.6.md) — Guide de création
 - [nommage_specs_v1.0.md](nommage_specs_v1.0.md) — Conventions de nommage
 

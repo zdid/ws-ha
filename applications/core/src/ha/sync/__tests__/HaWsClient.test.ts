@@ -1,69 +1,42 @@
 // src/ha/sync/__tests__/HaWsClient.test.ts
-// Tests unitaires pour HaWsClient
-// Conforme à specs-techniques-socle-ha-mqtt-v4.3.md §10 (tests)
+// Tests unitaires pour HaWsClient (implémentation home-assistant-js-websocket)
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { HaWsClient, HaWsConfig } from '../HaWsClient';
-import { HaWsTransport } from '../../../infrastructure/transport/HaWsTransport';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { HaWsConfig } from '../../../infrastructure/config/schema';
 import { Logger } from '../../../infrastructure/logger/index';
 
-// Mock de HaWsTransport
-class MockHaWsTransport {
-  private connected = false;
-  private listeners: Map<string, Function[]> = new Map();
-  
-  connect(): void {
-    this.connected = true;
-    // Émettre l'événement de connexion
-    this.trigger('connect');
-  }
-  
-  disconnect(): void {
-    this.connected = false;
-    this.trigger('disconnect');
-  }
-  
-  isConnected(): boolean {
-    return this.connected;
-  }
-  
-  sendMessage(message: any): void {
-    // Mock
-  }
-  
-  on(event: string, callback: Function): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event)?.push(callback);
-  }
-  
-  off(event: string, callback: Function): void {
-    const callbacks = this.listeners.get(event);
-    if (callbacks) {
-      const index = callbacks.indexOf(callback);
-      if (index > -1) {
-        callbacks.splice(index, 1);
-      }
-    }
-  }
-  
-  private trigger(event: string, ...args: any[]): void {
-    const callbacks = this.listeners.get(event);
-    if (callbacks) {
-      callbacks.forEach(cb => cb(...args));
-    }
-  }
+const createLongLivedTokenAuth = vi.fn();
+const createConnection = vi.fn();
+const getStates = vi.fn();
+const callService = vi.fn();
+
+vi.mock('home-assistant-js-websocket', () => ({
+  createLongLivedTokenAuth: (...args: unknown[]) => createLongLivedTokenAuth(...args),
+  createConnection: (...args: unknown[]) => createConnection(...args),
+  getStates: (...args: unknown[]) => getStates(...args),
+  callService: (...args: unknown[]) => callService(...args),
+}));
+
+// Import après le mock (HaWsClient importe home-assistant-js-websocket au chargement).
+const { HaWsClient } = await import('../HaWsClient');
+
+/** Fake Connection minimal — reproduit la surface utilisée par HaWsClient. */
+function createFakeConnection() {
+  const listeners = new Map<string, ((...args: unknown[]) => void)[]>();
+  return {
+    addEventListener: vi.fn((eventType: string, cb: (...args: unknown[]) => void) => {
+      if (!listeners.has(eventType)) listeners.set(eventType, []);
+      listeners.get(eventType)!.push(cb);
+    }),
+    subscribeEvents: vi.fn(),
+    sendMessagePromise: vi.fn(),
+    close: vi.fn(),
+    fire: (eventType: string, ...args: unknown[]) => {
+      for (const cb of listeners.get(eventType) ?? []) cb(...args);
+    },
+  };
 }
 
-// Mock de socket.io pour les tests
-const mockSocket = {
-  on: vi.fn(),
-  emit: vi.fn(),
-  connected: false,
-};
-
-// Configuration de test
 const testConfig: HaWsConfig = {
   host: '192.168.1.100',
   port: 8123,
@@ -72,423 +45,237 @@ const testConfig: HaWsConfig = {
 };
 
 describe('HaWsClient', () => {
-  let client: HaWsClient;
-  let mockTransport: MockHaWsTransport;
+  let client: InstanceType<typeof HaWsClient>;
   let logger: Logger;
 
   beforeEach(() => {
-    mockTransport = new MockHaWsTransport();
-    logger = new Logger({
-      level: 'debug',
-      maxSizeMb: 1,
-      maxFiles: 1,
-      logDir: '/tmp/test-logs',
-    });
-    
-    // Créer le client avec le transport mocké
-    // @ts-ignore - On passe le mock au lieu du vrai HaWsTransport
-    client = new HaWsClient(testConfig, mockTransport as unknown as HaWsTransport, logger);
-  });
-
-  afterEach(() => {
     vi.clearAllMocks();
+    logger = new Logger({ level: 'debug', maxSizeMb: 1, maxFiles: 1, logDir: '/tmp/test-logs' });
+    createLongLivedTokenAuth.mockReturnValue({ hassUrl: `http://${testConfig.host}:${testConfig.port}` });
+    client = new HaWsClient(testConfig, logger);
   });
-
-  // =========================================================================
-  // Tests : Initialisation
-  // =========================================================================
 
   describe('Initialization', () => {
-    it('should initialize with configuration', () => {
-      expect(client).toBeDefined();
-      // @ts-ignore - Accès à la propriété privée
-      expect(client['config']).toEqual(testConfig);
-    });
-
-    it('should create transport with config values', () => {
-      // @ts-ignore - Accès à la propriété privée
-      const transport = client['transport'];
-      expect(transport).toBeDefined();
-    });
-
     it('should initialize with default state values', () => {
-      // @ts-ignore - Accès à la propriété privée
-      expect(client['isAuthenticated']).toBe(false);
-      // @ts-ignore
-      expect(client['isReady']).toBe(false);
+      expect(client.getIsAuthenticated()).toBe(false);
+      expect(client.getIsReady()).toBe(false);
     });
   });
-
-  // =========================================================================
-  // Tests : Connexion
-  // =========================================================================
 
   describe('connect()', () => {
-    it('should call transport.connect()', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'connect');
-      
-      client.connect();
-      
-      expect(transportSpy).toHaveBeenCalled();
-    });
+    it('should build auth from host/port/token and create a connection', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
 
-    it('should log connection attempt', () => {
-      const loggerSpy = vi.spyOn(logger, 'info');
-      
       client.connect();
-      
-      expect(loggerSpy).toHaveBeenCalledWith(
-        'ha:ws',
-        `Connexion à HA WebSocket: ${testConfig.host}:${testConfig.port}`
+      await vi.waitFor(() => expect(createConnection).toHaveBeenCalled());
+
+      expect(createLongLivedTokenAuth).toHaveBeenCalledWith(
+        `http://${testConfig.host}:${testConfig.port}`,
+        testConfig.token
+      );
+      expect(createConnection).toHaveBeenCalledWith(
+        expect.objectContaining({ setupRetry: -1 })
       );
     });
-  });
 
-  // =========================================================================
-  // Tests : Déconnexion
-  // =========================================================================
+    it('should set isAuthenticated and fire onConnect once the connection resolves', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      const callback = vi.fn();
+      client.onConnect(callback);
+
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
+      expect(callback).toHaveBeenCalled();
+    });
+
+    it('should fire onError and not throw when the connection fails', async () => {
+      createConnection.mockRejectedValue(2); // ERR_INVALID_AUTH
+      const errorCallback = vi.fn();
+      client.onError(errorCallback);
+
+      client.connect();
+      await vi.waitFor(() => expect(errorCallback).toHaveBeenCalled());
+
+      expect(errorCallback).toHaveBeenCalledWith(expect.objectContaining({ message: 'Invalid HA token' }));
+      expect(client.getIsAuthenticated()).toBe(false);
+    });
+
+    it('should fire onDisconnect when the connection reports disconnected', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      const disconnectCallback = vi.fn();
+      client.onDisconnect(disconnectCallback);
+
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
+      fakeConnection.fire('disconnected');
+
+      expect(disconnectCallback).toHaveBeenCalled();
+      expect(client.getIsAuthenticated()).toBe(false);
+    });
+  });
 
   describe('disconnect()', () => {
-    it('should call transport.disconnect()', () => {
-      // D'abord se connecter
+    it('should close the connection and reset state', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
       client.connect();
-      
-      const transportSpy = vi.spyOn(mockTransport, 'disconnect');
-      
-      client.disconnect();
-      
-      expect(transportSpy).toHaveBeenCalled();
-    });
-
-    it('should log disconnection', () => {
-      const loggerSpy = vi.spyOn(logger, 'info');
-      
-      client.disconnect();
-      
-      expect(loggerSpy).toHaveBeenCalledWith(
-        'ha:ws',
-        'Déconnexion de HA WebSocket'
-      );
-    });
-
-    it('should reset authentication and ready states', () => {
-      // @ts-ignore - Simuler la connexion
-      client['isAuthenticated'] = true;
-      // @ts-ignore
-      client['isReady'] = true;
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
 
       client.disconnect();
 
-      // @ts-ignore
-      expect(client['isAuthenticated']).toBe(false);
-      // @ts-ignore
-      expect(client['isReady']).toBe(false);
+      expect(fakeConnection.close).toHaveBeenCalled();
+      expect(client.getIsAuthenticated()).toBe(false);
+      expect(client.getIsReady()).toBe(false);
     });
   });
 
-  // =========================================================================
-  // Tests : Chargement du référentiel
-  // =========================================================================
-
   describe('loadInitialRegistry()', () => {
-    it('should throw error when not authenticated', async () => {
-      // @ts-ignore - Pas authentifié
-      client['isAuthenticated'] = false;
-
+    it('should throw when not authenticated', async () => {
       await expect(client.loadInitialRegistry())
         .rejects.toThrow('Cannot load registry: not authenticated. Call connect() first.');
     });
 
-    it('should load all registries in parallel', async () => {
-      // @ts-ignore - Simuler l'authentification
-      client['isAuthenticated'] = true;
-      
-      // Mock des réponses
-      const mockSendRequest = vi.fn();
-      // @ts-ignore
-      client['sendRequest'] = mockSendRequest;
-      
-      mockSendRequest
-        .mockResolvedValueOnce({ type: 'result', id: 1, result: [] }) // get_states
-        .mockResolvedValueOnce({ type: 'result', id: 2, result: { areas: [] } }) // area_registry
-        .mockResolvedValueOnce({ type: 'result', id: 3, result: [] }) // device_registry
-        .mockResolvedValueOnce({ type: 'result', id: 4, result: [] }); // entity_registry
-
-      await client.loadInitialRegistry();
-
-      expect(mockSendRequest).toHaveBeenCalledTimes(4);
-    });
-
-    it('should set isReady to true after loading', async () => {
-      // @ts-ignore - Simuler l'authentification
-      client['isAuthenticated'] = true;
-      
-      // Mock des réponses
-      const mockSendRequest = vi.fn();
-      // @ts-ignore
-      client['sendRequest'] = mockSendRequest;
-      
-      mockSendRequest
-        .mockResolvedValueOnce({ type: 'result', id: 1, result: [] })
-        .mockResolvedValueOnce({ type: 'result', id: 2, result: { areas: [] } })
-        .mockResolvedValueOnce({ type: 'result', id: 3, result: [] })
-        .mockResolvedValueOnce({ type: 'result', id: 4, result: [] });
-
-      // @ts-ignore
-      expect(client['isReady']).toBe(false);
-      
-      await client.loadInitialRegistry();
-      
-      // @ts-ignore
-      expect(client['isReady']).toBe(true);
-    });
-  });
-
-  // =========================================================================
-  // Tests : SendRequest
-  // =========================================================================
-
-  describe('sendRequest()', () => {
-    it('should send message with incrementing ID', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
-      // @ts-ignore - Réinitialiser le nextId
-      client['nextId'] = 1;
-      
-      const message = { type: 'get_states' };
-      
-      // @ts-ignore - Accès à sendRequest
-      client['sendRequest'](message);
-      
-      expect(transportSpy).toHaveBeenCalledWith({
-        ...message,
-        id: 1,
-      });
-    });
-
-    it('should increment ID for each request', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
-      // @ts-ignore
-      client['nextId'] = 1;
-      
-      const message1 = { type: 'get_states' };
-      const message2 = { type: 'config/area_registry/list' };
-      
-      // @ts-ignore
-      client['sendRequest'](message1);
-      // @ts-ignore
-      client['sendRequest'](message2);
-      
-      expect(transportSpy).toHaveBeenNthCalledWith(1, {
-        ...message1,
-        id: 1,
-      });
-      expect(transportSpy).toHaveBeenNthCalledWith(2, {
-        ...message2,
-        id: 2,
-      });
-    });
-
-    it('should return promise that resolves with response', async () => {
-      const message = { type: 'test_request' };
-      const expectedResponse = { type: 'result', id: 1, result: 'test' };
-      
-      // Mock sendMessage pour simuler une réponse
-      // @ts-ignore
-      client['sendMessage'] = vi.fn((msg) => {
-        // Simuler une réponse asynchrone
-        setTimeout(() => {
-          // @ts-ignore
-          const callback = client['pendingRequests'].get(msg.id);
-          if (callback) {
-            callback.resolve(expectedResponse);
-          }
-        }, 0);
-      });
-      
-      // @ts-ignore
-      const result = await client['sendRequest'](message);
-      
-      expect(result).toEqual(expectedResponse);
-    });
-  });
-
-  // =========================================================================
-  // Tests : SendMessage
-  // =========================================================================
-
-  describe('sendMessage()', () => {
-    it('should send message via transport', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
-      const message = { type: 'subscribe_events', event_type: 'state_changed' };
-      
-      // @ts-ignore
-      client['sendMessage'](message);
-      
-      expect(transportSpy).toHaveBeenCalledWith(message);
-    });
-
-    it('should increment nextId for messages without id', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
-      // @ts-ignore
-      client['nextId'] = 10;
-      
-      const message = { type: 'subscribe_events' };
-      
-      // @ts-ignore
-      client['sendMessage'](message);
-      
-      expect(transportSpy).toHaveBeenCalledWith({
-        ...message,
-        id: 10,
-      });
-    });
-
-    it('should not modify message id if already present', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
-      const message = { id: 999, type: 'subscribe_events' };
-      
-      // @ts-ignore
-      client['sendMessage'](message);
-      
-      expect(transportSpy).toHaveBeenCalledWith(message);
-    });
-  });
-
-  // =========================================================================
-  // Tests : Callbacks et Listeners
-  // =========================================================================
-
-  describe('Callbacks', () => {
-    it('should allow registering entity state callback', () => {
-      const callback = vi.fn();
-      
-      // @ts-ignore
-      client.onEntityStateChange(callback);
-      
-      // @ts-ignore - Simuler la réception d'un message state_changed
-      const message = {
-        type: 'state_changed',
-        id: 1,
-        event_type: 'state_changed',
-        data: {
-          entity_id: 'sensor.test',
-          state: 'on',
-          new_state: {
-            entity_id: 'sensor.test',
-            state: 'on',
-            attributes: {},
-            last_changed: new Date().toISOString(),
-            last_updated: new Date().toISOString(),
-          },
-        },
-      };
-      
-      // @ts-ignore - Simuler le traitement du message
-      const messageHandler = mockTransport.listeners.get('message')?.[0];
-      if (messageHandler) {
-        messageHandler(message);
-      }
-      
-      // Note: Ce test dépend de l'implémentation interne du traitement des messages
-      // Il peut nécessiter des ajustements selon le code réel
-    });
-
-    it('should allow registering connect callback', () => {
-      const callback = vi.fn();
-      
-      // @ts-ignore
-      client.onConnect(callback);
-      
-      // Se connecter
+    it('should load states + area/device/entity registries in parallel and set isReady', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
       client.connect();
-      
-      // Le callback devrait avoir été appelé
-      expect(callback).toHaveBeenCalled();
-    });
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
 
-    it('should allow registering disconnect callback', () => {
-      const callback = vi.fn();
-      
-      // @ts-ignore
-      client.onDisconnect(callback);
-      
-      // Se connecter puis déconnecter
-      client.connect();
-      client.disconnect();
-      
-      expect(callback).toHaveBeenCalled();
+      getStates.mockResolvedValue([{ entity_id: 'sensor.test', state: 'on' }]);
+      fakeConnection.sendMessagePromise
+        .mockResolvedValueOnce({ areas: [{ area_id: 'a1', name: 'Salon' }] })
+        .mockResolvedValueOnce([{ device_id: 'd1', name: 'Device 1' }])
+        .mockResolvedValueOnce([{ entity_id: 'sensor.test', domain: 'sensor' }]);
+
+      const result = await client.loadInitialRegistry();
+
+      expect(getStates).toHaveBeenCalledWith(fakeConnection);
+      expect(fakeConnection.sendMessagePromise).toHaveBeenCalledWith({ type: 'config/area_registry/list' });
+      expect(fakeConnection.sendMessagePromise).toHaveBeenCalledWith({ type: 'config/device_registry/list' });
+      expect(fakeConnection.sendMessagePromise).toHaveBeenCalledWith({ type: 'config/entity_registry/list' });
+      expect(result.entities).toHaveLength(1);
+      expect(result.areas).toEqual([{ area_id: 'a1', name: 'Salon' }]);
+      expect(result.devices).toEqual([{ device_id: 'd1', name: 'Device 1' }]);
+      expect(client.getIsReady()).toBe(true);
     });
   });
-
-  // =========================================================================
-  // Tests : Subscription aux événements
-  // =========================================================================
 
   describe('subscribeToEvents()', () => {
-    it('should subscribe to all HA events', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
+    it('should subscribe to all 4 HA event types', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
       client.subscribeToEvents();
-      
-      // Devrait s'abonner à : state_changed, area_registry_updated, device_registry_updated, entity_registry_updated
-      expect(transportSpy).toHaveBeenCalledTimes(4);
-      
-      const calls = transportSpy.mock.calls;
-      const eventTypes = calls.map(call => call[0].event_type);
-      
-      expect(eventTypes).toContain('state_changed');
-      expect(eventTypes).toContain('area_registry_updated');
-      expect(eventTypes).toContain('device_registry_updated');
-      expect(eventTypes).toContain('entity_registry_updated');
+
+      expect(fakeConnection.subscribeEvents).toHaveBeenCalledTimes(4);
+      const eventTypes = fakeConnection.subscribeEvents.mock.calls.map((call: unknown[]) => call[1]);
+      expect(eventTypes).toEqual(
+        expect.arrayContaining(['state_changed', 'area_registry_updated', 'device_registry_updated', 'entity_registry_updated'])
+      );
+    });
+
+    it('should dispatch state_changed to onStateChanged callbacks', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
+      const stateCallback = vi.fn();
+      client.onStateChanged(stateCallback);
+      client.subscribeToEvents();
+
+      const stateChangedHandler = fakeConnection.subscribeEvents.mock.calls.find(
+        (call: unknown[]) => call[1] === 'state_changed'
+      )![0];
+      stateChangedHandler({ data: { entity_id: 'sensor.test', new_state: { entity_id: 'sensor.test', state: 'on' } } });
+
+      expect(stateCallback).toHaveBeenCalledWith({ entity_id: 'sensor.test', state: 'on' });
+    });
+
+    it('should ignore area_registry_updated events with action=delete', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
+      const areaCallback = vi.fn();
+      client.onAreaUpdated(areaCallback);
+      client.subscribeToEvents();
+
+      const areaHandler = fakeConnection.subscribeEvents.mock.calls.find(
+        (call: unknown[]) => call[1] === 'area_registry_updated'
+      )![0];
+      areaHandler({ data: { area_id: 'a1', action: 'delete' } });
+
+      expect(areaCallback).not.toHaveBeenCalled();
     });
   });
 
-  // =========================================================================
-  // Tests : Envoi de commandes
-  // =========================================================================
-
   describe('sendCommand()', () => {
-    it('should send service call message', () => {
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
-      // @ts-ignore - Simuler l'authentification
-      client['isAuthenticated'] = true;
-      
-      client.sendCommand('light', 'turn_on', { entity_id: 'light.salon' }, {});
-      
-      expect(transportSpy).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'call_service',
-        domain: 'light',
-        service: 'turn_on',
-        service_data: { entity_id: 'light.salon' },
-      }));
-    });
-
-    it('should throw error when not authenticated', () => {
-      // @ts-ignore - Pas authentifié
-      client['isAuthenticated'] = false;
-
+    it('should throw when not authenticated', () => {
       expect(() => {
         client.sendCommand('light', 'turn_on', { entity_id: 'light.salon' }, {});
       }).toThrow('Cannot send command: not authenticated');
     });
 
-    it('should generate unique request IDs', () => {
-      // @ts-ignore
-      client['isAuthenticated'] = true;
-      const transportSpy = vi.spyOn(mockTransport, 'sendMessage');
-      
-      client.sendCommand('light', 'turn_on', { entity_id: 'light1' }, {});
-      client.sendCommand('switch', 'turn_off', { entity_id: 'switch1' }, {});
-      
-      const calls = transportSpy.mock.calls;
-      expect(calls[0][0].id).toBe(1);
-      expect(calls[1][0].id).toBe(2);
+    it('should delegate to callService with domain/service/serviceData/target', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
+      callService.mockResolvedValue({ ok: true });
+
+      await client.sendCommand('light', 'turn_on', { entity_id: 'light.salon' }, { brightness: 128 });
+
+      expect(callService).toHaveBeenCalledWith(
+        fakeConnection,
+        'light',
+        'turn_on',
+        { brightness: 128 },
+        { entity_id: 'light.salon' }
+      );
+    });
+  });
+
+  describe('reconfigure()', () => {
+    it('should connect with the new config when currently disconnected', () => {
+      const connectSpy = vi.spyOn(client, 'connect');
+      const newConfig: HaWsConfig = { ...testConfig, host: '192.168.1.200' };
+
+      client.reconfigure(newConfig);
+
+      expect(connectSpy).toHaveBeenCalled();
+    });
+
+    it('should reconnect when connected and config changed', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
+      const newConfig: HaWsConfig = { ...testConfig, host: '192.168.1.200' };
+      client.reconfigure(newConfig);
+
+      expect(fakeConnection.close).toHaveBeenCalled();
+    });
+
+    it('should do nothing when connected and config unchanged', async () => {
+      const fakeConnection = createFakeConnection();
+      createConnection.mockResolvedValue(fakeConnection);
+      client.connect();
+      await vi.waitFor(() => expect(client.getIsAuthenticated()).toBe(true));
+
+      client.reconfigure({ ...testConfig });
+
+      expect(fakeConnection.close).not.toHaveBeenCalled();
     });
   });
 });

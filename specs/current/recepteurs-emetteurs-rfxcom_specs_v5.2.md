@@ -506,7 +506,7 @@ interface ReceiverCoverConfig extends BaseReceiverConfig {
 > **⭐ v5.1** : Le topic de découverte (`.../config`) reste au format HA standard. Les topics
 > `state_topic`/`command_topic` référencés dans le message suivent désormais le format défini en
 > §8.5 (`/{moduleName}/{bridgeInstance}/{deviceId}/state|set`), conforme à
-> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.11.md#854-format-des-topics-mqtt).
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.12.md#854-format-des-topics-mqtt).
 
 ### 7.1 Discovery pour Device RFXCOM (Capteur ou Émetteur)
 
@@ -752,7 +752,7 @@ Les événements ci-dessous **complètent** ceux définis dans [`specs-technique
 ### 8.5 Topics MQTT Spécifiques à RFXCOM
 
 > **⭐ v5.1** : Refonte complète de cette section pour se conformer au format générique défini dans
-> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.11.md#854-format-des-topics-mqtt)
+> [`techniques-socle-ha-mqtt_specs` §8.5.4](techniques-socle-ha-mqtt_specs_v4.12.md#854-format-des-topics-mqtt)
 > (un seul broker, `bridge_instance`, `deviceId` opaque). **Remplace entièrement** l'ancien schéma
 > `rfxcom/{receiverId}/...` de la v5.0.
 
@@ -790,7 +790,7 @@ Pour un **récepteur logique** (`recepteur_NNN`), `deviceId` = son `receiverId` 
 | `/rfxcom/{bridgeInstance}/{deviceId}/set` | HA → App | `{ "state": "ON"\|"OFF", "brightness"?: 0-255, "position"?: 0-100 }` | 1 | false | Commande reçue de HA pour un device ou récepteur |
 
 `bridgeInstance` identifie le transceiver physique concerné (ex: `rfx_bridge_0001`, voir
-[`techniques-socle-ha-mqtt_specs` §8.5.1](techniques-socle-ha-mqtt_specs_v4.11.md#851-concept-de-bridge_instance)).
+[`techniques-socle-ha-mqtt_specs` §8.5.1](techniques-socle-ha-mqtt_specs_v4.12.md#851-concept-de-bridge_instance)).
 
 #### 8.5.3 Topics de Découverte RFXCOM (App → HA)
 

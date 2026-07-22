@@ -167,7 +167,6 @@ class ApplicationBootstrap {
         const haModule = await import('./ha/sync/HaWsClient');
         this.haWsClient = new haModule.HaWsClient(
           config.ha.ws,
-          undefined,
           this.logger
         );
 

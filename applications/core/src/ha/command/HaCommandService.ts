@@ -42,7 +42,6 @@ export class HaCommandService {
   private pendingCommands: Map<string, HaCommandWithStatus> = new Map();
   private resultCallbacks: Map<string, CommandResultCallback[]> = new Map();
   private statusCallbacks: CommandStatusCallback[] = [];
-  private nextId = 1;
   private logger: Logger;
   private config: HaCommandServiceConfig;
 
@@ -77,15 +76,11 @@ export class HaCommandService {
    * Configure les listeners sur le client WebSocket HA.
    */
   private setupHaWsClientListeners(): void {
-    // Écouter les réponses aux commandes
-    this.haWsClient.onMessage((message) => {
-      if (message.type === 'result' && message.id) {
-        this.handleCommandResponse(message);
-      }
-      if (message.type === 'error' && message.id) {
-        this.handleCommandError(message);
-      }
-    });
+    // ⚠️ Plus d'écoute onMessage ici : home-assistant-js-websocket résout/rejette directement
+    // la Promise de callService (voir sendCommandToHa) — l'ancien ré-appariement manuel par
+    // requestId (onMessage + findCommandIdByRequestId) était déjà redondant avec cette Promise
+    // et reposait sur un requestId qui ne correspondait pas forcément à l'id réel envoyé sur le
+    // fil par HaWsClient (bug latent, supprimé avec ce mécanisme).
 
     // Écouter la déconnexion pour marquer les commandes en erreur
     this.haWsClient.onDisconnect(() => {
@@ -99,15 +94,9 @@ export class HaCommandService {
   }
 
   /**
-   * Traite la réponse d'une commande.
+   * Traite la réponse réussie d'une commande.
    */
-  private handleCommandResponse(message: any): void {
-    const commandId = this.findCommandIdByRequestId(message.id);
-    
-    if (!commandId) {
-      return; // Pas une commande que nous avons envoyée
-    }
-
+  private handleCommandResponse(commandId: string, result: unknown): void {
     const command = this.pendingCommands.get(commandId);
     if (!command) {
       return;
@@ -115,7 +104,7 @@ export class HaCommandService {
 
     // Marquer la commande comme réussie
     command.status = 'success';
-    command.result = message.result;
+    command.result = result;
     command.timestamp = new Date();
 
     this.notifyStatusUpdate(command);
@@ -135,20 +124,18 @@ export class HaCommandService {
    * Traite une erreur de commande.
    * Conforme à specs-erreurs-v1.0.md §3
    */
-  private handleCommandError(message: any): void {
-    const commandId = this.findCommandIdByRequestId(message.id);
-    
-    if (!commandId) {
-      return;
-    }
-
+  private handleCommandError(commandId: string, error: unknown): void {
     const command = this.pendingCommands.get(commandId);
     if (!command) {
       return;
     }
 
-    const errorMessage = message.error?.message || 'Unknown error';
-    const errorCode = message.error?.code || 'HA_SERVICE_INVALID';
+    // home-assistant-js-websocket rejette avec l'objet HA brut { code, message } (pas une
+    // instance Error) pour une erreur de service, ou via messages.error(code, msg) similaire
+    // pour une perte de connexion en cours de requête.
+    const haError = error as { code?: string; message?: string } | undefined;
+    const errorMessage = haError?.message || (error instanceof Error ? error.message : 'Unknown error');
+    const errorCode = haError?.code || 'HA_SERVICE_INVALID';
 
     // Marquer la commande comme en erreur
     command.status = 'error';
@@ -168,22 +155,6 @@ export class HaCommandService {
     this.resultCallbacks.delete(commandId);
 
     this.logger.error('ha:command', `Commande échouée: ${commandId} - ${errorCode}: ${errorMessage}`);
-  }
-
-  /**
-   * Trouve l'ID de commande correspondant à un ID de requête.
-   */
-  private findCommandIdByRequestId(requestId: number): string | undefined {
-    for (const [commandId, command] of this.pendingCommands) {
-      // Le requestId correspond à l'ID utilisé dans le message WS
-      // Dans notre implémentation, nous utilisons nextId pour les requêtes
-      // Nous devons tracer le mapping entre commandId et requestId
-      // Pour l'instant, nous allons stocker le requestId dans la commande
-      if ((command as any).requestId === requestId) {
-        return commandId;
-      }
-    }
-    return undefined;
   }
 
   /**
@@ -246,7 +217,6 @@ export class HaCommandService {
   ): Promise<HaCommandResult> {
     return new Promise((resolve) => {
       const commandId = crypto.randomUUID();
-      const requestId = this.nextId++;
 
       const commandWithStatus: HaCommandWithStatus = {
         id: commandId,
@@ -258,7 +228,7 @@ export class HaCommandService {
       };
 
       // Stocker la commande et son callback
-      this.pendingCommands.set(commandId, { ...commandWithStatus, requestId });
+      this.pendingCommands.set(commandId, commandWithStatus);
 
       // Créer un timeout pour la commande
       const timeoutId = setTimeout(() => {
@@ -278,63 +248,44 @@ export class HaCommandService {
       }]);
 
       // Notifier le statut initial
-      this.notifyStatusUpdate({ ...commandWithStatus, requestId });
+      this.notifyStatusUpdate(commandWithStatus);
 
       // Envoyer la commande via le client HA
-      this.sendCommandToHa(command, requestId, commandId);
+      this.sendCommandToHa(command, commandId);
     });
   }
 
   /**
    * Envoie une commande à Home Assistant via le client WebSocket.
+   * home-assistant-js-websocket résout/rejette directement sendCommand() par requête — pas
+   * besoin de ré-appariement manuel par id, contrairement à l'ancienne implémentation.
    */
   private async sendCommandToHa(
     command: HaCommand,
-    requestId: number,
     commandId: string
   ): Promise<void> {
+    const commandWithStatus = this.pendingCommands.get(commandId);
+    if (!commandWithStatus) {
+      return;
+    }
+
+    // Mettre à jour le statut
+    commandWithStatus.status = 'executing';
+    this.notifyStatusUpdate(commandWithStatus);
+
+    this.logger.debug('ha:command', `Envoi commande: ${command.domain}.${command.service} vers ${JSON.stringify(command.entity_id)}`);
+
     try {
-      const commandWithStatus = this.pendingCommands.get(commandId);
-      if (!commandWithStatus) {
-        return;
-      }
-
-      // Mettre à jour le statut
-      commandWithStatus.status = 'executing';
-      this.notifyStatusUpdate(commandWithStatus);
-
-      this.logger.debug('ha:command', `Envoi commande: ${command.domain}.${command.service} vers ${JSON.stringify(command.entity_id)}`);
-
-      // Envoyer via le client HA
-      await this.haWsClient.sendCommand(
+      const result = await this.haWsClient.sendCommand(
         command.domain,
         command.service,
         { entity_id: command.entity_id },
         command.service_data
       );
 
-      // Stocker le requestId pour le mapping
-      commandWithStatus.requestId = requestId;
-      this.pendingCommands.set(commandId, commandWithStatus);
-
+      this.handleCommandResponse(commandId, result);
     } catch (error) {
-      const commandWithStatus = this.pendingCommands.get(commandId);
-      if (commandWithStatus) {
-        commandWithStatus.status = 'error';
-        commandWithStatus.error = (error as Error).message;
-        commandWithStatus.timestamp = new Date();
-        
-        this.notifyStatusUpdate(commandWithStatus);
-        this.notifyResult({
-          success: false,
-          command: this.createHaCommandFromWithStatus(commandWithStatus),
-          error: (error as Error).message,
-          timestamp: new Date(),
-        });
-
-        this.pendingCommands.delete(commandId);
-        this.resultCallbacks.delete(commandId);
-      }
+      this.handleCommandError(commandId, error);
     }
   }
 
@@ -360,7 +311,6 @@ export class HaCommandService {
       setTimeout(() => {
         this.sendCommandToHa(
           this.createHaCommandFromWithStatus(command),
-          this.nextId++,
           commandId
         );
       }, this.config.retryDelay);

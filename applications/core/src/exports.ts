@@ -121,7 +121,6 @@ export {
 } from './infrastructure/logger/index';
 
 // Transport (bas niveau)
-export * from './infrastructure/transport/HaWsTransport';
 export * from './infrastructure/transport/MqttTransport';
 
 // EventBus de l'infrastructure (alternative)

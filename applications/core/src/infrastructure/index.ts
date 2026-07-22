@@ -9,7 +9,6 @@ export * from './config/writer';
 export * from './config/ConfigService';
 
 // Transport
-export * from './transport/HaWsTransport';
 export * from './transport/MqttTransport';
 
 // Logger

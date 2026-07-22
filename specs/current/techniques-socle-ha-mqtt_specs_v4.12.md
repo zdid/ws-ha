@@ -1,8 +1,33 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.11  
-**Date :** 21 Juillet 2026  
+**Version :** 4.12  
+**Date :** 22 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
+
+> **v4.12** : **Remplacement du client WebSocket HA maison par `home-assistant-js-websocket`**
+> (§4.2, §8.2) — librairie officiellement maintenue par l'équipe Home Assistant (utilisée par le
+> frontend HA lui-même), en remplacement de `HaWsTransport.ts`/`HaWsClient.ts` écrits à la main.
+> Motivation : le transport maison contenait un bug réel de double authentification par connexion
+> (`HaWsTransport` envoyait son propre `auth` à l'ouverture du socket, `HaWsClient` en envoyait un
+> second en réponse à `auth_required`), avec pour conséquence une boucle de reconnexion toutes les
+> ~1s en cas de jeton invalide (jamais de renoncement, contrairement à la lib officielle qui échoue
+> immédiatement sur `auth_invalid`, sans retry). `HaWsTransport.ts` est **supprimé** — `HaWsClient`
+> encapsule directement `home-assistant-js-websocket` (polyfill `globalThis.WebSocket = require('ws')`
+> documenté officiellement pour l'usage Node.js) en conservant la même API publique
+> (`connect`/`disconnect`/`loadInitialRegistry`/`subscribeToEvents`/`sendCommand`/`onConnect`/
+> `onDisconnect`/`onError`/`onStateChanged`/`onAreaUpdated`/`onDeviceUpdated`/`onEntityUpdated`/
+> `reconfigure`) — `onMessage` (firehose brut) disparaît, sans équivalent dans la lib officielle
+> (architecture par Promise/callback par requête) ; son unique consommateur (`HaCommandService`)
+> faisait un ré-appariement de réponse par id déjà redondant avec la Promise que `sendCommand`
+> retournait déjà (et déjà bugué : le `requestId` suivi localement ne correspondait pas
+> nécessairement à l'id réellement envoyé sur le fil), simplifié pour résoudre directement depuis
+> cette Promise. `config/area_registry/list`/`config/device_registry/list`/
+> `config/entity_registry/list` (chargement initial du référentiel) n'ont pas d'équivalent haut
+> niveau dans la lib — passent par l'échappatoire documentée `connection.sendMessagePromise()`.
+> ⚠️ Vérifié à l'implémentation : ni `loadInitialRegistry()`/`subscribeToEvents()` (peuplement de
+> `HaStructureRegistry`/`HaStateRegistry`) ni `HaCommandService` ne sont câblés dans le bootstrap de
+> production (`applications/core/src/index.ts`/`AppService`) à ce jour — code fonctionnel mais
+> orphelin, pré-existant, non introduit par ce changement.
 
 > **v4.11** : **Correction d'un gap fonctionnel réel** (découvert en implémentant les scènes RFXCOM,
 > §8.5.2) : `publishDiscoveryFor` abonne désormais **automatiquement** le bridge au topic de commande
@@ -187,13 +212,13 @@ projet/
 │   │   │   ├── writer.ts             # Écriture atomique (tmp → rename) de config.yaml
 │   │   │   └── ConfigService.ts      # Service centralisé d'accès à la config (injection de dépendances)
 │   │   ├── transport/
-│   │   │   ├── HaWsTransport.ts      # Client WebSocket bas niveau (connexion HA port 8123)
 │   │   │   └── MqttTransport.ts      # Client MQTT bas niveau (utilisé par la couche HA, mode intégration)
 │   │   └── logger/
 │   │       └── index.ts              # Winston : console + fichier rotatif
 │   ├── ha/                            # COUCHE HA — seul point de contact avec Home Assistant
 │   │   ├── sync/                     # A) Synchronisation référentiel — via Web Service (WS)
-│   │   │   ├── HaWsClient.ts         # Auth, souscriptions, routage des messages WS HA
+│   │   │   ├── HaWsClient.ts         # ⭐ v4.12 : encapsule home-assistant-js-websocket (lib officielle
+│   │   │   │                          #   HA) — auth, souscriptions, routage. Plus de transport maison.
 │   │   │   ├── HaStateRegistry.ts    # États bruts des entités (Map<entity_id, HaRawEntity>)
 │   │   │   ├── HaStructureRegistry.ts # Référentiel structuré area → QUOI → entités
 │   │   │   └── HaClassifier.ts       # Interface IHaClassifier — implémentation à venir (module dédié)
@@ -1538,6 +1563,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 {
   "dependencies": {
     "ws":                        "^8.x",
+    "home-assistant-js-websocket": "^9.x",  // ⭐ v4.12 — client WS HA officiel, ws requis en polyfill Node
     "express":                   "^4.x",
     "socket.io":                 "^4.x",
     "js-yaml":                   "^4.x",
@@ -1608,6 +1634,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **4.12** | 22/07/2026 | Claude | **Remplacement du client WebSocket HA maison par `home-assistant-js-websocket`** (lib officielle HA) : supprime `HaWsTransport.ts` et le bug de double authentification par connexion qu'il contenait (auth envoyée à la fois à l'ouverture du socket et en réponse à `auth_required`) — plus de boucle de reconnexion sur jeton invalide, la lib officielle renonce immédiatement sur `auth_invalid`. `HaWsClient` garde la même API publique ; `onMessage` disparaît (pas d'équivalent officiel), `HaCommandService` simplifié pour résoudre directement depuis la Promise de `sendCommand` au lieu d'un ré-appariement par id redondant et bugué. |
 | **4.11** | 21/07/2026 | Claude | **Correction d'un gap fonctionnel réel (§8.5.2, découvert en implémentant les scènes RFXCOM)** : `publishDiscoveryFor` abonne désormais automatiquement le bridge au topic de commande d'une entité `commandEnabled: true` — avant ce correctif, aucun module métier n'appelait jamais `subscribeCommandsFor`, donc aucune commande HA→app n'était réellement reçue pour aucun module utilisant la découverte normale (§8.5.0), en dépit d'un code de réception/routage par ailleurs correct. |
 | **4.10** | 21/07/2026 | Claude | **Séparation `exports.ts` (backend) / `ui-exports.ts` (navigateur)** (§4.2.1, suite à investigation "le core met-il ses objets dans dist et pas dans src ?") : `SocketService` retiré de `exports.ts` et déplacé dans le nouveau `ui-exports.ts`, `src/ui-exports.ts` exclu du build backend du core. Corrige une pollution constatée dans `nommage` et `arbreouquoi`, dont le `dist` backend contenait une copie morte de `SocketService.js` (code navigateur, inexécutable côté Node) simplement parce qu'ils importaient des types backend depuis `exports.ts`. `tsconfig.ui.json` du core gagne `declaration: true`/`declarationMap: true` pour permettre aux applications à `rootDir` restreint (ex: `arbreouquoi`) de consommer le `dist` UI du core avec des types corrects, sans `@ts-ignore`. |
 | **4.9** | 21/07/2026 | Claude | **Ajout du Passthrough MQTT (§8.5.6, sur demande utilisateur)** : mécanisme pour les applications qui relaient des messages MQTT déjà formés (lus depuis une source tierce, ex: `nommage` relayant Zigbee2MQTT) vers le broker HA unique, sans normalisation de découverte. Mode "réécriture de préfixe" (`sourceTopic` → remplacement du 1er segment par `homeassistant`, QoS1/retain true) et mode "complet" (topic + payload intégraux, aucune transformation). Nouvelles méthodes `publishDiscoveryPassthrough`/`publishPassthrough` sur `HaMqttIntegrationService`, nouveaux événements EventBus `integration:{module}:passthrough:discovery`/`:publish`. |

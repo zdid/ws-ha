@@ -578,7 +578,7 @@ Appel: .start()
 > **⭐ v1.1** : Remplace intégralement l'ancien mécanisme `nommage:transmit:to-core` (qui
 > reconstruisait un message HA complet et appelait l'API WebSocket pour créer les Areas).
 > NOMMAGE utilise désormais le **Passthrough MQTT** du socle
-> ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.11.md#856-passthrough-mqtt)).
+> ([`techniques-socle-ha-mqtt_specs` §8.5.6](techniques-socle-ha-mqtt_specs_v4.12.md#856-passthrough-mqtt)).
 
 > **⚠️ v1.2** : `bridgeInstance` est **obligatoire** dans l'événement (absent à tort de l'exemple
 > v1.1) — le socle route le passthrough par bridge_instance, pas seulement par module (voir
@@ -910,7 +910,7 @@ mosquitto_sub -h localhost -t "$SYS/broker/subscriptions" -v
 ## 📚 Références
 
 - [fonctionnelles-nommage_specs_v1.2.md](./fonctionnelles-nommage_specs_v1.2.md) - Spécifications fonctionnelles
-- [techniques-socle-ha-mqtt_specs_v4.11.md](./techniques-socle-ha-mqtt_specs_v4.11.md) - Socle technique
+- [techniques-socle-ha-mqtt_specs_v4.12.md](./techniques-socle-ha-mqtt_specs_v4.12.md) - Socle technique
 - [guide-nouvelle-application_specs_v1.6.md](./guide-nouvelle-application_specs_v1.6.md) - Guide de création
 - [nommage_specs_v1.0.md](./nommage_specs_v1.0.md) - Protocole de nommage
 - [PROMPT_PROJET.md](../PROMPT_PROJET.md) - Règles générales

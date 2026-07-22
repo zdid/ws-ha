@@ -9,7 +9,7 @@
 > deux simplifications connues : topic de découverte `device_automation` à un seul segment (§14.3.4)
 > et `SceneExecutionResult` ne distinguant pas `scene_failed` de `scene_cancelled` (§14.3.6). Corrige
 > aussi un gap du socle sans lequel les scènes (et tout récepteur RFXCOM) ne recevaient jamais aucune
-> commande HA→app en pratique — voir `techniques-socle-ha-mqtt_specs_v4.11.md`.
+> commande HA→app en pratique — voir `techniques-socle-ha-mqtt_specs_v4.12.md`.
 
 > **v5.6** : Alignement des topics `state_topic`/scènes sur le nouveau format MQTT du socle
 > (`techniques-socle-ha-mqtt_specs_v4.10.md` §8.5) : `/{moduleName}/{bridgeInstance}/{deviceId}/state|set`.

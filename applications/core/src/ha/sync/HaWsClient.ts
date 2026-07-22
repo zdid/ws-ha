@@ -1,73 +1,22 @@
-import { HaWsTransport, HaWsMessage } from '../../infrastructure/transport/HaWsTransport';
-import { HaRawEntity, HaStateChangedMessage, HaAreaRegistryUpdatedMessage, HaDeviceRegistryUpdatedMessage, HaEntityRegistryUpdatedMessage } from '../types/ha-entity';
+import {
+  createLongLivedTokenAuth,
+  createConnection,
+  getStates,
+  callService,
+  type Connection,
+} from 'home-assistant-js-websocket';
+import type { HaRawEntity, HaStateChangedMessage, HaAreaRegistryUpdatedMessage, HaDeviceRegistryUpdatedMessage, HaEntityRegistryUpdatedMessage, HaWsMessage } from '../types/ha-entity';
 import { HaWsConfig } from '../../infrastructure/config/schema';
 import { Logger } from '../../infrastructure/logger/index';
 
 // =============================================================================
-// Types pour les messages HA spécifiques
+// Polyfill WebSocket pour Node.js — home-assistant-js-websocket cible le navigateur
+// (WebSocket natif) ; usage documenté officiellement pour Node.js (README du paquet).
 // =============================================================================
 
-/**
- * Réponse à la requête get_states
- */
-export interface HaGetStatesResponse extends HaWsMessage {
-  type: 'result';
-  id: number;
-  result: HaRawEntity[];
-}
-
-/**
- * Réponse à la requête config/area_registry/list
- */
-export interface HaAreaRegistryResponse extends HaWsMessage {
-  type: 'result';
-  id: number;
-  result: {
-    areas: Array<{
-      area_id: string;
-      name: string;
-      picture?: string;
-    }>;
-  };
-}
-
-/**
- * Réponse à la requête config/device_registry/list
- */
-export interface HaDeviceRegistryResponse extends HaWsMessage {
-  type: 'result';
-  id: number;
-  result: Array<{
-    device_id: string;
-    config_entries: any[];
-    area_id?: string;
-    name: string;
-    identifiers?: any[];
-    manufacturer?: string;
-    model?: string;
-    via_device_id?: string;
-  }>;
-}
-
-/**
- * Message de réponse générique
- */
-export interface HaGenericResponse extends HaWsMessage {
-  type: 'result';
-  id: number;
-  result: any;
-}
-
-/**
- * Message d'erreur HA
- */
-export interface HaErrorResponse extends HaWsMessage {
-  type: 'error';
-  id: number;
-  error: {
-    code: string;
-    message: string;
-  };
+if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  (globalThis as { WebSocket?: unknown }).WebSocket = require('ws');
 }
 
 // =============================================================================
@@ -78,7 +27,6 @@ type EntityStateCallback = (entity: HaRawEntity) => void;
 type AreaUpdatedCallback = (area: { area_id: string; name: string; picture?: string }) => void;
 type DeviceUpdatedCallback = (device: { device_id: string; name: string; area_id?: string }) => void;
 type EntityUpdatedCallback = (entity: { entity_id: string; domain: string; device_class?: string; area_id?: string }) => void;
-type MessageCallback = (message: HaWsMessage) => void;
 type ConnectCallback = () => void;
 type DisconnectCallback = (reason?: string) => void;
 type ErrorCallback = (error: Error) => void;
@@ -90,71 +38,59 @@ type ErrorCallback = (error: Error) => void;
 /**
  * Client WebSocket HA de haut niveau.
  * Gère la connexion, l'authentification, et la synchronisation du référentiel HA.
- * 
+ *
+ * Implémenté sur `home-assistant-js-websocket` (librairie officiellement maintenue par
+ * l'équipe Home Assistant, utilisée par le frontend HA lui-même) — remplace l'ancien
+ * transport WebSocket maison (HaWsTransport, supprimé) qui contenait un bug de double
+ * authentification par connexion (auth envoyée à la fois par le transport à l'ouverture du
+ * socket ET par HaWsClient en réponse à `auth_required`).
+ *
  * **Responsabilités :**
  * - Connexion et authentification via Long-Lived Access Token
  * - Chargement initial des états, areas, devices
  * - Souscription aux événements temps réel
  * - Émission des événements vers EventBus
- * 
+ *
  * **Ne pas confondre avec :**
- * - HaWsTransport (bas niveau, dans Infrastructure)
  * - HaStateRegistry (stockage des états)
  * - HaStructureRegistry (structuration des entités)
  */
 export class HaWsClient {
-  private transport: HaWsTransport;
   private logger: Logger;
-  
+  private connection: Connection | undefined;
+
   // État de connexion
   private isAuthenticated = false;
   private isReady = false;
-  
+
   // Configuration actuelle pour reconfigure
   private currentConfig: HaWsConfig;
-  
-  // ID des requêtes
-  private nextId = 1;
-  private pendingRequests: Map<number, { resolve: (data: any) => void; reject: (error: Error) => void }> = new Map();
 
   // Callbacks
   private stateCallbacks: EntityStateCallback[] = [];
   private areaCallbacks: AreaUpdatedCallback[] = [];
   private deviceCallbacks: DeviceUpdatedCallback[] = [];
   private entityCallbacks: EntityUpdatedCallback[] = [];
-  private messageCallbacks: MessageCallback[] = [];
   private connectCallbacks: ConnectCallback[] = [];
   private disconnectCallbacks: DisconnectCallback[] = [];
   private errorCallbacks: ErrorCallback[] = [];
 
   /**
    * @param config - Configuration WebSocket HA
-   * @param transport - Transport bas niveau (optionnel, créé automatiquement)
    * @param logger - Logger pour les logs (optionnel)
    */
   constructor(
-    private readonly config: HaWsConfig,
-    transport?: HaWsTransport,
+    private config: HaWsConfig,
     logger?: Logger
   ) {
-    // Stocker la config actuelle
     this.currentConfig = config;
-    
-    this.transport = transport || new HaWsTransport({
-      host: config.host,
-      port: config.port,
-      token: config.token,
-      reconnectDelay: config.reconnect_delay,
-    });
-    
+
     this.logger = logger || new Logger({
       level: 'info',
       maxSizeMb: 10,
       maxFiles: 5,
       logDir: '/app/logs',
     });
-
-    this.setupTransportListeners();
   }
 
   // ===========================================================================
@@ -164,10 +100,57 @@ export class HaWsClient {
   /**
    * Établit la connexion à Home Assistant.
    * Se connecte, s'authentifie, et lance la synchronisation initiale.
+   *
+   * Fire-and-forget (comme l'ancienne implémentation) : createConnection est asynchrone en
+   * interne, l'appelant n'attend pas cette méthode — le résultat est notifié via
+   * onConnect/onDisconnect/onError.
    */
   connect(): void {
     this.logger.info('ha:ws', `Connexion à HA WebSocket: ${this.config.host}:${this.config.port}`);
-    this.transport.connect();
+
+    const hassUrl = `http://${this.config.host}:${this.config.port}`;
+    const auth = createLongLivedTokenAuth(hassUrl, this.config.token);
+
+    // setupRetry: -1 = réessaie indéfiniment la connexion initiale (même comportement que
+    // l'ancien transport). ⚠️ Contrairement à l'ancien transport, la lib officielle n'insiste
+    // PAS en cas de jeton invalide (auth_invalid rejette immédiatement, pas de retry) — fini la
+    // boucle de reconnexion toutes les secondes observée avec un jeton invalide.
+    createConnection({ auth, setupRetry: -1 })
+      .then((connection) => this.handleConnected(connection))
+      .catch((error) => this.handleConnectFailed(error));
+  }
+
+  private handleConnected(connection: Connection): void {
+    this.connection = connection;
+    this.isAuthenticated = true;
+    this.logger.info('ha:ws', 'Connexion WebSocket établie et authentifiée');
+    this.notifyConnect();
+
+    connection.addEventListener('disconnected', () => {
+      this.logger.warn('ha:ws', 'Déconnexion WebSocket');
+      this.isAuthenticated = false;
+      this.isReady = false;
+      this.notifyDisconnect();
+    });
+
+    connection.addEventListener('ready', () => {
+      this.logger.info('ha:ws', 'Reconnexion WebSocket établie');
+      this.isAuthenticated = true;
+      this.notifyConnect();
+    });
+
+    connection.addEventListener('reconnect-error', (_conn, errorCode) => {
+      const message = errorCode === 2 /* ERR_INVALID_AUTH */ ? 'Invalid HA token' : `Reconnect error (code ${errorCode})`;
+      this.logger.error('ha:ws', message);
+      this.notifyError(new Error(message));
+    });
+  }
+
+  private handleConnectFailed(error: unknown): void {
+    // ERR_INVALID_AUTH (2) ou ERR_CANNOT_CONNECT (1), voir home-assistant-js-websocket/errors.
+    const message = error === 2 ? 'Invalid HA token' : `Impossible de se connecter à HA WebSocket (code ${error})`;
+    this.logger.error('ha:ws', message);
+    this.notifyError(new Error(message));
   }
 
   /**
@@ -175,7 +158,8 @@ export class HaWsClient {
    */
   disconnect(): void {
     this.logger.info('ha:ws', 'Déconnexion de HA WebSocket');
-    this.transport.disconnect();
+    this.connection?.close();
+    this.connection = undefined;
     this.isAuthenticated = false;
     this.isReady = false;
   }
@@ -184,7 +168,7 @@ export class HaWsClient {
    * Charge le référentiel initial de manière synchrone.
    * Appelle get_states, config/area_registry/list, config/device_registry/list
    * et config/entity_registry/list en parallèle.
-   * 
+   *
    * @returns Promise qui résout quand tout est chargé
    */
   async loadInitialRegistry(): Promise<{
@@ -193,57 +177,49 @@ export class HaWsClient {
     devices: Array<{ device_id: string; name: string; area_id?: string }>;
     entityRegistry: Array<{ entity_id: string; domain: string; device_class?: string; area_id?: string }>;
   }> {
-    if (!this.isAuthenticated) {
+    if (!this.isAuthenticated || !this.connection) {
       throw new Error('Cannot load registry: not authenticated. Call connect() first.');
     }
 
     this.logger.info('ha:ws', 'Chargement du référentiel initial');
 
-    // Envoyer toutes les requêtes en parallèle
-    const [
-      statesPromise,
-      areasPromise,
-      devicesPromise,
-      entitiesPromise,
-    ] = [
-      this.sendRequest<HaGetStatesResponse>({ type: 'get_states' }),
-      this.sendRequest<HaAreaRegistryResponse>({ type: 'config/area_registry/list' }),
-      this.sendRequest<HaDeviceRegistryResponse>({ type: 'config/device_registry/list' }),
-      this.sendRequest<HaEntityRegistryUpdatedMessage>({ type: 'config/entity_registry/list' }),
-    ];
-
-    // Attendre toutes les réponses
-    const [statesResult, areasResult, devicesResult, entitiesResult] = await Promise.all([
-      statesPromise,
-      areasPromise,
-      devicesPromise,
-      entitiesPromise,
+    const conn = this.connection;
+    // config/{area,device,entity}_registry/list n'ont pas d'équivalent haut niveau dans
+    // home-assistant-js-websocket (seuls get_states/get_config/get_services/get_user en ont) —
+    // passe par l'échappatoire bas niveau sendMessagePromise, comportement documenté.
+    const [entities, areasResult, devices, entityRegistry] = await Promise.all([
+      getStates(conn) as unknown as Promise<HaRawEntity[]>,
+      conn.sendMessagePromise<{ areas: Array<{ area_id: string; name: string; picture?: string }> }>({ type: 'config/area_registry/list' }),
+      conn.sendMessagePromise<Array<{ device_id: string; name: string; area_id?: string }>>({ type: 'config/device_registry/list' }),
+      conn.sendMessagePromise<Array<{ entity_id: string; domain: string; device_class?: string; area_id?: string }>>({ type: 'config/entity_registry/list' }),
     ]);
 
-    this.logger.info('ha:ws', `Référentiel chargé: ${statesResult.result.length} entités, ${areasResult.result.areas.length} areas, ${devicesResult.result.length} devices`);
+    // config/area_registry/list retourne soit { areas: [...] } (anciennes versions HA) soit
+    // directement [...] (versions récentes) — gère les deux formes.
+    const areas = Array.isArray(areasResult) ? areasResult : areasResult.areas;
+
+    this.logger.info('ha:ws', `Référentiel chargé: ${entities.length} entités, ${areas.length} areas, ${devices.length} devices`);
     this.isReady = true;
 
-    return {
-      entities: statesResult.result,
-      areas: areasResult.result.areas,
-      devices: devicesResult.result,
-      entityRegistry: entitiesResult.result as any,
-    };
+    return { entities, areas, devices, entityRegistry };
   }
 
   /**
    * Souscrit aux événements temps réel HA.
    */
   subscribeToEvents(): void {
+    if (!this.connection) {
+      this.logger.warn('ha:ws', 'subscribeToEvents() appelé sans connexion établie');
+      return;
+    }
+
     this.logger.info('ha:ws', 'Souscription aux événements temps réel');
-    
-    // Souscrire aux événements de changement d'état
-    this.sendMessage({ id: this.nextId++, type: 'subscribe_events', event_type: 'state_changed' });
-    
-    // Souscrire aux événements de registry
-    this.sendMessage({ id: this.nextId++, type: 'subscribe_events', event_type: 'area_registry_updated' });
-    this.sendMessage({ id: this.nextId++, type: 'subscribe_events', event_type: 'device_registry_updated' });
-    this.sendMessage({ id: this.nextId++, type: 'subscribe_events', event_type: 'entity_registry_updated' });
+
+    const conn = this.connection;
+    conn.subscribeEvents<HaStateChangedMessage>((message) => this.handleStateChanged(message), 'state_changed');
+    conn.subscribeEvents<HaAreaRegistryUpdatedMessage>((message) => this.handleAreaRegistryUpdated(message), 'area_registry_updated');
+    conn.subscribeEvents<HaDeviceRegistryUpdatedMessage>((message) => this.handleDeviceRegistryUpdated(message), 'device_registry_updated');
+    conn.subscribeEvents<HaEntityRegistryUpdatedMessage>((message) => this.handleEntityRegistryUpdated(message), 'entity_registry_updated');
   }
 
   /**
@@ -259,19 +235,11 @@ export class HaWsClient {
     target: { entity_id?: string | string[] },
     serviceData?: Record<string, unknown>
   ): Promise<unknown> {
-    if (!this.isAuthenticated) {
+    if (!this.isAuthenticated || !this.connection) {
       throw new Error('Cannot send command: not authenticated');
     }
 
-    const message = {
-      type: 'call_service',
-      domain,
-      service,
-      target,
-      service_data: serviceData || {},
-    };
-
-    return this.sendRequest(message);
+    return callService(this.connection, domain, service, serviceData || {}, target);
   }
 
   // ===========================================================================
@@ -294,10 +262,6 @@ export class HaWsClient {
     this.entityCallbacks.push(callback);
   }
 
-  onMessage(callback: MessageCallback): void {
-    this.messageCallbacks.push(callback);
-  }
-
   onConnect(callback: ConnectCallback): void {
     this.connectCallbacks.push(callback);
   }
@@ -311,156 +275,16 @@ export class HaWsClient {
   }
 
   // ===========================================================================
-  // Méthodes privées - Transport
-  // ===========================================================================
-
-  /**
-   * Configure les listeners sur le transport bas niveau.
-   */
-  private setupTransportListeners(): void {
-    this.transport.onConnect(() => this.handleTransportConnect());
-    this.transport.onDisconnect((reason) => this.handleTransportDisconnect(reason));
-    this.transport.onError((error) => this.handleTransportError(error));
-    this.transport.onMessage((message) => this.handleMessage(message));
-  }
-
-  /**
-   * Gère la connexion du transport.
-   */
-  private handleTransportConnect(): void {
-    this.logger.info('ha:ws', 'Connexion WebSocket établie');
-    // ⚠️ Ne PAS authentifier ici : le protocole WS de Home Assistant impose que le client
-    // attende le message serveur `auth_required` avant d'envoyer `auth` (voir le handler
-    // case 'auth_required' ci-dessous). Authentifier immédiatement à la connexion envoyait le
-    // jeton hors séquence protocolaire, en plus de l'envoi correct déclenché par auth_required
-    // — deux authentifications par connexion, log "Authentification en cours..." dupliqué.
-  }
-
-  /**
-   * Gère la déconnexion du transport.
-   */
-  private handleTransportDisconnect(reason?: string): void {
-    this.logger.warn('ha:ws', `Déconnexion WebSocket: ${reason || 'inconnu'}`);
-    this.isAuthenticated = false;
-    this.isReady = false;
-    this.notifyDisconnect(reason);
-  }
-
-  /**
-   * Gère une erreur du transport.
-   */
-  private handleTransportError(error: Error): void {
-    this.logger.error('ha:ws', `Erreur WebSocket: ${error.message}`);
-    this.notifyError(error);
-  }
-
-  /**
-   * Gère un message entrant.
-   */
-  private handleMessage(message: HaWsMessage): void {
-    this.notifyMessage(message);
-    
-    // Traiter les réponses aux requêtes
-    if (message.type === 'result' && this.pendingRequests.has(message.id)) {
-      const { resolve } = this.pendingRequests.get(message.id)!;
-      this.pendingRequests.delete(message.id);
-      resolve(message.result);
-      return;
-    }
-
-    // Traiter les erreurs
-    if (message.type === 'error' && this.pendingRequests.has(message.id)) {
-      const { reject } = this.pendingRequests.get(message.id)!;
-      this.pendingRequests.delete(message.id);
-      const errorMessage = (message as any).error?.message || 'Unknown error';
-      reject(new Error(errorMessage));
-      return;
-    }
-
-    // Traiter les événements
-    switch (message.type) {
-      case 'state_changed':
-        this.handleStateChanged(message as HaStateChangedMessage);
-        break;
-      case 'area_registry_updated':
-        this.handleAreaRegistryUpdated(message as HaAreaRegistryUpdatedMessage);
-        break;
-      case 'device_registry_updated':
-        this.handleDeviceRegistryUpdated(message as HaDeviceRegistryUpdatedMessage);
-        break;
-      case 'entity_registry_updated':
-        this.handleEntityRegistryUpdated(message as HaEntityRegistryUpdatedMessage);
-        break;
-      case 'auth_required':
-        this.authenticate();
-        break;
-      case 'auth_ok':
-        this.isAuthenticated = true;
-        this.logger.info('ha:ws', 'Authentification réussie');
-        this.notifyConnect();
-        break;
-      case 'auth_invalid':
-        this.logger.error('ha:ws', 'Token HA invalide');
-        this.notifyError(new Error('Invalid HA token'));
-        break;
-    }
-  }
-
-  /**
-   * Envoie un message via le transport.
-   */
-  private sendMessage(message: HaWsMessage): void {
-    this.transport.send(message);
-  }
-
-  /**
-   * Envoie une requête et retourne une Promise pour la réponse.
-   */
-  private sendRequest<T extends HaWsMessage>(message: Omit<HaWsMessage, 'id'>): Promise<T> {
-    const id = this.nextId++;
-    const request = { id, ...message } as HaWsMessage;
-    
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
-      this.sendMessage(request);
-      
-      // Timeout après 10 secondes
-      setTimeout(() => {
-        if (this.pendingRequests.has(id)) {
-          this.pendingRequests.delete(id);
-          reject(new Error(`Request ${id} timed out`));
-        }
-      }, 10000);
-    });
-  }
-
-  /**
-   * Envoie le message d'authentification.
-   */
-  private authenticate(): void {
-    this.logger.info('ha:ws', 'Authentification en cours...');
-    this.sendMessage({
-      id: this.nextId++,
-      type: 'auth',
-      access_token: this.config.token,
-    });
-  }
-
-  // ===========================================================================
   // Gestion des événements HA
   // ===========================================================================
 
-  /**
-   * Gère un événement state_changed.
-   */
   private handleStateChanged(message: HaStateChangedMessage): void {
     const newState = message.data.new_state;
-    this.notifyStateChanged(newState);
+    if (newState) {
+      this.notifyStateChanged(newState);
+    }
   }
 
-  /**
-   * Gère un événement area_registry_updated.
-   */
   private handleAreaRegistryUpdated(message: HaAreaRegistryUpdatedMessage): void {
     if (message.data.action === 'delete') {
       return; // Pas de data pour delete
@@ -473,9 +297,6 @@ export class HaWsClient {
     this.notifyAreaUpdated(area);
   }
 
-  /**
-   * Gère un événement device_registry_updated.
-   */
   private handleDeviceRegistryUpdated(message: HaDeviceRegistryUpdatedMessage): void {
     if (message.data.action === 'delete') {
       return; // Pas de data pour delete
@@ -488,9 +309,6 @@ export class HaWsClient {
     this.notifyDeviceUpdated(device);
   }
 
-  /**
-   * Gère un événement entity_registry_updated.
-   */
   private handleEntityRegistryUpdated(message: HaEntityRegistryUpdatedMessage): void {
     if (message.data.action === 'delete') {
       return; // Pas de data pour delete
@@ -544,16 +362,6 @@ export class HaWsClient {
         callback(entity);
       } catch (error) {
         this.logger.error('ha:ws', `Erreur dans callback entity_updated: ${error}`);
-      }
-    }
-  }
-
-  private notifyMessage(message: HaWsMessage): void {
-    for (const callback of this.messageCallbacks) {
-      try {
-        callback(message);
-      } catch (error) {
-        this.logger.error('ha:ws', `Erreur dans callback message: ${error}`);
       }
     }
   }
@@ -622,14 +430,7 @@ export class HaWsClient {
     if (!this.getIsAuthenticated()) {
       this.logger.info('ha:ws', 'Reconfiguration WebSocket (déconnecté) - Connexion avec nouvelle config');
       this.currentConfig = newConfig;
-      // Recréer le transport avec la nouvelle config
-      this.transport = new HaWsTransport({
-        host: newConfig.host,
-        port: newConfig.port,
-        token: newConfig.token,
-        reconnectDelay: newConfig.reconnect_delay,
-      });
-      this.setupTransportListeners();
+      this.config = newConfig;
       this.connect();
       return;
     }
@@ -639,17 +440,12 @@ export class HaWsClient {
       this.logger.info('ha:ws', 'Reconfiguration WebSocket - Config changée, reconnexion...');
       this.currentConfig = newConfig;
       this.disconnect();
-      // Recréer le transport avec la nouvelle config
-      this.transport = new HaWsTransport({
-        host: newConfig.host,
-        port: newConfig.port,
-        token: newConfig.token,
-        reconnectDelay: newConfig.reconnect_delay,
-      });
-      this.setupTransportListeners();
+      this.config = newConfig;
       this.connect();
     } else {
       this.logger.debug('ha:ws', 'Reconfiguration WebSocket - Config inchangée, aucune action');
     }
   }
 }
+
+export type { HaWsMessage };

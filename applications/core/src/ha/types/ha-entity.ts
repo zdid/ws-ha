@@ -1,8 +1,18 @@
-import { HaWsMessage } from '../../infrastructure/transport/HaWsTransport';
-
 // =============================================================================
 // Types pour les entités Home Assistant (brutes, depuis WebSocket)
 // =============================================================================
+
+/**
+ * Message WebSocket HA générique (id + type + payload libre).
+ * Relocalisé ici depuis infrastructure/transport/HaWsTransport.ts (supprimé lors du
+ * remplacement du client WS maison par home-assistant-js-websocket) — sa présence dans la
+ * couche transport n'était qu'historique.
+ */
+export interface HaWsMessage {
+  id: number;
+  type: string;
+  [key: string]: unknown;
+}
 
 /**
  * État brut d'une entité tel que retourné par l'API WebSocket HA.
@@ -212,5 +222,3 @@ export interface HaEntityRegistryUpdatedMessage extends HaWsMessage {
     };
   };
 }
-
-export { HaWsMessage };
