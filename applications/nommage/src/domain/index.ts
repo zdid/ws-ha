@@ -23,7 +23,7 @@ import {
 import { NOMMAGE_SOCKET_EVENTS, NOMMAGE_ALL_EVENTS, NOMMAGE_PERSISTENT_EVENTS } from './socket-events';
 import { NommageService, INommageService } from './NommageService';
 import { NommageMqttIntegrationService, INommageMqttIntegrationService } from '../ha/integration/nommage/NommageMqttIntegrationService';
-import type { NommageConfig } from './config-schema';
+import { DEFAULT_NOMMAGE_CONFIG, type NommageConfig } from './config-schema';
 
 // ============================================================================
 // Types pour la configuration du menu
@@ -64,13 +64,54 @@ export const NOMMAGE_UI_METADATA: ModuleUiMetadata = {
   menuLabel: 'Nommage',
   menuIcon: '🏷️',
   menuOrder: 10,
-  menuPath: '/applications/nommage/presentation/nommage/config.html',
+  menuPath: '/nommage/config',
   badge: 'MQTT',
-  
-  // ⭐ v1.1 : les sources MQTT (config.sources[], une ou plusieurs, ajout/suppression dynamique)
-  // ne sont plus représentables comme des champs plats ici — elles ont leur propre page dédiée
-  // (/nommage/config, voir presentation/nommage/config-app.ts), qui gère le tableau sources[].
+
+  // ⭐ v1.2 : les sources MQTT (config.sources[], une ou plusieurs, ajout/suppression dynamique)
+  // avaient nécessité une page de config dédiée (presentation/nommage/config.html) tant que le
+  // formulaire générique ne savait pas rendre un tableau dynamique. Type 'array' ajouté au socle
+  // (Alpine x-for/x-model) — la page dédiée est retirée, tout tient maintenant ici. Seule
+  // mqtt.discoveryTopics (tableau de chaînes DANS chaque source) reste non éditable ici : un
+  // sous-champ de type 'array' imbriqué dans un élément de tableau n'est pas supporté par le
+  // socle — garde ses valeurs par défaut (ou modification via config.yaml directement).
   fields: [
+    {
+      title: 'Sources MQTT',
+      description: 'Une ou plusieurs connexions MQTT indépendantes, toutes actives en même temps (ex : le broker HA lui-même, et séparément Zigbee2MQTT sur un préfixe de topics différent).',
+      icon: '📡',
+      fields: [
+        {
+          name: 'sources',
+          label: 'Sources',
+          type: 'array',
+          itemLabel: 'Source',
+          minItems: 1,
+          // Sans ça, une config fraîche sans clé 'sources' du tout affiche un tableau vide (0
+          // élément) au lieu d'une première source pré-remplie — même défaut que le schéma Zod
+          // (nommageConfigSchema), réutilisé ici comme seule source de vérité.
+          default: DEFAULT_NOMMAGE_CONFIG.sources,
+          itemFields: [
+            { name: 'id', label: 'Identifiant de la source', type: 'text', required: true, placeholder: 'ha-broker', hint: 'Identifiant unique (ex: "ha-broker", "zigbee2mqtt")' },
+            { name: 'mqtt.clientId', label: 'Client ID MQTT', type: 'text', required: true, placeholder: 'nommage-app', hint: 'Doit être unique entre toutes les sources' },
+            { name: 'mqtt.host', label: 'Hôte MQTT', type: 'text', required: true, placeholder: '192.168.1.100', default: 'localhost' },
+            { name: 'mqtt.port', label: 'Port MQTT', type: 'number', required: true, min: 1, max: 65535, default: 1883 },
+            { name: 'mqtt.username', label: 'Utilisateur MQTT', type: 'text', placeholder: 'user' },
+            { name: 'mqtt.password', label: 'Mot de passe MQTT', type: 'password', placeholder: 'password' },
+            { name: 'mqtt.topicPrefix', label: 'Préfixe des Topics', type: 'text', required: true, placeholder: 'ha/', default: 'ha/', hint: 'Préfixe du 1er terme des topics de cette source' },
+            {
+              name: 'mqtt.qos', label: 'QoS', type: 'select', default: 1,
+              options: [
+                { value: '0', label: '0 - Au maximum une fois' },
+                { value: '1', label: '1 - Au moins une fois' },
+                { value: '2', label: '2 - Exactement une fois' }
+              ]
+            },
+            { name: 'mqtt.retain', label: 'Conserver les messages retain', type: 'boolean', default: true },
+            { name: 'mqtt.useTls', label: 'Utiliser TLS (mqtts://)', type: 'boolean', default: false }
+          ]
+        }
+      ]
+    },
     {
       title: 'Home Assistant',
       description: 'Configuration de la transmission vers Home Assistant (Passthrough MQTT)',
@@ -124,9 +165,12 @@ export const NOMMAGE_MENU_CONFIG: ApplicationMenuConfig = {
   category: 'Paramètres Techniques',
   section: 'Nommage',
   entry: {
+    // Chemin interne, pas une vraie route servie — Sidebar.ts ne suit une navigation réelle que
+    // pour un entry.path commençant par '/applications/' ; sinon il route vers le formulaire
+    // générique (showModuleConfig()), ce qu'on veut ici depuis le retrait de la page dédiée.
     label: 'Nommage',
     icon: '🏷️',
-    path: '/applications/nommage/presentation/nommage/config.html',
+    path: '/nommage/config',
     order: 20,
     badge: 'MQTT'
   },
@@ -137,13 +181,6 @@ export const NOMMAGE_MENU_CONFIG: ApplicationMenuConfig = {
       icon: '📊',
       path: '/applications/nommage/presentation/index.html',
       order: 1
-    },
-    {
-      id: 'config',
-      label: 'Configuration',
-      icon: '⚙️',
-      path: '/applications/nommage/presentation/nommage/config.html',
-      order: 2
     }
   ]
 };

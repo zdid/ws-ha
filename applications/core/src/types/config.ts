@@ -19,7 +19,7 @@ export type ModuleConfig = Record<string, unknown>;
 export interface ConfigField {
   name: string;                    // Nom du champ (ex: 'serialPort', 'mqtt.host')
   label: string;                   // Label à afficher
-  type: 'text' | 'string' | 'number' | 'boolean' | 'select' | 'password' | 'string-array';
+  type: 'text' | 'string' | 'number' | 'boolean' | 'select' | 'password' | 'string-array' | 'array';
   placeholder?: string;
   hint?: string;                   // Texte d'aide
   description?: string;            // Description détaillée
@@ -29,6 +29,13 @@ export interface ConfigField {
   min?: number;                   // Pour number
   max?: number;
   step?: number;
+  // Uniquement pour type: 'array' — liste d'objets avec ajout/suppression dynamique, rendue par
+  // Alpine côté navigateur (voir applications/core/src/presentation/ui/ts/config/ModuleManager.ts
+  // generateArrayFieldHtml()). itemFields décrit la forme d'un élément (chemins pointés
+  // supportés, ex: "mqtt.host") ; ne supporte pas de sous-champ 'array' imbriqué.
+  itemFields?: ConfigField[];
+  itemLabel?: string;
+  minItems?: number;
 }
 
 /**

@@ -13,6 +13,11 @@ export class ModuleManager {
   private modules: Module[] = [];
   private socket: any;
   private moduleConfigs: Record<string, ModuleConfig> = {};
+  // Modules ayant reçu une vraie réponse serveur app:module:config au moins une fois — distinct
+  // de la simple présence dans moduleConfigs, qui peut aussi être une coquille {} pré-remplie par
+  // generateModuleConfigForm() avant que la réponse réelle n'arrive (voir app:module:config
+  // ci-dessous pour le pourquoi de cette distinction).
+  private moduleConfigLoaded: Set<string> = new Set();
   private moduleUiMetadata: Record<string, ModuleUiMetadata> = {};
   public activeModule: string | null = null;
   
@@ -52,12 +57,25 @@ export class ModuleManager {
       }
     });
     
-    // Configuration d'un module
+    // Configuration d'un module — app:modules:config:get est redemandé à la fois par
+    // app:modules:list et par app:module:ui:register (tous deux rejoués à chaque connexion,
+    // indépendamment l'un de l'autre), donc au moins deux réponses app:module:config arrivent
+    // en pratique pour un même module. Sans garde, chacune écrase moduleConfigs[moduleId] — une
+    // édition locale en cours (formulaire déjà ouvert, notamment le champ 'array') pouvait donc
+    // être silencieusement effacée par une réponse tardive/dupliquée avant même la sauvegarde.
+    // On n'accepte que la toute première vraie réponse par module ; moduleConfigLoaded (pas la
+    // simple présence dans moduleConfigs, qui peut être une coquille {} pré-remplie par
+    // generateModuleConfigForm() avant que cette réponse n'arrive) distingue les deux cas.
     this.socket.on('app:module:config', (data: { moduleId: string; config: ModuleConfig }) => {
       if (data.moduleId && data.config !== undefined) {
+        if (this.moduleConfigLoaded.has(data.moduleId)) {
+          console.log(`[ModuleManager] Configuration dupliquée ignorée pour module: ${data.moduleId}`);
+          return;
+        }
+        this.moduleConfigLoaded.add(data.moduleId);
         this.moduleConfigs[data.moduleId] = data.config;
         console.log(`[ModuleManager] Configuration reçue pour module: ${data.moduleId}`);
-        
+
         window.dispatchEvent(new CustomEvent('module:config:loaded', {
           detail: { moduleId: data.moduleId, config: data.config }
         }));
@@ -420,6 +438,14 @@ export class ModuleManager {
    * courante ; `x-effect` republie ensuite tout changement (ajout, suppression, édition d'un
    * sous-champ) vers ModuleManager.moduleConfigs via setModuleFieldRaw(), qui reste la source de
    * vérité lue par saveModuleConfig() — inchangé pour les autres types de champs.
+   *
+   * `JSON.parse(JSON.stringify(items))` avant setModuleFieldRaw() n'est pas cosmétique : `items`
+   * est le Proxy réactif d'Alpine lui-même, pas un tableau brut. Le passer tel quel stocke ce
+   * Proxy DANS moduleConfigs (un magasin JS ordinaire, non géré par Alpine) — exactement le
+   * scénario que déconseille alpinejs-implementation_specs_v1.0.md §4 ("piloter la même donnée
+   * par Alpine ET par du code non-Alpine en parallèle") : constaté en pratique, une édition ne
+   * se propageait plus de façon fiable à moduleConfigs après quelques cycles de rendu. Le clone
+   * JSON découple complètement : moduleConfigs ne contient plus jamais de Proxy Alpine.
    */
   private generateArrayFieldHtml(field: ConfigField, config: ModuleConfig, moduleId: string): string {
     const fieldName = field.name;
@@ -437,7 +463,7 @@ export class ModuleManager {
     return `
       <div class="form-group config-array" id="${id}"
            x-data="{ items: ${itemsJson} }"
-           x-effect="window.app.moduleManager.setModuleFieldRaw('${moduleId}', '${fieldName}', items)">
+           x-effect="window.app.moduleManager.setModuleFieldRaw('${moduleId}', '${fieldName}', JSON.parse(JSON.stringify(items)))">
         <label>${field.label}</label>
         ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
         <template x-for="(item, index) in items" :key="index">
@@ -475,12 +501,20 @@ export class ModuleManager {
         input = `<input type="checkbox" x-model="${path}" />`;
         break;
       case 'select': {
-        const optionsHtml = (field.options || []).map(opt => {
+        const opts = field.options || [];
+        const optionsHtml = opts.map(opt => {
           const optValue = typeof opt === 'string' ? opt : opt.value;
           const optLabel = typeof opt === 'string' ? opt : opt.label;
           return `<option value="${optValue}">${optLabel}</option>`;
         }).join('');
-        input = `<select x-model="${path}">${optionsHtml}</select>`;
+        // Un <select> ne connaît que des valeurs string — si toutes les options sont numériques
+        // (ex: QoS 0/1/2), x-model.number convertit en nombre réel pour matcher un schéma Zod
+        // qui attend z.number(), pas la string "1".
+        const allNumeric = opts.length > 0 && opts.every(opt => {
+          const v = typeof opt === 'string' ? opt : opt.value;
+          return v !== '' && !isNaN(Number(v));
+        });
+        input = `<select x-model${allNumeric ? '.number' : ''}="${path}">${optionsHtml}</select>`;
         break;
       }
       case 'number':
