@@ -184,9 +184,14 @@ function initEventListeners(): void {
     unassignedEntities: number;
     timestamp: string;
   }) => {
-    $('total-entities')!.textContent = stats.totalEntities.toString();
-    $('total-ou-paths')!.textContent = stats.totalOuPaths.toString();
-    $('unassigned-entities')!.textContent = stats.unassignedEntities.toString();
+    // Même remarque que dans updateStats() : $() peut renvoyer null si un autre module est
+    // maintenant affiché pendant qu'un événement pour celui-ci arrive encore en arrière-plan.
+    const totalEntitiesEl = $('total-entities');
+    if (totalEntitiesEl) totalEntitiesEl.textContent = stats.totalEntities.toString();
+    const totalOuPathsEl = $('total-ou-paths');
+    if (totalOuPathsEl) totalOuPathsEl.textContent = stats.totalOuPaths.toString();
+    const unassignedEntitiesEl = $('unassigned-entities');
+    if (unassignedEntitiesEl) unassignedEntitiesEl.textContent = stats.unassignedEntities.toString();
   });
 
   socket.on(ARBREOUQUOI_SOCKET_EVENTS.STATUS, (status: { status: string; message: string; timestamp: string }) => {
@@ -484,12 +489,19 @@ function renderQuoiCatalog(): void {
 function updateStats(): void {
   if (!state.tree) return;
   const tree = state.tree;
-  $('total-entities')!.textContent = tree.totalEntities.toString();
+  // $() peut renvoyer null si ce module n'est plus l'onglet affiché (le contenu de
+  // ModuleContainer a été remplacé par un autre module) alors qu'un événement socket pour CE
+  // module arrive encore en arrière-plan — pas une erreur, juste une mise à jour à ignorer.
+  const totalEntitiesEl = $('total-entities');
+  if (totalEntitiesEl) totalEntitiesEl.textContent = tree.totalEntities.toString();
   if ('totalOuNodes' in tree) {
-    $('total-ou-paths')!.textContent = (tree as OuFirstTree | QuoiFirstTree).totalOuNodes.toString();
+    const totalOuPathsEl = $('total-ou-paths');
+    if (totalOuPathsEl) totalOuPathsEl.textContent = (tree as OuFirstTree | QuoiFirstTree).totalOuNodes.toString();
   }
-  $('total-qui-types')!.textContent = tree.totalQuoiTypes.toString();
-  $('unassigned-entities')!.textContent = tree.unassigned.length.toString();
+  const totalQuoiTypesEl = $('total-qui-types');
+  if (totalQuoiTypesEl) totalQuoiTypesEl.textContent = tree.totalQuoiTypes.toString();
+  const unassignedEntitiesEl = $('unassigned-entities');
+  if (unassignedEntitiesEl) unassignedEntitiesEl.textContent = tree.unassigned.length.toString();
 }
 
 function showEntityDetails(entityId: string): void {
