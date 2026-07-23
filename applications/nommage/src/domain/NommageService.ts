@@ -18,6 +18,7 @@
  */
 
 import type { IEventBus, Logger, IAppConfigProvider } from '../../../core/src/exports';
+import { getAttributesTopic } from '../../../core/src/exports';
 import type { INommageMqttIntegrationService } from '../ha/integration/nommage/NommageMqttIntegrationService';
 import { nommageConfigSchema, type NommageConfig } from './config-schema';
 import type {
@@ -27,6 +28,7 @@ import type {
   TaxonomyStructure,
   NommageStatus,
   PassthroughDiscoveryEvent,
+  PassthroughPublishEvent,
   DailyCount
 } from './types';
 
@@ -374,9 +376,31 @@ export class NommageService implements INommageService {
    * Conforme à fonctionnelles-nommage_specs §3.4 et implementation-nommage_specs §5.3.
    */
   private emitPassthroughDiscovery(discoveryMessage: DiscoveryMessage, parsed: ParsedTaxonomy): void {
-    const payload: Record<string, unknown> = this.config.ha.injectTaxonomyAttributes
-      ? { ...discoveryMessage.payload, attributs_taxonomie: parsed.haAttributes.attributs_taxonomie }
-      : { ...discoveryMessage.payload };
+    let payload: Record<string, unknown> = { ...discoveryMessage.payload };
+
+    // attributs_taxonomie glissé directement dans la découverte n'atteint jamais entity.attributes
+    // (HA valide contre un schéma strict par plateforme, ignore les clés non reconnues — vérifié
+    // en direct sur une instance HA réelle). Le state_topic de l'entité relayée appartient à la
+    // source tierce (ex: Zigbee2MQTT) : contrairement à evoo7/rfxcom, NOMMAGE ne le contrôle pas et
+    // ne peut pas se fier à son format pour y superposer json_attributes_topic — les attributs sont
+    // donc publiés sur un topic dédié que NOMMAGE possède, déclaré dans la découverte relayée.
+    if (this.config.ha.injectTaxonomyAttributes) {
+      const attributesTopic = getAttributesTopic('nommage', BRIDGE_INSTANCE, parsed.haEntityId || parsed.quoi.slug);
+      payload = {
+        ...payload,
+        json_attributes_topic: attributesTopic,
+        json_attributes_template: '{{ value_json.attributes | tojson }}'
+      };
+
+      const publishEvent: PassthroughPublishEvent & { bridgeInstance: string } = {
+        bridgeInstance: BRIDGE_INSTANCE,
+        topic: attributesTopic,
+        payload: { attributes: parsed.haAttributes },
+        qos: 1,
+        retain: true
+      };
+      this.eventBus.emit('integration:nommage:passthrough:publish', publishEvent);
+    }
 
     const event: PassthroughDiscoveryEvent & { bridgeInstance: string } = {
       bridgeInstance: BRIDGE_INSTANCE,

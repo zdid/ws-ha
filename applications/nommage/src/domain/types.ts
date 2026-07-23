@@ -114,6 +114,19 @@ export interface PassthroughDiscoveryEvent {
 }
 
 /**
+ * Événement de publication libre émis par NOMMAGE vers le socle (Passthrough MQTT, mode
+ * "complet") — utilisé pour porter attributs_taxonomie sur un topic dédié que NOMMAGE contrôle
+ * (json_attributes_topic), puisque le state_topic de l'entité relayée appartient à la source
+ * tierce (son format n'est pas sous notre contrôle, contrairement à evoo7/rfxcom).
+ */
+export interface PassthroughPublishEvent {
+  topic: string;
+  payload: Record<string, unknown>;
+  qos?: 0 | 1;
+  retain?: boolean;
+}
+
+/**
  * Événement de découverte interne (pour l'UI/le suivi — nommage:discovery:parsed)
  */
 export interface NommageDiscoveryEvent {

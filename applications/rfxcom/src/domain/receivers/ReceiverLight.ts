@@ -59,12 +59,19 @@ export class ReceiverLight implements IReceiverModule {
   }
 
   getState(): HaMqttStateMessage {
+    const taxonomy = extractTaxonomy(this.config.name);
     if (!this.config.isDimmable) {
-      return { state: this.on ? 'ON' : 'OFF' };
+      return {
+        state: this.on ? 'ON' : 'OFF',
+        attributes: { attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
+      };
     }
     return {
       state: this.on ? 'ON' : 'OFF',
-      attributes: { brightness: Math.round((this.level / 100) * 255) }
+      attributes: {
+        brightness: Math.round((this.level / 100) * 255),
+        attributs_taxonomie: buildAttributsTaxonomie(taxonomy)
+      }
     };
   }
 
@@ -82,8 +89,8 @@ export class ReceiverLight implements IReceiverModule {
           name: taxonomy.rawQuoi,
           manufacturer: 'RFXCOM',
           model: this.config.isDimmable ? 'ReceiverLight (variateur)' : 'ReceiverLight'
-        },
-        extra: { attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
+        }
+        // attributs_taxonomie porté par getState() (json_attributes_topic), pas ici.
       }
     };
   }

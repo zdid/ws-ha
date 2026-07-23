@@ -92,6 +92,12 @@ export interface HaMqttDiscoveryEntity {
   availability_topic?: string;    // Topic pour disponibilité
   payload_available?: string;
   payload_not_available?: string;
+
+  // Attributs libres de l'entité (ex: attributs_taxonomie) — mécanisme HA officiel : un topic
+  // JSON fusionné dans entity.attributes, distinct des champs de découverte ci-dessus (qui sont
+  // eux validés contre un schéma strict par plateforme et n'acceptent aucune clé libre).
+  json_attributes_topic?: string;
+  json_attributes_template?: string;
 }
 
 /**
@@ -185,6 +191,16 @@ export function getStateTopic(moduleName: string, bridgeInstance: string, device
  */
 export function getCommandTopic(moduleName: string, bridgeInstance: string, deviceId: string): string {
   return `/${moduleName}/${bridgeInstance}/${deviceId}/set`;
+}
+
+/**
+ * Construit le topic d'attributs libres (json_attributes_topic) pour un device, propre à
+ * l'espace de noms de l'application. Utile uniquement quand le module ne peut pas réutiliser son
+ * propre state_topic pour porter les attributs (ex: passthrough — le state_topic appartient à la
+ * source tierce relayée, son format n'est pas sous notre contrôle).
+ */
+export function getAttributesTopic(moduleName: string, bridgeInstance: string, deviceId: string): string {
+  return `/${moduleName}/${bridgeInstance}/${deviceId}/attributes`;
 }
 
 /**

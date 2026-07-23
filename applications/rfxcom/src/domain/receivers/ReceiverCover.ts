@@ -117,9 +117,13 @@ export class ReceiverCover implements IReceiverModule {
   }
 
   getState(): HaMqttStateMessage {
+    const taxonomy = extractTaxonomy(this.config.name);
     return {
       state: this.runtimeState(),
-      attributes: { position: Math.round(this.computePosition()) }
+      attributes: {
+        position: Math.round(this.computePosition()),
+        attributs_taxonomie: buildAttributsTaxonomie(taxonomy)
+      }
     };
   }
 
@@ -135,8 +139,8 @@ export class ReceiverCover implements IReceiverModule {
           name: taxonomy.rawQuoi,
           manufacturer: 'RFXCOM',
           model: `ReceiverCover (${this.config.coverType})`
-        },
-        extra: { attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
+        }
+        // attributs_taxonomie porté par getState() (json_attributes_topic), pas ici.
       }
     };
   }

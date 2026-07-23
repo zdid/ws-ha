@@ -32,7 +32,11 @@ export class ReceiverSwitch implements IReceiverModule {
   }
 
   getState(): HaMqttStateMessage {
-    return { state: this.on ? 'ON' : 'OFF' };
+    const taxonomy = extractTaxonomy(this.config.name);
+    return {
+      state: this.on ? 'ON' : 'OFF',
+      attributes: { attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
+    };
   }
 
   getDiscoveryEssential(): { component: string; essential: EssentialEntityData } {
@@ -49,8 +53,9 @@ export class ReceiverSwitch implements IReceiverModule {
           name: taxonomy.rawQuoi,
           manufacturer: 'RFXCOM',
           model: 'ReceiverSwitch'
-        },
-        extra: { attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
+        }
+        // attributs_taxonomie porté par getState() (json_attributes_topic), pas ici — voir
+        // discovery.ts / RfxComService.publishDeviceDiscovery.
       }
     };
   }

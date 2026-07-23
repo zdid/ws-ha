@@ -26,9 +26,14 @@ export interface EssentialEntityData {
   /** Si absent, publication en lecture seule (pas de command_topic). */
   commandEnabled?: boolean;
   /**
-   * Champs additionnels fusionnés tels quels dans le message de découverte (ex: bloc
-   * `attributs_taxonomie`, obligatoire pour les modules conformes à nommage_specs — voir
-   * fonctionnelles-rfxcom_specs §2.6). Ne doit pas réutiliser les clés déjà gérées ci-dessus.
+   * Champs de découverte additionnels reconnus par HA, fusionnés tels quels (ex: state_class,
+   * entity_category). ⚠️ Ne PAS y glisser des attributs libres arbitraires (ex: taxonomie) : HA
+   * valide le message de découverte contre un schéma strict par plateforme et ignore
+   * silencieusement toute clé non reconnue — vérifié en direct sur une instance HA réelle,
+   * confirmé par un test de bout en bout (aucun des champs "extra" custom n'atteignait jamais
+   * entity.attributes). Pour des attributs libres, les porter dans HaMqttStateMessage.attributes
+   * (publishState) — json_attributes_topic/json_attributes_template (ci-dessous) les récupère
+   * automatiquement depuis là.
    */
   extra?: Record<string, unknown>;
 }
@@ -55,10 +60,12 @@ export function buildDiscoveryPayload(
   essential: EssentialEntityData,
   context: DiscoveryContext
 ): HaMqttDiscoveryEntity {
+  const stateTopic = getStateTopic(context.moduleName, context.bridgeInstance, context.deviceId);
+
   const entity: HaMqttDiscoveryEntity = {
     name: essential.name,
     unique_id: context.objectId,
-    state_topic: getStateTopic(context.moduleName, context.bridgeInstance, context.deviceId),
+    state_topic: stateTopic,
     device_class: essential.deviceClass,
     unit_of_measurement: essential.unitOfMeasurement,
     icon: essential.icon,
@@ -68,6 +75,11 @@ export function buildDiscoveryPayload(
     device: essential.device,
     retain: true,
     qos: 1,
+    // Le topic d'état publie déjà { state, attributes } en JSON (stateCommand.ts::publishState) —
+    // réutilisé tel quel pour les attributs libres de l'entité (ex: attributs_taxonomie), sans
+    // topic supplémentaire. Validé en direct sur une instance HA réelle.
+    json_attributes_topic: stateTopic,
+    json_attributes_template: '{{ value_json.attributes | tojson }}',
   };
 
   if (essential.commandEnabled) {

@@ -194,12 +194,15 @@ export class Evoo7Service implements IEvoo7Service {
 
     // Pas de traduction serveur pour les énumérations : le code brut est relayé tel quel, HA
     // traduit code→libellé côté affichage via value_template (voir classification.ts).
+    // attributs_taxonomie porté ici (pas dans le message de découverte, ignoré par HA — voir
+    // discovery.ts) : json_attributes_topic pointe vers ce même topic d'état.
+    const taxonomy = extractTaxonomy(donnee.description);
     this.eventBus.emitGeneric(`integration:${MODULE_NAME}:state`, {
       bridgeInstance: this.config.bridgeInstance,
       deviceId: id,
       state: {
         state: value,
-        attributes: { evoo7_id: id }
+        attributes: { evoo7_id: id, attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
       }
     });
 
@@ -225,9 +228,10 @@ export class Evoo7Service implements IEvoo7Service {
     // n'est jamais commandable, quelle que soit la sélection utilisateur.
     const commandEnabled = component !== 'sensor' && donnee.updatable && donnee.miseAJour;
 
-    const extra: Record<string, unknown> = {
-      attributs_taxonomie: buildAttributsTaxonomie(taxonomy)
-    };
+    // attributs_taxonomie n'est plus ici : un message de découverte HA est validé contre un
+    // schéma strict par plateforme, les clés non reconnues (dont celle-ci) sont ignorées en
+    // silence — porté par l'état à la place (handleEvoo7Message), via json_attributes_topic.
+    const extra: Record<string, unknown> = {};
     if (donnee.isConfigData) {
       extra.entity_category = 'config';
     }

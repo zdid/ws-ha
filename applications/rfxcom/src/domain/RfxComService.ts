@@ -221,8 +221,10 @@ export class RfxComService implements IRfxComService {
         name: `RFXCOM ${device.type} ${device.subType}`,
         manufacturer: 'RFXCOM',
         model: device.protocole.toUpperCase()
-      },
-      extra: { attributs_taxonomie: buildAttributsTaxonomie(taxonomy) }
+      }
+      // attributs_taxonomie n'est plus ici : un message de découverte HA est validé contre un
+      // schéma strict par plateforme, les clés non reconnues sont ignorées en silence — porté
+      // par l'état à la place (publishDeviceState), via json_attributes_topic.
     };
 
     this.eventBus.emitGeneric(`integration:${MODULE_NAME}:discovery`, {
@@ -237,6 +239,7 @@ export class RfxComService implements IRfxComService {
   private publishDeviceState(device: RfxComDeviceInfo, message: RfxComRawMessage): void {
     const deviceId = buildStateDeviceId(device.protocole, device.subType, device.sensorId, device.unitCode);
     const stateValue = this.extractStateValue(device.subType, message);
+    const taxonomy = extractTaxonomy(device.name);
 
     this.eventBus.emitGeneric(`integration:${MODULE_NAME}:state`, {
       bridgeInstance: this.config.bridgeInstance,
@@ -247,7 +250,8 @@ export class RfxComService implements IRfxComService {
           signal_level: message.signalLevel,
           battery_level: message.batteryLevel,
           sensor_id: device.uniqueId,
-          device_id: device.uniqueId
+          device_id: device.uniqueId,
+          attributs_taxonomie: buildAttributsTaxonomie(taxonomy)
         }
       }
     });
@@ -320,11 +324,14 @@ export class RfxComService implements IRfxComService {
         manufacturer: 'RFXCOM',
         model: 'Scene'
       },
+      // Pas d'attributs_taxonomie ici : device_automation (déclencheur, pas d'état/entité au
+      // sens HA classique) n'a pas d'équivalent à json_attributes_topic — et de toute façon le
+      // mécanisme précédent (clé glissée dans la découverte) n'atteignait jamais HA, voir
+      // publishDeviceDiscovery ci-dessus.
       extra: {
         automation_type: 'trigger',
         topic: commandTopic,
-        payload: '{}',
-        attributs_taxonomie: buildAttributsTaxonomie(taxonomy)
+        payload: '{}'
       }
     };
 
