@@ -11,7 +11,7 @@ export const arbreouquoiConfigSchema = z.object({
     showEntityIds: z.boolean().default(true),
     showQuoiIcons: z.boolean().default(true),
     theme: z.enum(['light', 'dark', 'auto']).default('auto'),
-    // Mode d'affichage : 'ou-first' (OU → QUOI) ou 'quoi-first' (QUOI → OU)
+    // Mode d'affichage : 'ou-first' (OÙ → QUOI) ou 'quoi-first' (QUOI → OÙ)
     viewMode: z.enum(['ou-first', 'quoi-first']).default('ou-first')
   }).default({}),
   

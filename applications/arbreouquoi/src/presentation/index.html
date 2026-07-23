@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arbre Ou Quoi - Visualisation du Référentiel HA</title>
+  <title>Arbre Où Quoi - Visualisation du Référentiel HA</title>
   <link rel="stylesheet" href="/styles/main.css">
   <link rel="stylesheet" href="/applications/arbreouquoi/presentation/styles/arbreouquoi.css">
-  <!-- Derniere modification: 2026-07-21 18:30:00 - Correction des chemins statiques (manquait presentation/) -->
+  <!-- Derniere modification: 2026-07-22 - Script en type="module", compile via le nouveau build:ui (JS navigateur reel, remplace le require()/exports casse de tsc principal) -->
 </head>
 <body>
   <div class="app-container">
     <header class="app-header">
-      <h1><span class="app-icon">🌳</span> Arbre Ou Quoi</h1>
-      <p class="app-description">Visualisation du référentiel Home Assistant organisé par OU → QUOI → Entités</p>
+      <h1><span class="app-icon">🌳</span> Arbre Où Quoi</h1>
+      <p class="app-description">Visualisation du référentiel Home Assistant organisé par OÙ → QUOI → Entités</p>
     </header>
 
     <div class="app-toolbar">
@@ -21,7 +21,7 @@
           <span>🔄</span> Rafraîchir
         </button>
         <button id="toggle-view-mode-btn" class="btn btn-primary">
-          🔀 Passer en mode QUOI → OU
+          🔀 Passer en mode QUOI → OÙ
         </button>
         <button id="expand-all-btn" class="btn btn-secondary">
           <span>↕</span> Tout étendre
@@ -53,7 +53,7 @@
       </div>
       <div class="stat-item">
         <span class="stat-value" id="total-ou-paths">0</span>
-        <span class="stat-label">Chemins OU</span>
+        <span class="stat-label">Chemins OÙ</span>
       </div>
       <div class="stat-item">
         <span class="stat-value" id="total-qui-types">0</span>
@@ -81,14 +81,14 @@
         <div class="tree-navigation">
           <h3>📁 Arborescence</h3>
           <div class="view-mode-info" id="view-mode-info">
-            Mode actuel: <strong>OU → QUOI → Entités</strong>
+            Mode actuel: <strong>OÙ → QUOI → Entités</strong>
           </div>
           <div class="quoi-catalog" id="quoi-catalog">
             <h4>Légende QUOI</h4>
             <div class="quoi-icons" id="quoi-icons"></div>
           </div>
           <div class="ou-legend">
-            <h4>Légende OU</h4>
+            <h4>Légende OÙ</h4>
             <div class="ou-legend-items">
               <div class="ou-legend-item"><span class="ou-legend-icon">🏠</span> Grand-Père</div>
               <div class="ou-legend-item"><span class="ou-legend-icon">🏢</span> Père</div>
@@ -113,10 +113,10 @@
     </div>
 
     <div class="app-footer">
-      <p>Application Arbre Ou Quoi - Dernière mise à jour: <span id="last-update">Jamais</span></p>
+      <p>Application Arbre Où Quoi - Dernière mise à jour: <span id="last-update">Jamais</span></p>
     </div>
   </div>
 
-  <script src="/applications/arbreouquoi/presentation/ts/app.js"></script>
+  <script type="module" src="/applications/arbreouquoi/presentation/ts/app.js"></script>
 </body>
 </html>

@@ -1,15 +1,16 @@
 /**
  * ArbreOuquoi Application - Client Socket.io
- * Visualisation du référentiel HA organisé par OU → QUOI → Entités
- * Ou par QUOI → OU → Entités (selon le mode)
+ * Visualisation du référentiel HA organisé par OÙ → QUOI → Entités
+ * Ou par QUOI → OÙ → Entités (selon le mode)
  * Derniere modification: 2026-07-20 11:00:00 - Mise à jour pour les deux modes d'affichage
  */
 
-// Import SocketService depuis le build compilé du core (pas le backend, pas core/src :
-// arbreouquoi a rootDir=./src et ne peut pas compiler de source hors de son arbre —
-// contrairement à nommage, on consomme donc directement le core/dist déjà buildé).
-import { SocketService } from '../../../../core/dist/presentation/ui/js/ts/services/SocketService';
-import { ARBREOUQUOI_SOCKET_EVENTS } from '../../domain/socket-events';
+// SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
+// et l'expose via son middleware /js/ts) — pas un chemin de fichier TypeScript, un import
+// d'exécution résolu par le navigateur lui-même. Voir presentation/tsconfig.ui.json.
+import { SocketService } from '/js/ts/services/SocketService.js';
+import { ARBREOUQUOI_SOCKET_EVENTS } from './socket-events';
+import { TreeNode, TreeNodeData } from './tree-node';
 
 // Types pour le client
 interface HaArea { area_id: string; name: string; picture?: string; }
@@ -26,7 +27,7 @@ interface HaStructuredEntity {
   quoi_ids: string[];
 }
 
-// Types pour OU-first
+// Types pour OÙ-first
 interface OuNode {
   id: string;
   name: string;
@@ -104,12 +105,37 @@ let state = {
 };
 
 const socket = new SocketService();
+socket.connect();
 
-// Initialisation
-document.addEventListener('DOMContentLoaded', () => {
+// Ce script est injecté par ModuleContainer.ts (core) bien après le chargement initial de la
+// page — au clic sur l'onglet, pas au chargement du document — donc `document.readyState` est
+// déjà 'complete' à ce moment-là : `document.addEventListener('DOMContentLoaded', ...)` seul ne
+// se déclencherait jamais (l'événement a déjà eu lieu). Même pattern que
+// nommage/config-app.ts.
+//
+// Par ailleurs, ModuleContainer encapsule tout le contenu injecté dans un Shadow DOM — le
+// `document` global ne le traverse pas, `$(...)` y renverrait toujours
+// `null`. ModuleContainer.ts expose son shadow root sur `window.__moduleContainerRoot` (voir
+// connectedCallback()) ; `$()` ci-dessous interroge cette racine si elle existe, sinon
+// `document` (utile en dehors de ce pipeline, ex: tests).
+function moduleRoot(): ParentNode {
+  return (window as any).__moduleContainerRoot || document;
+}
+
+function $(id: string): HTMLElement | null {
+  return moduleRoot().querySelector(`#${id}`);
+}
+
+function initApp(): void {
   initEventListeners();
   initUI();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 function initEventListeners(): void {
   socket.on('connect', () => {
@@ -158,9 +184,9 @@ function initEventListeners(): void {
     unassignedEntities: number;
     timestamp: string;
   }) => {
-    document.getElementById('total-entities')!.textContent = stats.totalEntities.toString();
-    document.getElementById('total-ou-paths')!.textContent = stats.totalOuPaths.toString();
-    document.getElementById('unassigned-entities')!.textContent = stats.unassignedEntities.toString();
+    $('total-entities')!.textContent = stats.totalEntities.toString();
+    $('total-ou-paths')!.textContent = stats.totalOuPaths.toString();
+    $('unassigned-entities')!.textContent = stats.unassignedEntities.toString();
   });
 
   socket.on(ARBREOUQUOI_SOCKET_EVENTS.STATUS, (status: { status: string; message: string; timestamp: string }) => {
@@ -184,29 +210,29 @@ function initEventListeners(): void {
   });
 
   // Événements UI
-  document.getElementById('refresh-btn')?.addEventListener('click', () => {
+  $('refresh-btn')?.addEventListener('click', () => {
     socket.emit(ARBREOUQUOI_SOCKET_EVENTS.REFRESH);
     showLoading();
   });
 
-  document.getElementById('filter-active-only')?.addEventListener('change', (e) => {
+  $('filter-active-only')?.addEventListener('change', (e) => {
     const checked = (e.target as HTMLInputElement).checked;
     state.filters.showOnlyActive = checked;
     socket.emit(ARBREOUQUOI_SOCKET_EVENTS.FILTER_SET, { showOnlyActive: checked });
   });
 
-  document.getElementById('expand-all-btn')?.addEventListener('click', () => {
+  $('expand-all-btn')?.addEventListener('click', () => {
     state.displayConfig.expandAll = true;
     renderTree();
   });
 
-  document.getElementById('collapse-all-btn')?.addEventListener('click', () => {
+  $('collapse-all-btn')?.addEventListener('click', () => {
     state.displayConfig.expandAll = false;
     renderTree();
   });
 
-  // Toggle mode OU-first / QUOI-first
-  document.getElementById('toggle-view-mode-btn')?.addEventListener('click', () => {
+  // Toggle mode OÙ-first / QUOI-first
+  $('toggle-view-mode-btn')?.addEventListener('click', () => {
     const newMode = state.viewMode === 'ou-first' ? 'quoi-first' : 'ou-first';
     state.viewMode = newMode;
     socket.emit(ARBREOUQUOI_SOCKET_EVENTS.CONFIG_SAVE, {
@@ -215,15 +241,15 @@ function initEventListeners(): void {
     showLoading();
   });
 
-  document.getElementById('search-btn')?.addEventListener('click', () => {
-    const query = (document.getElementById('search-input') as HTMLInputElement)?.value || '';
+  $('search-btn')?.addEventListener('click', () => {
+    const query = ($('search-input') as HTMLInputElement)?.value || '';
     if (query.trim()) {
       socket.emit(ARBREOUQUOI_SOCKET_EVENTS.SEARCH, query);
       showLoading();
     }
   });
 
-  document.getElementById('search-input')?.addEventListener('keypress', (e: KeyboardEvent) => {
+  $('search-input')?.addEventListener('keypress', (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       const query = (e.target as HTMLInputElement).value;
       if (query.trim()) {
@@ -233,7 +259,7 @@ function initEventListeners(): void {
     }
   });
 
-  document.getElementById('close-details-btn')?.addEventListener('click', () => {
+  $('close-details-btn')?.addEventListener('click', () => {
     hideDetailsPanel();
   });
 }
@@ -247,16 +273,16 @@ function initUI(): void {
 }
 
 function updateViewModeButton(): void {
-  const btn = document.getElementById('toggle-view-mode-btn') as HTMLButtonElement;
+  const btn = $('toggle-view-mode-btn') as HTMLButtonElement;
   if (btn) {
-    btn.textContent = state.viewMode === 'ou-first' 
-      ? '🔀 Passer en mode QUOI → OU' 
-      : '🔀 Passer en mode OU → QUOI';
+    btn.textContent = state.viewMode === 'ou-first'
+      ? '🔀 Passer en mode QUOI → OÙ'
+      : '🔀 Passer en mode OÙ → QUOI';
   }
 }
 
 function updateConnectionStatus(status: string): void {
-  const statusItem = document.getElementById('connection-status');
+  const statusItem = $('connection-status');
   const indicator = statusItem?.querySelector('.status-indicator');
   const text = statusItem?.querySelector('.status-text');
   if (!statusItem || !indicator || !text) return;
@@ -273,23 +299,23 @@ function updateConnectionStatus(status: string): void {
 }
 
 function updateLastUpdate(timestamp: string): void {
-  const el = document.getElementById('last-update');
+  const el = $('last-update');
   if (el) el.textContent = new Date(timestamp).toLocaleString('fr-FR');
 }
 
 function showLoading(): void {
   state.isLoading = true;
-  document.getElementById('loading-indicator')!.style.display = 'flex';
+  $('loading-indicator')!.style.display = 'flex';
 }
 
 function hideLoading(): void {
   state.isLoading = false;
-  document.getElementById('loading-indicator')!.style.display = 'none';
+  $('loading-indicator')!.style.display = 'none';
 }
 
 function showError(message: string): void {
   state.error = message;
-  const errorEl = document.getElementById('error-message')!;
+  const errorEl = $('error-message')!;
   errorEl.textContent = message;
   errorEl.style.display = 'block';
   setTimeout(() => { if (state.error === message) hideError(); }, 5000);
@@ -297,180 +323,97 @@ function showError(message: string): void {
 
 function hideError(): void {
   state.error = null;
-  document.getElementById('error-message')!.style.display = 'none';
+  $('error-message')!.style.display = 'none';
 }
 
 function renderTree(): void {
-  const treeEl = document.getElementById('tree');
+  const treeEl = $('tree');
   if (!treeEl || !state.tree) return;
-  
-  if (state.viewMode === 'ou-first') {
-    treeEl.innerHTML = renderOuFirstTree(state.tree as OuFirstTree);
-  } else {
-    treeEl.innerHTML = renderQuoiFirstTree(state.tree as QuoiFirstTree);
-  }
-  
-  // Ajouter les événements après rendu
-  document.querySelectorAll('.section-header, .quoi-header, .ou-header').forEach(header => {
-    header.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleSection(header as HTMLElement);
-    });
+
+  const nodes = state.viewMode === 'ou-first'
+    ? normalizeOuFirstTree(state.tree as OuFirstTree, state.displayConfig.expandAll)
+    : normalizeQuoiFirstTree(state.tree as QuoiFirstTree, state.displayConfig.expandAll);
+
+  treeEl.innerHTML = '';
+  nodes.forEach(n => {
+    const el = document.createElement('tree-node') as TreeNode;
+    treeEl.appendChild(el);
+    el.setData(n);
   });
 }
 
-function renderOuFirstTree(tree: OuFirstTree): string {
-  let html = '';
-  
-  // Entités non assignées
-  if (tree.unassigned.length > 0) {
-    html += `
-      <div class="tree-section unassigned-section">
-        <div class="section-header">
-          <span class="toggle-icon">▶</span>
-          <span class="section-title">📦 Non assignés (${tree.unassigned.length})</span>
-        </div>
-        <div class="section-content" style="display: ${state.displayConfig.expandAll ? 'block' : 'none'};">
-          ${tree.unassigned.map(e => renderEntity(e)).join('')}
-        </div>
-      </div>
-    `;
-  }
-  
-  // Niveaux OU
-  for (const levelNode of tree.levels) {
-    html += renderOuNode(levelNode, 0);
-  }
-  
-  return html;
+function toEntityInfo(e: HaStructuredEntity): EntityInfo {
+  return { entity: e, ouPath: [], quoiIds: e.quoi_ids, device: e.device || null, area: e.area || null };
 }
 
-function renderOuNode(node: OuWithQuoiNode, depth: number): string {
-  const levelClass = `ou-level-${node.ou.level}`;
-  const indent = '  '.repeat(depth * 2);
-  
-  let html = `
-    <div class="ou-section ${levelClass}" data-level="${node.ou.level}" style="margin-left: ${depth * 15}px;">
-      <div class="ou-header">
-        <span class="toggle-icon">▶</span>
-        <span class="ou-icon">${getOuIcon(node.ou.level)}</span>
-        <span class="ou-name">${escapeHtml(node.ou.name)}</span>
-        <span class="ou-level-badge">[${node.ou.level}]</span>
-        <span class="entity-count">(${node.entityCount})</span>
-      </div>
-      <div class="ou-content" style="display: ${state.displayConfig.expandAll ? 'block' : 'none'};">
-  `;
-  
-  // Regrouper par QUOI
-  for (const quoiGroup of node.children) {
-    html += `
-        <div class="quoi-group">
-          <div class="quoi-header">
-            <span class="toggle-icon">▶</span>
-            <span class="quoi-icon">${quoiGroup.quoi.icon || getQuoiIcon(quoiGroup.quoi.id)}</span>
-            <span class="quoi-name">${escapeHtml(quoiGroup.quoi.name)}</span>
-            <span class="quoi-count">(${quoiGroup.count})</span>
-          </div>
-          <div class="quoi-entities" style="display: ${state.displayConfig.expandAll ? 'block' : 'none'};">
-            ${quoiGroup.entities.map(e => renderEntity({ entity: e, ouPath: [], quoiIds: e.quoi_ids, device: e.device || null, area: e.area || null })).join('')}
-          </div>
-        </div>
-    `;
-  }
-  
-  // Enfants OU
-  for (const child of node.ou.children) {
-    const childNode: OuWithQuoiNode = {
-      ou: child,
-      children: [],
-      entityCount: child.entityCount
+function unassignedNode(unassigned: EntityInfo[], expandAll: boolean): TreeNodeData | null {
+  if (unassigned.length === 0) return null;
+  return {
+    id: 'unassigned', kind: 'unassigned', label: `📦 Non assignés (${unassigned.length})`,
+    icon: '', count: unassigned.length, children: [], entities: unassigned, defaultOpen: expandAll
+  };
+}
+
+function normalizeOuFirstTree(tree: OuFirstTree, expandAll: boolean): TreeNodeData[] {
+  const result: TreeNodeData[] = [];
+  const unassigned = unassignedNode(tree.unassigned, expandAll);
+  if (unassigned) result.push(unassigned);
+
+  const allQuoiIds = tree.levels.flatMap(l => l.children).flatMap(g => g.quoi);
+
+  const normalizeOuWithQuoi = (node: OuWithQuoiNode): TreeNodeData => {
+    const quoiChildren: TreeNodeData[] = node.children.map(qg => ({
+      id: `quoi-${node.ou.id}-${qg.quoi.id}`, kind: 'quoi', label: escapeHtml(qg.quoi.name),
+      icon: qg.quoi.icon || getQuoiIcon(qg.quoi.id), count: qg.count,
+      children: [], entities: qg.entities.map(toEntityInfo), defaultOpen: expandAll
+    }));
+    const ouChildren: TreeNodeData[] = node.ou.children.map(child => {
+      const childQuoiGroups = groupEntitiesByQuoi(child.entities, allQuoiIds);
+      return normalizeOuWithQuoi({ ou: child, children: childQuoiGroups, entityCount: child.entityCount });
+    });
+    return {
+      id: node.ou.id, kind: 'ou', label: escapeHtml(node.ou.name), icon: getOuIcon(node.ou.level),
+      badge: `[${node.ou.level}]`, levelClass: `ou-level-${node.ou.level}`,
+      count: node.entityCount, children: [...quoiChildren, ...ouChildren], entities: [], defaultOpen: expandAll
     };
-    // Regrouper les entités de l'enfant par QUOI
-    const childQuoiGroups = groupEntitiesByQuoi(child.entities, (state.tree as OuFirstTree).levels.flatMap(l => l.children).flatMap(g => g.quoi));
-    childNode.children = childQuoiGroups;
-    html += renderOuNode(childNode, depth + 1);
-  }
-  
-  html += `
-      </div>
-    </div>
-  `;
-  
-  return html;
+  };
+
+  for (const levelNode of tree.levels) result.push(normalizeOuWithQuoi(levelNode));
+  return result;
 }
 
-function renderQuoiFirstTree(tree: QuoiFirstTree): string {
-  let html = '';
-  
-  // Entités non assignées
-  if (tree.unassigned.length > 0) {
-    html += `
-      <div class="tree-section unassigned-section">
-        <div class="section-header">
-          <span class="toggle-icon">▶</span>
-          <span class="section-title">📦 Non assignés (${tree.unassigned.length})</span>
-        </div>
-        <div class="section-content" style="display: ${state.displayConfig.expandAll ? 'block' : 'none'};">
-          ${tree.unassigned.map(e => renderEntity(e)).join('')}
-        </div>
-      </div>
-    `;
-  }
-  
-  // Groupes QUOI
+function normalizeQuoiFirstTree(tree: QuoiFirstTree, expandAll: boolean): TreeNodeData[] {
+  const result: TreeNodeData[] = [];
+  const unassigned = unassignedNode(tree.unassigned, expandAll);
+  if (unassigned) result.push(unassigned);
+
+  const normalizeOuNodeForQuoi = (node: OuNode, entities: HaStructuredEntity[], group: QuiGroupWithOu): TreeNodeData => {
+    const children = node.children.map(child => {
+      const childEntities = group.entitiesByOu.get(child.id) || [];
+      return normalizeOuNodeForQuoi(child, childEntities, group);
+    });
+    return {
+      id: node.id, kind: 'ou', label: escapeHtml(node.name), icon: getOuIcon(node.level),
+      badge: `[${node.level}]`, levelClass: `ou-level-${node.level}`,
+      count: entities.length + node.children.reduce((sum, c) => sum + c.entityCount, 0),
+      children, entities: entities.map(toEntityInfo), defaultOpen: expandAll
+    };
+  };
+
   for (const group of tree.quoiGroups) {
-    html += `
-      <div class="quoi-section">
-        <div class="quoi-header">
-          <span class="toggle-icon">▶</span>
-          <span class="quoi-icon">${group.quoi.icon || getQuoiIcon(group.quoi.id)}</span>
-          <span class="quoi-name">${escapeHtml(group.quoi.name)}</span>
-          <span class="quoi-count">(${group.entityCount} entités)</span>
-        </div>
-        <div class="quoi-content" style="display: ${state.displayConfig.expandAll ? 'block' : 'none'};">
-    `;
-    
-    // Hiérarchie OU pour ce QUOI
+    const ouChildren: TreeNodeData[] = [];
     for (const ouNode of group.ouHierarchy) {
       const entities = group.entitiesByOu.get(ouNode.id) || [];
       if (entities.length === 0) continue;
-      
-      html += renderOuNodeForQuoi(ouNode, entities, 0);
+      ouChildren.push(normalizeOuNodeForQuoi(ouNode, entities, group));
     }
-    
-    html += `
-        </div>
-      </div>
-    `;
+    result.push({
+      id: group.quoi.id, kind: 'quoi', label: escapeHtml(group.quoi.name),
+      icon: group.quoi.icon || getQuoiIcon(group.quoi.id), count: group.entityCount,
+      children: ouChildren, entities: [], defaultOpen: expandAll
+    });
   }
-  
-  return html;
-}
-
-function renderOuNodeForQuoi(node: OuNode, entities: HaStructuredEntity[], depth: number): string {
-  const childrenHtml = node.children.length > 0 
-    ? node.children.map(child => {
-        const childEntities = Array.from((state.tree as QuoiFirstTree).quoiGroups
-          .flatMap(g => g.entitiesByOu.get(child.id) || []));
-        return renderOuNodeForQuoi(child, childEntities, depth + 1);
-      }).join('')
-    : '';
-  
-  return `
-    <div class="ou-section ou-level-${node.level}" style="margin-left: ${depth * 15}px;">
-      <div class="ou-header">
-        <span class="toggle-icon">${node.children.length > 0 ? '▶' : '•'}</span>
-        <span class="ou-icon">${getOuIcon(node.level)}</span>
-        <span class="ou-name">${escapeHtml(node.name)}</span>
-        <span class="ou-level-badge">[${node.level}]</span>
-        <span class="entity-count">(${entities.length + node.children.reduce((sum, c) => sum + c.entityCount, 0)})</span>
-      </div>
-      <div class="ou-content" style="display: ${state.displayConfig.expandAll ? 'block' : 'none'};">
-        ${entities.length > 0 ? `<div class="entities-in-ou">${entities.map(e => renderEntity({ entity: e, ouPath: [], quoiIds: e.quoi_ids, device: e.device || null, area: e.area || null })).join('')}</div>` : ''}
-        ${childrenHtml}
-      </div>
-    </div>
-  `;
+  return result;
 }
 
 // Helper pour regrouper les entités par QUOI
@@ -501,10 +444,12 @@ function renderEntity(entityInfo: EntityInfo): string {
   const areaName = entityInfo.ouPath.length > 0 ? entityInfo.ouPath[entityInfo.ouPath.length - 1] : (entity.area?.name || 'N/A');
   
   return `
-    <div class="entity-item" 
-         onclick="showEntityDetails('${entity.entity_id}')"
-         onmouseenter="highlightEntity(this)"
-         onmouseleave="unhighlightEntity(this)">
+    <div class="entity-item"
+         x-data="{ hover: false }"
+         :class="{ highlight: hover }"
+         @mouseenter="hover = true"
+         @mouseleave="hover = false"
+         @click="window.arbreouquoiShowDetails('${entity.entity_id}')">
       <span class="entity-icon">${quoiIcons}</span>
       <span class="entity-domain ${domain}">${domain}</span>
       <span class="entity-name">${escapeHtml(entity.attributes?.friendly_name as string || entity.entity_id)}</span>
@@ -516,8 +461,10 @@ function renderEntity(entityInfo: EntityInfo): string {
   `;
 }
 
+TreeNode.entityRenderer = (info: unknown) => renderEntity(info as EntityInfo);
+
 function renderQuoiCatalog(): void {
-  const el = document.getElementById('quoi-catalog');
+  const el = $('quoi-catalog');
   if (!el) return;
   
   const html = `
@@ -537,19 +484,19 @@ function renderQuoiCatalog(): void {
 function updateStats(): void {
   if (!state.tree) return;
   const tree = state.tree;
-  document.getElementById('total-entities')!.textContent = tree.totalEntities.toString();
+  $('total-entities')!.textContent = tree.totalEntities.toString();
   if ('totalOuNodes' in tree) {
-    document.getElementById('total-ou-paths')!.textContent = (tree as OuFirstTree | QuoiFirstTree).totalOuNodes.toString();
+    $('total-ou-paths')!.textContent = (tree as OuFirstTree | QuoiFirstTree).totalOuNodes.toString();
   }
-  document.getElementById('total-qui-types')!.textContent = tree.totalQuoiTypes.toString();
-  document.getElementById('unassigned-entities')!.textContent = tree.unassigned.length.toString();
+  $('total-qui-types')!.textContent = tree.totalQuoiTypes.toString();
+  $('unassigned-entities')!.textContent = tree.unassigned.length.toString();
 }
 
 function showEntityDetails(entityId: string): void {
   socket.emit(ARBREOUQUOI_SOCKET_EVENTS.ENTITY_GET, entityId);
-  const panel = document.getElementById('details-panel')!;
+  const panel = $('details-panel')!;
   panel.style.display = 'block';
-  document.getElementById('details-content')!.innerHTML = '<div class="loading-small"><div class="spinner-small"></div><p>Chargement...</p></div>';
+  $('details-content')!.innerHTML = '<div class="loading-small"><div class="spinner-small"></div><p>Chargement...</p></div>';
 }
 
 function renderEntityDetails(payload: {
@@ -560,7 +507,7 @@ function renderEntityDetails(payload: {
   quiIds: string[];
   relatedEntities: EntityInfo[];
 }): void {
-  const contentEl = document.getElementById('details-content');
+  const contentEl = $('details-content');
   if (!contentEl) return;
   
   const e = payload.entity;
@@ -589,7 +536,7 @@ function renderEntityDetails(payload: {
   if (payload.ouPath.length > 0) {
     html += `
       <div class="details-section">
-        <h3>📍 Hiérarchie OU</h3>
+        <h3>📍 Hiérarchie OÙ</h3>
         <div class="ou-path-display">
           ${payload.ouPath.map((name, idx) => {
             const level = getLevelFromPathIndex(idx, payload.ouPath.length);
@@ -645,7 +592,7 @@ function renderEntityDetails(payload: {
         <h3>🔗 Entités associées (${payload.relatedEntities.length})</h3>
         <div class="related-entities">
           ${payload.relatedEntities.slice(0, 10).map(re => `
-            <div class="related-entity" onclick="showEntityDetails('${re.entity.entity_id}')">
+            <div class="related-entity" onclick="window.arbreouquoiShowDetails('${re.entity.entity_id}')">
               <span class="related-entity-name">${escapeHtml(re.entity.attributes?.friendly_name as string || re.entity.entity_id)}</span>
               <span class="related-entity-id">${re.entity.entity_id}</span>
             </div>
@@ -675,29 +622,7 @@ function renderEntityDetails(payload: {
 }
 
 function hideDetailsPanel(): void {
-  document.getElementById('details-panel')!.style.display = 'none';
-}
-
-function toggleSection(header: HTMLElement): void {
-  const content = header.nextElementSibling as HTMLElement | null;
-  const icon = header.querySelector('.toggle-icon') as HTMLElement | null;
-  if (!content || !icon) return;
-  
-  if (content.style.display === 'none') {
-    content.style.display = 'block';
-    icon.textContent = '▼';
-  } else {
-    content.style.display = 'none';
-    icon.textContent = content.classList.contains('ou-content') && content.querySelectorAll('.ou-section').length > 0 ? '▶' : '•';
-  }
-}
-
-function highlightEntity(element: HTMLElement): void {
-  element.classList.add('highlight');
-}
-
-function unhighlightEntity(element: HTMLElement): void {
-  element.classList.remove('highlight');
+  $('details-panel')!.style.display = 'none';
 }
 
 function getOuIcon(level: string): string {
@@ -740,8 +665,9 @@ function getLevelFromPathIndex(idx: number, length: number): 'grand_pere' | 'per
   return 'grand_pere';
 }
 
-// Exporter pour accès global (nécessaire pour les onclick dans le HTML généré)
-(window as any).toggleSection = toggleSection;
-(window as any).showEntityDetails = showEntityDetails;
-(window as any).highlightEntity = highlightEntity;
-(window as any).unhighlightEntity = unhighlightEntity;
+// Pont global minimal restant : ouvrir le panneau de détails déclenche un socket.emit +
+// un état asynchrone (réponse serveur), pas un simple état réactif local — pas remplacé par
+// une directive Alpine pure. toggleSection/highlightEntity/unhighlightEntity ont disparu,
+// remplacés par x-data/x-show/@click/@mouseenter/@mouseleave dans TreeNode (tree-node.ts)
+// et renderEntity() ci-dessus.
+(window as any).arbreouquoiShowDetails = showEntityDetails;

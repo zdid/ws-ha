@@ -5,6 +5,7 @@
   "main": "dist/domain/index.js",
   "scripts": {
     "build": "tsc",
+    "build:ui": "tsc -p src/presentation/tsconfig.ui.json",
     "watch": "tsc -w",
     "dev:local": "CONFIG_PATH=../../../data/config.yaml tsx watch src/index.ts"
   },

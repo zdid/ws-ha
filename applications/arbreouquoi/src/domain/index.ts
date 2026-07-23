@@ -12,7 +12,7 @@ import { ARBREOUQUOI_SOCKET_EVENTS } from './socket-events';
 // Déclaration du module
 export const ARBREOUQUOI_APP: ApplicationModule = {
   id: 'arbreouquoi',
-  name: 'Arbre Ou Quoi',
+  name: 'Arbre Où Quoi',
   description: 'Application de visualisation du référentiel Home Assistant organisé par Area → QUOI → Entités',
   icon: '🌳',
   type: 'standalone',

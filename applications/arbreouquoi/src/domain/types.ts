@@ -2,12 +2,12 @@ import type { HaStructuredEntity } from '../../../core/dist/ha/types/ha-entity';
 import type { HaArea, HaDevice, HaQuoiDefinition } from '../../../core/dist/ha/types/ha-structure';
 
 // Types spécifiques à l'application ArbreOuquoi
-// Basés sur la hiérarchie OU : Grand-Père → Père → Lieu → Lieu Précis
+// Basés sur la hiérarchie OÙ : Grand-Père → Père → Lieu → Lieu Précis
 
-// Niveau de la hiérarchie OU
+// Niveau de la hiérarchie OÙ
 export type OuLevel = 'grand_pere' | 'pere' | 'lieu' | 'lieu_precis';
 
-// Noeud de la hiérarchie OU (un seul niveau)
+// Noeud de la hiérarchie OÙ (un seul niveau)
 export interface OuNode {
   id: string;
   name: string;
@@ -18,14 +18,14 @@ export interface OuNode {
   parentId: string | null;
 }
 
-// Structure pour un OU avec ses QUOI
+// Structure pour un OÙ avec ses QUOI
 export interface OuWithQuoiNode {
   ou: OuNode;
   children: QuoiGroup[];
   entityCount: number;
 }
 
-// Structure pour le mode OU-first (hiérarchie OU → QUOI → Entités)
+// Structure pour le mode OÙ-first (hiérarchie OÙ → QUOI → Entités)
 export interface OuFirstTree {
   levels: OuWithQuoiNode[]; // Niveau racine (grand-pere, pere, lieu, lieu_precis)
   unassigned: EntityInfo[];
@@ -34,7 +34,7 @@ export interface OuFirstTree {
   totalQuoiTypes: number;
 }
 
-// Structure pour le mode QUOI-first (QUOI → hiérarchie OU → Entités)
+// Structure pour le mode QUOI-first (QUOI → hiérarchie OÙ → Entités)
 export interface QuoiFirstTree {
   quoiGroups: QuiGroupWithOu[];
   unassigned: EntityInfo[];
@@ -43,12 +43,12 @@ export interface QuoiFirstTree {
   totalOuNodes: number;
 }
 
-// Groupe QUOI avec hiérarchie OU
+// Groupe QUOI avec hiérarchie OÙ
 export interface QuiGroupWithOu {
   quoi: HaQuoiDefinition;
   entityCount: number;
-  ouHierarchy: OuNode[]; // La hiérarchie OU pour ce QUOI
-  entitiesByOu: Map<string, HaStructuredEntity[]>; // OU ID → Entités
+  ouHierarchy: OuNode[]; // La hiérarchie OÙ pour ce QUOI
+  entitiesByOu: Map<string, HaStructuredEntity[]>; // OÙ ID → Entités
 }
 
 // Groupe QUOI classique
@@ -61,7 +61,7 @@ export interface QuoiGroup {
 // Informations sur une entité
 export interface EntityInfo {
   entity: HaStructuredEntity;
-  ouPath: string[]; // Chemin complet dans la hiérarchie OU
+  ouPath: string[]; // Chemin complet dans la hiérarchie OÙ
   quoiIds: string[];
   device: HaDevice | null;
   area: HaArea | null;
@@ -71,7 +71,7 @@ export interface EntityInfo {
 export interface QuoiCatalogWithCounts {
   quoi: HaQuoiDefinition;
   entityCount: number;
-  ouPaths: string[]; // Chemins OU où ce QUOI apparaît
+  ouPaths: string[]; // Chemins OÙ où ce QUOI apparaît
 }
 
 // Filtrage et tri
@@ -92,7 +92,7 @@ export interface ArbreOuQuoiTreePayload {
 
 export interface ArbreOuQuoiEntityDetailsPayload {
   entity: HaStructuredEntity;
-  ouPath: string[]; // Chemin OU complet
+  ouPath: string[]; // Chemin OÙ complet
   area: HaArea | null;
   device: HaDevice | null;
   quiIds: string[];

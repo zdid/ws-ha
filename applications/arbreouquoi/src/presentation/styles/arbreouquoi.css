@@ -228,7 +228,7 @@ html, body {
   padding: var(--spacer-sm); background-color: var(--card-background);
 }
 
-/* OU Sections */
+/* OÙ Sections */
 .ou-section { border-left: 2px solid var(--border-color); }
 .ou-section.ou-level-grand_pere { border-left-color: var(--ou-grand-pere-color); }
 .ou-section.ou-level-pere { border-left-color: var(--ou-pere-color); }

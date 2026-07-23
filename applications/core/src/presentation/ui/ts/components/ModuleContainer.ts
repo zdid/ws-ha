@@ -58,6 +58,12 @@ export class ModuleContainer extends HTMLElement {
   
   connectedCallback() {
     this.setupEventListeners();
+    // Le contenu de chaque application métier est injecté dans ce Shadow DOM — le `document`
+    // global d'un script d'app ne le traverse jamais (document.getElementById(...) y renverrait
+    // toujours null, cf. TODO.md "scripts injectés inertes"). On expose ce shadow root pour que
+    // ces scripts puissent s'y scoper explicitement (voir arbreouquoi/app.ts pour le pattern
+    // d'usage : `(window as any).__moduleContainerRoot`).
+    (window as any).__moduleContainerRoot = this.shadowRoot;
   }
   
   private setupEventListeners(): void {

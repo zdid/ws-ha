@@ -53,6 +53,25 @@ export class ArbreouquoiService {
     return this.haStructureRegistry;
   }
 
+  /**
+   * `HaStructuredEntity.device`/`.area` (peuplés par `HaStructureRegistry`) sont des références
+   * d'objets complets, pas de simples ID — `device.entities`/`area.entities` pointent en retour
+   * vers cette même entité (et toutes ses "sœurs") : un graphe réellement circulaire. Envoyée
+   * telle quelle sur le socket, cette structure fait boucler indéfiniment `socket.io-parser`
+   * (`hasBinary`, qui parcourt tout objet sans détection de cycle contrairement à
+   * `JSON.stringify`) — `RangeError: Maximum call stack size exceeded`, jamais atteint le
+   * client. On ne garde que les champs id/name réellement utiles côté UI.
+   */
+  private sanitizeEntity(entity: HaStructuredEntity): HaStructuredEntity {
+    const device = entity.device as { device_id?: string; name?: string } | undefined;
+    const area = entity.area as { area_id?: string; name?: string } | undefined;
+    return {
+      ...entity,
+      device: device ? { device_id: device.device_id, name: device.name } : undefined,
+      area: area ? { area_id: area.area_id, name: area.name } : undefined
+    };
+  }
+
   // ⭐ OBLIGATOIRE : Méthode start() asynchrone
   async start(): Promise<void> {
     this.logger.info('ArbreouquoiService', 'Démarrage du service ArbreOuQui...');
@@ -67,7 +86,7 @@ export class ArbreouquoiService {
       // normal (WS désactivé), pas une erreur : on le signale proprement plutôt que de planter.
       if (!this.haStructureRegistry) {
         this.logger.warn('ArbreouquoiService',
-          'Référentiel HA indisponible (ha.ws_enable=false) — Arbre Ou Quoi ne peut pas fonctionner sans lui');
+          'Référentiel HA indisponible (ha.ws_enable=false) — Arbre Où Quoi ne peut pas fonctionner sans lui');
         this.emitStatus('error', 'Référentiel HA indisponible : activez ha.ws_enable pour utiliser cette application');
         this.registerPersistentEvents();
         return;
@@ -174,7 +193,7 @@ export class ArbreouquoiService {
         this.emitTree();
       }
       
-      this.eventBus.emit(ARBREOUQUOI_SOCKET_EVENTS.CONFIG_SAVE, {
+      this.eventBus.emit(ARBREOUQUOI_SOCKET_EVENTS.CONFIG_SAVED, {
         success: true,
         config: newConfig
       });
@@ -227,7 +246,7 @@ export class ArbreouquoiService {
         tree, viewMode, catalog, timestamp: new Date().toISOString()
       });
     } catch (error) {
-      this.logger.error('ArbreouquoiService', `Erreur arbre: ${error}`);
+      this.logger.error('ArbreouquoiService', `Erreur arbre: ${error}\n${(error as Error).stack}`);
       this.eventBus.emit(ARBREOUQUOI_SOCKET_EVENTS.ERROR, { message: String(error) });
     }
   }
@@ -274,10 +293,10 @@ export class ArbreouquoiService {
     }
   }
 
-  // ============ BUILD OU-FIRST TREE ============
+  // ============ BUILD OÙ-FIRST TREE ============
 
   private buildOuFirstTree(): OuFirstTree {
-    const allEntities = this.requireRegistry().getAllEntities();
+    const allEntities = this.requireRegistry().getAllEntities().map(e => this.sanitizeEntity(e));
     const catalog = this.requireRegistry().getQuoiCatalog();
     
     const entitiesWithOu: Array<{ entity: HaStructuredEntity; ouPath: string[]; ouNames: string[] }> = [];
@@ -329,7 +348,7 @@ export class ArbreouquoiService {
   }
 
   private buildOuFirstTreeFiltered(filterOptions: FilterOptions): OuFirstTree {
-    const allEntities = this.requireRegistry().getAllEntities();
+    const allEntities = this.requireRegistry().getAllEntities().map(e => this.sanitizeEntity(e));
     let filtered = filterOptions.showOnlyActive !== false 
       ? allEntities.filter(e => e.state !== 'unavailable') 
       : allEntities;
@@ -376,7 +395,7 @@ export class ArbreouquoiService {
   // ============ BUILD QUOI-FIRST TREE ============
 
   private buildQuoiFirstTree(): QuoiFirstTree {
-    const allEntities = this.requireRegistry().getAllEntities();
+    const allEntities = this.requireRegistry().getAllEntities().map(e => this.sanitizeEntity(e));
     const catalog = this.requireRegistry().getQuoiCatalog();
     
     const quoiGroups: QuiGroupWithOu[] = [];
@@ -416,7 +435,7 @@ export class ArbreouquoiService {
   }
 
   private buildQuoiFirstTreeFiltered(filterOptions: FilterOptions): QuoiFirstTree {
-    const allEntities = this.requireRegistry().getAllEntities();
+    const allEntities = this.requireRegistry().getAllEntities().map(e => this.sanitizeEntity(e));
     let filtered = filterOptions.showOnlyActive !== false 
       ? allEntities.filter(e => e.state !== 'unavailable') 
       : allEntities;
@@ -569,13 +588,15 @@ export class ArbreouquoiService {
 
   private emitEntityDetails(entityId: string): void {
     try {
-      const entity = this.requireRegistry().getEntity(entityId);
-      if (!entity) {
+      const rawEntity = this.requireRegistry().getEntity(entityId);
+      if (!rawEntity) {
         this.eventBus.emit(ARBREOUQUOI_SOCKET_EVENTS.ERROR, { message: `Entité non trouvée: ${entityId}` });
         return;
       }
+      const entity = this.sanitizeEntity(rawEntity);
       const ouNames = this.extractOuNamesFromEntity(entity);
       const related = this.requireRegistry().getAllEntities()
+        .map(e => this.sanitizeEntity(e))
         .filter(e => e.entity_id !== entityId)
         .filter(e => {
           const ePath = this.extractOuPathFromEntity(e).join('/');

@@ -16,7 +16,8 @@
       "infrastructure/*": ["applications/core/dist/infrastructure/*"],
       "ha/*": ["applications/core/dist/ha/*"],
       "types/*": ["applications/core/dist/types/*"],
-      "ui/*": ["applications/core/dist/presentation/*"]
+      "ui/*": ["applications/core/dist/presentation/*"],
+      "home-assistant-js-websocket": ["applications/core/node_modules/home-assistant-js-websocket/dist/index.d.ts"]
     },
     "resolveJsonModule": true,
     "declaration": true,
@@ -24,8 +25,7 @@
     "sourceMap": true
   },
   "include": [
-    "src/domain/**/*",
-    "src/presentation/ts/**/*"
+    "src/domain/**/*"
   ],
   "exclude": [
     "node_modules",
