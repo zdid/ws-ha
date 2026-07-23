@@ -103,6 +103,10 @@ export const RFXCOM_MENU_CONFIG: ApplicationMenuConfig = {
     order: 30,
     badge: 'RF433'
   },
+  // "Devices & Récepteurs" (catalogue peuplé par découverte matérielle, union discriminée à 4
+  // formes) est volontairement absent d'ici : c'est du fonctionnel, pas un réglage technique — le
+  // tableau de bord RFXCOM (section Applications) donne déjà accès à sa page dédiée
+  // (/applications/rfxcom/presentation/rfxcom/config.html) via son propre bouton.
   pages: [
     {
       id: 'dashboard',
@@ -110,20 +114,6 @@ export const RFXCOM_MENU_CONFIG: ApplicationMenuConfig = {
       icon: '📊',
       path: '/applications/rfxcom/presentation/index.html',
       order: 1
-    },
-    {
-      // Distinct de entry.path ci-dessus (qui reste un marqueur interne pilotant le formulaire
-      // générique) : celui-ci pointe vers la vraie page dédiée (le port série/bridgeInstance sont
-      // dans le formulaire générique, mais le catalogue devices/récepteurs — Record<id,...> peuplé
-      // par découverte matérielle réelle, union discriminée à 4 formes — a besoin de sa propre
-      // page). Avant correctif : même valeur que entry.path, donc jamais rendu comme lien distinct
-      // par Sidebar.ts (page.path !== entry.path), et de toute façon 404 si atteint (le serveur ne
-      // sert aucune route '/rfxcom/config').
-      id: 'config',
-      label: 'Devices & Récepteurs',
-      icon: '⚙️',
-      path: '/applications/rfxcom/presentation/rfxcom/config.html',
-      order: 2
     }
   ]
 };
