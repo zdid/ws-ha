@@ -122,13 +122,21 @@ export class PresentationServer {
       if (!req.params.appId) return next();
       const appsRoot = path.join(process.env.PROJECT_ROOT || this.projectRoot, 'applications', req.params.appId);
       const distPath = path.join(appsRoot, 'dist', req.path);
+      // Les apps métier (evoo7/rfxcom/nommage) compilent avec rootDir=".." (pour inclure les
+      // fichiers core/src référencés) : la sortie est imbriquée sous dist/{appId}/src/... au lieu
+      // de dist/... à plat — sans ce candidat, tout .js compilé de ces apps répond 404.
+      const distNestedPath = path.join(appsRoot, 'dist', req.params.appId, 'src', req.path);
       const srcPath = path.join(appsRoot, 'src', req.path);
 
-      if (fs.existsSync(distPath) && fs.statSync(distPath).isFile()) {
-        return res.sendFile(distPath);
-      }
-      if (fs.existsSync(srcPath) && fs.statSync(srcPath).isFile()) {
-        return res.sendFile(srcPath);
+      // Les imports ES modules sans extension (ex: "./socket-events") sont valides en
+      // TypeScript mais un navigateur exige le nom de fichier exact — sans ce complément .js,
+      // ces imports répondent 404 (même logique déjà appliquée à /js/ts pour le core).
+      const candidates = [distPath, distNestedPath, srcPath].flatMap((p) => [p, `${p}.js`]);
+
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+          return res.sendFile(candidate);
+        }
       }
       next();
     });

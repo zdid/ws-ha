@@ -11,6 +11,9 @@
     "outDir": "./dist",
     "rootDir": "..",
     "baseUrl": ".",
+    "paths": {
+      "home-assistant-js-websocket": ["../core/node_modules/home-assistant-js-websocket/dist/index.d.ts"]
+    },
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
