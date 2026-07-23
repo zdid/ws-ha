@@ -264,6 +264,32 @@ textarea.field-valid {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.btn-small {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+}
+
+/* ====================================================================== */
+/* CHAMPS TABLEAU (type: 'array') */
+/* ====================================================================== */
+
+.config-array-item {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-md);
+  margin: var(--spacing-sm) 0;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.config-array-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
 .btn-danger {
   background: var(--color-error);
   color: white;

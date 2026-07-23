@@ -51,7 +51,7 @@ export interface ConfigFieldGroup {
 export interface ConfigField {
   name: string;
   label: string;
-  type: 'text' | 'string' | 'number' | 'boolean' | 'select' | 'password';
+  type: 'text' | 'string' | 'number' | 'boolean' | 'select' | 'password' | 'array';
   default?: any;
   placeholder?: string;
   required?: boolean;
@@ -61,6 +61,14 @@ export interface ConfigField {
   options?: { value: string; label: string }[] | string[];
   hint?: string;
   autocomplete?: string;
+  // Uniquement pour type: 'array' — liste avec ajout/suppression dynamique (ex: sources MQTT
+  // multiples de nommage), rendue par Alpine (x-for/x-model) dans ModuleManager. itemFields
+  // décrit la forme d'un élément (peut inclure des chemins pointés type "mqtt.host", résolus par
+  // le même mécanisme que les champs plats). Le tableau lui-même ne peut pas être imbriqué
+  // (itemFields ne supporte pas de sous-champ de type 'array').
+  itemFields?: ConfigField[];
+  itemLabel?: string;
+  minItems?: number;
 }
 
 /** Vrai si l'élément est un groupe de champs plutôt qu'un champ isolé. */

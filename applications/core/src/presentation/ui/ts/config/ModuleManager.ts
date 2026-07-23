@@ -181,6 +181,18 @@ export class ModuleManager {
   }
 
   /**
+   * Écrit une valeur déjà résolue (ex: un tableau) dans un champ de module — utilisé par les
+   * champs Alpine (type 'array'), où un x-effect republie l'état géré par Alpine directement à
+   * chaque mutation, sans passer par un événement DOM input/change comme setModuleField().
+   */
+  setModuleFieldRaw(moduleId: string, fieldName: string, value: any): void {
+    if (!this.moduleConfigs[moduleId]) {
+      this.moduleConfigs[moduleId] = {};
+    }
+    this.setNestedValue(this.moduleConfigs[moduleId], fieldName, value);
+  }
+
+  /**
    * Sélectionne une valeur dans un select
    */
   setSelectField(event: Event, moduleId: string, fieldName: string): void {
@@ -296,6 +308,13 @@ export class ModuleManager {
    * Génère le HTML pour un champ spécifique
    */
   private generateFieldHtml(field: ConfigField, config: ModuleConfig, moduleId: string): string {
+    // Périmètre/rendu suffisamment différents (pas de wrapper .form-group générique, en-tête
+    // par élément, boutons Ajouter/Retirer) pour justifier un chemin de rendu séparé plutôt que
+    // d'étendre le switch ci-dessous.
+    if (field.type === 'array') {
+      return this.generateArrayFieldHtml(field, config, moduleId);
+    }
+
     const fieldName = field.name;
     const resolved = this.getNestedValue(config, fieldName);
     const value = resolved !== undefined ? resolved : field.default ?? '';
@@ -392,6 +411,119 @@ export class ModuleManager {
     
     html += '</div>';
     return html;
+  }
+
+  /**
+   * Génère le HTML d'un champ de type 'array' — liste avec ajout/suppression dynamique, rendue
+   * entièrement par Alpine (x-for/x-model), pas par le système data-field/addEventListener des
+   * autres types. `items` est un état Alpine local (x-data), initialisé une fois avec la valeur
+   * courante ; `x-effect` republie ensuite tout changement (ajout, suppression, édition d'un
+   * sous-champ) vers ModuleManager.moduleConfigs via setModuleFieldRaw(), qui reste la source de
+   * vérité lue par saveModuleConfig() — inchangé pour les autres types de champs.
+   */
+  private generateArrayFieldHtml(field: ConfigField, config: ModuleConfig, moduleId: string): string {
+    const fieldName = field.name;
+    const resolved = this.getNestedValue(config, fieldName);
+    const items = Array.isArray(resolved) ? resolved : (Array.isArray(field.default) ? field.default : []);
+    const itemFields = field.itemFields || [];
+    const itemLabel = field.itemLabel || 'Élément';
+    const minItems = field.minItems ?? 0;
+    const id = `field-${moduleId}-${fieldName.replace(/\./g, '-')}`;
+
+    const itemsJson = this.escapeHtmlAttr(JSON.stringify(items));
+    const defaultItemJson = this.escapeHtmlAttr(JSON.stringify(this.buildDefaultArrayItem(itemFields)));
+    const itemFieldsHtml = itemFields.map(f => this.generateArrayItemFieldHtml(f)).join('');
+
+    return `
+      <div class="form-group config-array" id="${id}"
+           x-data="{ items: ${itemsJson} }"
+           x-effect="window.app.moduleManager.setModuleFieldRaw('${moduleId}', '${fieldName}', items)">
+        <label>${field.label}</label>
+        ${field.hint ? `<div class="field-hint">${field.hint}</div>` : ''}
+        <template x-for="(item, index) in items" :key="index">
+          <div class="config-array-item">
+            <div class="config-array-item-header">
+              <span x-text="'${itemLabel} ' + (index + 1)"></span>
+              <button type="button" class="btn btn-secondary btn-small"
+                      x-show="items.length > ${minItems}" @click="items.splice(index, 1)">
+                Retirer
+              </button>
+            </div>
+            <div class="config-grid">${itemFieldsHtml}</div>
+          </div>
+        </template>
+        <button type="button" class="btn btn-secondary" @click="items.push(${defaultItemJson})">
+          + Ajouter ${itemLabel}
+        </button>
+      </div>
+    `;
+  }
+
+  /**
+   * Génère le HTML d'un sous-champ d'un élément de tableau — toujours lié via x-model à
+   * `item.<chemin>` (Alpine gère nativement les chemins imbriqués sur un objet JS réel, ex:
+   * "mqtt.host"), jamais via data-field/addEventListener comme generateFieldHtml().
+   */
+  private generateArrayItemFieldHtml(field: ConfigField): string {
+    const path = `item.${field.name}`;
+    const label = `<label>${field.label}${field.required ? ' <span class="required-badge">Requis</span>' : ''}</label>`;
+    const hint = field.hint ? `<div class="field-hint">${field.hint}</div>` : '';
+
+    let input: string;
+    switch (field.type) {
+      case 'boolean':
+        input = `<input type="checkbox" x-model="${path}" />`;
+        break;
+      case 'select': {
+        const optionsHtml = (field.options || []).map(opt => {
+          const optValue = typeof opt === 'string' ? opt : opt.value;
+          const optLabel = typeof opt === 'string' ? opt : opt.label;
+          return `<option value="${optValue}">${optLabel}</option>`;
+        }).join('');
+        input = `<select x-model="${path}">${optionsHtml}</select>`;
+        break;
+      }
+      case 'number':
+        input = `<input type="number" x-model.number="${path}"` +
+          `${field.min !== undefined ? ` min="${field.min}"` : ''}` +
+          `${field.max !== undefined ? ` max="${field.max}"` : ''}` +
+          `${field.step !== undefined ? ` step="${field.step}"` : ''} />`;
+        break;
+      case 'password':
+        input = `<input type="password" x-model="${path}" autocomplete="off" placeholder="${field.placeholder || ''}" />`;
+        break;
+      case 'text':
+      case 'string':
+      default:
+        input = `<input type="text" x-model="${path}" placeholder="${field.placeholder || ''}" />`;
+        break;
+    }
+
+    return `<div class="form-group">${label}${input}${hint}</div>`;
+  }
+
+  /**
+   * Construit l'objet par défaut d'un nouvel élément de tableau à partir de itemFields — chaque
+   * sous-champ prend sa propre valeur `default`, sinon une valeur vide adaptée à son type.
+   * setNestedValue() gère les chemins imbriqués (ex: "mqtt.host") de la même façon que pour un
+   * champ plat, garantissant que x-model trouve toujours un objet existant à chaque niveau.
+   */
+  private buildDefaultArrayItem(itemFields: ConfigField[]): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    for (const f of itemFields) {
+      const value = f.default !== undefined
+        ? f.default
+        : f.type === 'number' ? 0
+        : f.type === 'boolean' ? false
+        : '';
+      this.setNestedValue(result, f.name, value);
+    }
+    return result;
+  }
+
+  /** Échappe une chaîne pour un usage sûr comme valeur d'attribut HTML entre guillemets doubles. */
+  private escapeHtmlAttr(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 
   /**
