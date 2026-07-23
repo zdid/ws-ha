@@ -1,0 +1,22 @@
+{
+  "name": "ia",
+  "version": "1.0.0",
+  "description": "Émulateur de protocole Ollama routant vers Mistral, avec outils domotiques et routage vers planificateur (voir specs/current/fonctionnelles-ia_specs)",
+  "main": "dist/domain/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:ui": "tsc -p src/presentation/tsconfig.ui.json",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

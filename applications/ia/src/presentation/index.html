@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IA - Émulateur Ollama / Mistral</title>
+
+  <link rel="stylesheet" href="/styles/main.css">
+
+  <style>
+    .ia-container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .ia-header { text-align: center; margin-bottom: 30px; }
+    .ia-header h1 { color: var(--color-accent); font-size: 2em; }
+
+    .status-card {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .status-card h2 {
+      margin-top: 0;
+      color: var(--color-text);
+      border-bottom: 1px solid var(--color-primary);
+      padding-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.75em; }
+    .status-badge.connected { background: var(--color-success); color: white; }
+    .status-badge.disconnected { background: var(--color-error); color: white; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .status-item .label { font-size: 0.85em; color: var(--color-text-muted); margin-bottom: 5px; display: block; }
+    .status-item .value { font-size: 1.3em; color: var(--color-text); }
+
+    .test-card { background: var(--color-surface); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+    .test-card h2 { margin-top: 0; }
+    .test-form { display: flex; gap: 10px; }
+    .test-form input {
+      flex: 1;
+      padding: 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--color-primary);
+      background: var(--color-background);
+      color: var(--color-text);
+    }
+    .test-result {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: var(--color-background);
+      white-space: pre-wrap;
+      display: none;
+    }
+    .test-result.error { border-left: 3px solid var(--color-error); }
+    .test-result.ok { border-left: 3px solid var(--color-success); }
+
+    .exchanges { background: var(--color-surface); border-radius: var(--radius); padding: 15px; margin-top: 20px; }
+    .exchange-row {
+      padding: 10px 12px;
+      background: var(--color-background);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      font-size: 0.9em;
+    }
+    .exchange-row .question { color: var(--color-accent); font-weight: bold; }
+    .exchange-row .response { color: var(--color-text); margin-top: 4px; white-space: pre-wrap; }
+    .exchange-row .at { color: var(--color-text-muted); font-size: 0.8em; }
+
+    .intermediate-json {
+      margin-top: 8px;
+      padding: 8px;
+      background: var(--color-surface);
+      border-left: 3px solid var(--color-accent);
+      border-radius: var(--radius);
+      font-size: 0.8em;
+      font-family: monospace;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .loading { text-align: center; padding: 40px; color: var(--color-text-muted); }
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn { padding: 10px 20px; border-radius: var(--radius); border: none; cursor: pointer; font-size: 0.9em; }
+    .btn-primary { background: var(--color-accent); color: white; }
+  </style>
+</head>
+<body>
+  <div class="ia-container">
+    <div class="ia-header">
+      <h1>🤖 IA</h1>
+      <p class="description">Émulateur Ollama → Mistral, outils domotiques, routage vers planificateur</p>
+    </div>
+
+    <div id="main-container">
+      <div class="status-card" id="status-card" style="display: none;">
+        <h2>
+          Statut
+          <span class="status-badge" id="mistral-badge">--</span>
+        </h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="label">Port Ollama émulé</span>
+            <span class="value" id="ollama-port">--</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Règles domotiques</span>
+            <span class="value" id="rules-status">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="test-card">
+        <h2>🧪 Tester une commande</h2>
+        <p class="description">Envoie une phrase comme si elle venait de HA (règles domotiques + outils + routage inclus), sans passer par le serveur Ollama émulé.</p>
+        <div class="test-form">
+          <input type="text" id="test-input" placeholder="ex : allume la lumière du salon" />
+          <button class="btn btn-primary" id="test-send">Envoyer</button>
+        </div>
+        <div class="test-result" id="test-result"></div>
+      </div>
+
+      <div class="exchanges" id="exchanges-card" style="display: none;">
+        <h3>💬 Derniers échanges</h3>
+        <div id="exchanges-list"></div>
+      </div>
+
+      <div class="loading" id="loading">Chargement de l'application IA</div>
+    </div>
+
+    <div class="actions" id="actions" style="display: none;">
+      <button class="btn btn-primary" onclick="refreshStatus()">✅ Rafraîchir</button>
+    </div>
+  </div>
+
+  <script type="module" src="/applications/ia/presentation/ts/app.js"></script>
+
+  <!-- Derniere modification: 2026-07-23 00:00:00 - Création de l'application IA -->
+</body>
+</html>
