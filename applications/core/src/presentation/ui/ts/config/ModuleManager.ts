@@ -122,9 +122,25 @@ export class ModuleManager {
    */
   getModuleField(moduleId: string, fieldName: string): any {
     const config = this.moduleConfigs[moduleId] || {};
-    return config[fieldName];
+    return this.getNestedValue(config, fieldName);
   }
   
+  /**
+   * Écrit une valeur dans l'objet config en respectant un chemin imbriqué
+   * (ex: "mqtt.host" → config.mqtt.host) — symétrique de getNestedValue().
+   */
+  private setNestedValue(config: ModuleConfig, fieldPath: string, value: any): void {
+    const parts = fieldPath.split('.');
+    let current: any = config;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!current[parts[i]] || typeof current[parts[i]] !== 'object') {
+        current[parts[i]] = {};
+      }
+      current = current[parts[i]];
+    }
+    current[parts[parts.length - 1]] = value;
+  }
+
   /**
    * Met à jour la valeur d'un champ d'un module
    */
@@ -132,21 +148,21 @@ export class ModuleManager {
     if (!this.moduleConfigs[moduleId]) {
       this.moduleConfigs[moduleId] = {};
     }
-    
+
     const target = event.target as HTMLInputElement;
-    const value = target.type === 'number' 
-      ? parseFloat(target.value) || 0 
-      : target.type === 'checkbox' 
-        ? target.checked 
+    const value = target.type === 'number'
+      ? parseFloat(target.value) || 0
+      : target.type === 'checkbox'
+        ? target.checked
         : target.value;
-    
-    this.moduleConfigs[moduleId][fieldName] = value;
-    
+
+    this.setNestedValue(this.moduleConfigs[moduleId], fieldName, value);
+
     window.dispatchEvent(new CustomEvent('module:field:updated', {
       detail: { moduleId, fieldName, value }
     }));
   }
-  
+
   /**
    * Bascule un champ booléen d'un module
    */
@@ -154,15 +170,16 @@ export class ModuleManager {
     if (!this.moduleConfigs[moduleId]) {
       this.moduleConfigs[moduleId] = {};
     }
-    
-    const current = this.moduleConfigs[moduleId][fieldName];
-    this.moduleConfigs[moduleId][fieldName] = !current;
-    
+
+    const current = this.getModuleField(moduleId, fieldName);
+    const value = !current;
+    this.setNestedValue(this.moduleConfigs[moduleId], fieldName, value);
+
     window.dispatchEvent(new CustomEvent('module:field:updated', {
-      detail: { moduleId, fieldName, value: !current }
+      detail: { moduleId, fieldName, value }
     }));
   }
-  
+
   /**
    * Sélectionne une valeur dans un select
    */
@@ -170,10 +187,10 @@ export class ModuleManager {
     if (!this.moduleConfigs[moduleId]) {
       this.moduleConfigs[moduleId] = {};
     }
-    
+
     const target = event.target as HTMLSelectElement;
-    this.moduleConfigs[moduleId][fieldName] = target.value;
-    
+    this.setNestedValue(this.moduleConfigs[moduleId], fieldName, target.value);
+
     window.dispatchEvent(new CustomEvent('module:field:updated', {
       detail: { moduleId, fieldName, value: target.value }
     }));
@@ -185,9 +202,10 @@ export class ModuleManager {
   saveModuleConfig(moduleId: string): void {
     console.log('[ModuleManager] Sauvegarde config module - moduleId:', moduleId);
     
-    // Utiliser la config de TechnicalConfigManager qui est synchronisée avec les modifications UI
-    const fullConfig = window.app.configManager.getConfig();
-    const config = (fullConfig as Record<string, any>)[moduleId] || {};
+    // Utiliser this.moduleConfigs, alimenté en direct par les éditions du formulaire
+    // (setModuleField/toggleModuleField/setSelectField) — TechnicalConfigManager ne
+    // reflète jamais ces éditions, seulement la dernière config confirmée par le serveur.
+    const config = this.moduleConfigs[moduleId] || {};
     console.log('[ModuleManager] Config module:', JSON.stringify(config, null, 2));
     console.log('[ModuleManager] Envoi de app:modules:config:save au serveur');
     this.socket.emit('app:modules:config:save', { moduleId, config });
