@@ -48,6 +48,14 @@ export interface IEventBus<T = AppEvents> {
   onGeneric<D = unknown>(event: string, listener: (data: D) => void): void;
 
   /**
+   * Supprime un listener générique (symétrique de onGeneric — pas de préfixe, contrairement à
+   * `off`).
+   * @param event - Nom complet de l'événement
+   * @param listener - Callback à supprimer
+   */
+  offGeneric<D = unknown>(event: string, listener: (data: D) => void): void;
+
+  /**
    * Écoute un événement une seule fois.
    * @param event - Nom de l'événement (clé de T)
    * @param listener - Callback de traitement

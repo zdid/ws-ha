@@ -178,8 +178,8 @@ class ApplicationBootstrap {
           this.logger
         );
 
-        const haClassifierModule = await import('./ha/sync/DefaultHaClassifier');
-        const haClassifier = new haClassifierModule.DefaultHaClassifier();
+        const haClassifierModule = await import('./ha/sync/TaxonomyHaClassifier');
+        const haClassifier = new haClassifierModule.TaxonomyHaClassifier();
         
         const haRegistryModule = await import('./ha/sync/HaStructureRegistry');
         this.haStructureRegistry = new haRegistryModule.HaStructureRegistry(

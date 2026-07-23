@@ -250,6 +250,20 @@ export class HaWsClient {
     return callService(this.connection, domain, service, serviceData || {}, target);
   }
 
+  /**
+   * Transmet un ordre en langage naturel à l'agent de conversation natif de HA
+   * (conversation.process). Repli pour les intentions non résolues en resolved_service_call
+   * (voir applications/planificateur, specs §8) — pas d'équivalent haut niveau dans
+   * home-assistant-js-websocket, même échappatoire bas niveau que loadInitialRegistry().
+   */
+  processConversation(text: string, language = 'fr'): Promise<unknown> {
+    if (!this.isAuthenticated || !this.connection) {
+      throw new Error('Cannot process conversation: not authenticated');
+    }
+
+    return this.connection.sendMessagePromise({ type: 'conversation/process', text, language });
+  }
+
   // ===========================================================================
   // Callbacks pour s'abonner aux événements
   // ===========================================================================

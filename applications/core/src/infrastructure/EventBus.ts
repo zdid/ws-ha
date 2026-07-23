@@ -257,6 +257,13 @@ export class EventBus implements IEventBus {
   }
 
   /**
+   * Supprime un listener générique (IEventBus) — symétrique de onGeneric, pas de préfixe.
+   */
+  offGeneric<D = unknown>(event: string, listener: (data: D) => void): void {
+    this.emitter.off(event, listener);
+  }
+
+  /**
    * Écoute un événement une seule fois (IEventBus).
    * @param event - Nom de l'événement
    * @param listener - Callback de traitement

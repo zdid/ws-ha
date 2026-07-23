@@ -580,9 +580,16 @@ export class AppService {
       // Toutes les factories attendent un IAppConfigProvider en 3ème paramètre. Une factory à
       // 4 paramètres reçoit en plus this.haStructureRegistry (peut être undefined si
       // ha.ws_enable=false — à l'application de gérer cette absence, voir ArbreouquoiService).
+      // Une factory à 5 paramètres reçoit en plus this.haWsClient (même caveat d'absence) — pour
+      // les applications qui doivent émettre des commandes réelles vers HA (ex: planificateur,
+      // via HaCommandService construit par l'application elle-même autour de ce client), pas
+      // seulement lire le référentiel.
       let service: any;
 
-      if (factory.length >= 4) {
+      if (factory.length >= 5) {
+        const configProvider = new AppConfigProvider(moduleId as any, this.configService);
+        service = factory(this.eventBus, this.logger, configProvider, this.haStructureRegistry, this.haWsClient);
+      } else if (factory.length >= 4) {
         const configProvider = new AppConfigProvider(moduleId as any, this.configService);
         service = factory(this.eventBus, this.logger, configProvider, this.haStructureRegistry);
       } else if (factory.length >= 3) {
