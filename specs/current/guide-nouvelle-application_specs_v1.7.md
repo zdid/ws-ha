@@ -1,15 +1,20 @@
 # Guide Rapide — Création d'une Nouvelle Application
 
-**Version :** 1.6  
-**Date :** 21 Juillet 2026  
+**Version :** 1.7  
+**Date :** 22 Juillet 2026  
 **Statut :** Document pratique pour les développeurs  
 **Public cible :** Développeurs créant une nouvelle application sans modifier le socle  
 
 > **⚠️ IMPORTANT :** Ce guide suppose que vous avez lu et compris :
-> - [techniques-socle-ha-mqtt_specs_v4.12.md](techniques-socle-ha-mqtt_specs_v4.12.md) (architecture 5 couches, EventBus, cycle de vie, nouvelle arborescence applications/, §4.2.1 exports.ts vs ui-exports.ts)
+> - [techniques-socle-ha-mqtt_specs_v4.13.md](techniques-socle-ha-mqtt_specs_v4.13.md) (architecture 5 couches, EventBus, cycle de vie, nouvelle arborescence applications/, §4.2.1 exports.ts vs ui-exports.ts)
 > - **[inter-app-communication_specs_v1.0.md](inter-app-communication_specs_v1.0.md) (NOUVEAU : Communication inter-applications)**
 
-> **Note v1.1 :** Migration vers **TypeScript pur + Web Components natifs** (remplace Alpine.js comme indiqué dans [presentation_specs_v3.2.md](presentation_specs_v3.2.md) §v3.0).
+> **NOUVEAU v1.7 :** Alpine.js est réintroduit dans la couche Présentation (voir
+> [alpinejs-implementation_specs_v1.0.md](alpinejs-implementation_specs_v1.0.md), qui fait autorité sur
+> son cycle de vie) — la note v1.1 ci-dessous, qui le présentait comme abandonné, ne s'applique plus.
+> §1.2 mis à jour en conséquence.
+
+> **Note v1.1 (obsolète depuis v1.7 — voir ci-dessus)** : Migration vers **TypeScript pur + Web Components natifs** (remplace Alpine.js comme indiqué dans [presentation_specs_v3.2.md](presentation_specs_v3.2.md) §v3.0).
 
 > **NOUVEAU v1.4 :** **Système de communication inter-applications** avec pattern Request/Reply asynchrone et corrélation. Toutes les applications (sauf core) DOIVENT déclarer leurs capacités via `ApplicationCapabilities` et utiliser `InterAppClient` pour les communications inter-applications.
 
@@ -50,12 +55,12 @@
 - Node.js 20+ (LTS)
 - TypeScript 5.x (mode strict)
 - pnpm (recommandé)
-- Comprendre l'[architecture 5 couches](techniques-socle-ha-mqtt_specs_v4.12.md#3-architecture-en-couches)
+- Comprendre l'[architecture 5 couches](techniques-socle-ha-mqtt_specs_v4.13.md#3-architecture-en-couches)
 
 ### 1.2 Connaissances requises
-- EventBus Typé (voir §9 techniques-socle-ha-mqtt_specs_v4.12.md)
+- EventBus Typé (voir §9 techniques-socle-ha-mqtt_specs_v4.13.md)
 - Socket.io (unique canal UI ↔ Serveur)
-- TypeScript pur + Web Components natifs (pour la couche Présentation)
+- TypeScript pur + Web Components natifs (pour la couche Présentation), avec Alpine.js autorisé en complément selon [alpinejs-implementation_specs_v1.0.md](alpinejs-implementation_specs_v1.0.md)
 - Convention de nommage ([nommage_specs_v1.0.md](nommage_specs_v1.0.md))
 - **NOUVEAU : Pattern Request/Reply asynchrone** (voir [inter-app-communication_specs_v1.0.md](inter-app-communication_specs_v1.0.md))
 

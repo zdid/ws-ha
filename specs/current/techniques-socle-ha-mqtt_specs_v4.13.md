@@ -1,9 +1,15 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.12  
+**Version :** 4.13  
 **Date :** 22 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
 
+> **v4.13** : **Correction §6 "Couche Présentation"** — la liste des invariants excluait encore
+> Alpine.js ("Aucun framework UI tiers... Alpine.js"), affirmation devenue fausse depuis la
+> réintroduction du framework (`presentation_specs` v4.0 + nouveau document dédié
+> `alpinejs-implementation_specs_v1.0.md`, 22/07/2026). La note historique v4.7 ci-dessous, qui
+> qualifiait Alpine.js de "technologie abandonnée", est conservée telle quelle (exacte au moment où
+> elle a été écrite) mais n'est plus d'actualité.
 > **v4.12** : **Remplacement du client WebSocket HA maison par `home-assistant-js-websocket`**
 > (§4.2, §8.2) — librairie officiellement maintenue par l'équipe Home Assistant (utilisée par le
 > frontend HA lui-même), en remplacement de `HaWsTransport.ts`/`HaWsClient.ts` écrits à la main.
@@ -686,11 +692,12 @@ class SchedulerService {
 
 ## 6. Couche Présentation
 
-> **⚠️ v4.7** : Cette section renvoyait auparavant vers Alpine.js, technologie **abandonnée** depuis `presentation_specs` v3.0 (migration complète vers **TypeScript pur + Web Components natifs**, sans framework UI tiers). Pour éviter toute duplication et désynchronisation entre documents (cf. règle anti-redondance de `PROMPT_PROJET.md` §10), ce socle ne détaille plus l'implémentation de la couche Présentation : elle est **entièrement spécifiée** dans [presentation_specs](presentation_specs_v3.2.md), qui fait référence.
+> **⚠️ v4.7** : Cette section renvoyait auparavant vers Alpine.js, technologie **abandonnée** depuis `presentation_specs` v3.0 (migration complète vers **TypeScript pur + Web Components natifs**, sans framework UI tiers). Pour éviter toute duplication et désynchronisation entre documents (cf. règle anti-redondance de `PROMPT_PROJET.md` §10), ce socle ne détaille plus l'implémentation de la couche Présentation : elle est **entièrement spécifiée** dans [presentation_specs](presentation_specs_v4.0.md), qui fait référence. *(Obsolète depuis v4.13 — Alpine.js a été réintroduit, voir ci-dessous.)*
 
 **Rappel des invariants** (détail complet dans `presentation_specs`) :
-- Aucun framework UI tiers (React, Vue, Angular, Alpine.js, etc.) — TypeScript ES2020+ et Web Components natifs uniquement
-- Toute la réactivité passe par des Custom Elements et des événements DOM natifs
+- TypeScript ES2020+ et Web Components natifs comme base ; Alpine.js autorisé en complément, sous réserve de respecter strictement `alpinejs-implementation_specs_v1.0.md` (cycle de vie, chargement, Shadow DOM)
+- Autres frameworks UI tiers (React, Vue, Angular, etc.) — non retenus
+- Toute la réactivité passe par des Custom Elements et des événements DOM natifs (nativement, ou via les directives Alpine sur ces mêmes Custom Elements)
 - Communication exclusivement via Socket.io (sauf `/health`)
 
 ---
@@ -1634,6 +1641,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **4.13** | 22/07/2026 | Claude | **Correction §6 "Couche Présentation"** : la liste des invariants excluait encore Alpine.js ("Aucun framework UI tiers... Alpine.js"), affirmation devenue fausse depuis la réintroduction du framework le 22/07/2026 (voir `presentation_specs_v4.0.md` et le nouveau document dédié `alpinejs-implementation_specs_v1.0.md`). Le lien vers `presentation_specs` est mis à jour vers v4.0 ; la note historique v4.7 est conservée mais annotée obsolète. |
 | **4.12** | 22/07/2026 | Claude | **Remplacement du client WebSocket HA maison par `home-assistant-js-websocket`** (lib officielle HA) : supprime `HaWsTransport.ts` et le bug de double authentification par connexion qu'il contenait (auth envoyée à la fois à l'ouverture du socket et en réponse à `auth_required`) — plus de boucle de reconnexion sur jeton invalide, la lib officielle renonce immédiatement sur `auth_invalid`. `HaWsClient` garde la même API publique ; `onMessage` disparaît (pas d'équivalent officiel), `HaCommandService` simplifié pour résoudre directement depuis la Promise de `sendCommand` au lieu d'un ré-appariement par id redondant et bugué. |
 | **4.11** | 21/07/2026 | Claude | **Correction d'un gap fonctionnel réel (§8.5.2, découvert en implémentant les scènes RFXCOM)** : `publishDiscoveryFor` abonne désormais automatiquement le bridge au topic de commande d'une entité `commandEnabled: true` — avant ce correctif, aucun module métier n'appelait jamais `subscribeCommandsFor`, donc aucune commande HA→app n'était réellement reçue pour aucun module utilisant la découverte normale (§8.5.0), en dépit d'un code de réception/routage par ailleurs correct. |
 | **4.10** | 21/07/2026 | Claude | **Séparation `exports.ts` (backend) / `ui-exports.ts` (navigateur)** (§4.2.1, suite à investigation "le core met-il ses objets dans dist et pas dans src ?") : `SocketService` retiré de `exports.ts` et déplacé dans le nouveau `ui-exports.ts`, `src/ui-exports.ts` exclu du build backend du core. Corrige une pollution constatée dans `nommage` et `arbreouquoi`, dont le `dist` backend contenait une copie morte de `SocketService.js` (code navigateur, inexécutable côté Node) simplement parce qu'ils importaient des types backend depuis `exports.ts`. `tsconfig.ui.json` du core gagne `declaration: true`/`declarationMap: true` pour permettre aux applications à `rootDir` restreint (ex: `arbreouquoi`) de consommer le `dist` UI du core avec des types corrects, sans `@ts-ignore`. |

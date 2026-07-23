@@ -1,13 +1,14 @@
 # Spécifications - Couche de Présentation Multi-Applications
 
-**Version :** 3.2  
-**Date :** 16 Juillet 2026  
-**Conformité :** specs-techniques-socle-ha-mqtt-v4.4.md  
+**Version :** 4.0  
+**Date :** 22 Juillet 2026  
+**Conformité :** specs-techniques-socle-ha-mqtt-v4.4.md, alpinejs-implementation_specs_v1.0.md  
 **Statut :** Document de référence pour toutes les applications du socle HA-MQTT
 
+> **📌 v4.0** : **Réintroduction d'Alpine.js**, retiré en v3.0. Après l'échec qui avait motivé ce retrait (cycle de vie mal respecté par un assistant IA précédent, régressions à chaque modification), Alpine.js est réintroduit avec des règles de cycle de vie précises et vérifiées empiriquement — voir le nouveau document dédié `alpinejs-implementation_specs_v1.0.md`, qui fait désormais autorité sur tout ce qui concerne Alpine (chargement, cycle de vie, patterns Shadow DOM/composants récursifs/store partagé, ce qu'il ne faut jamais faire). Ce document (`presentation_specs`) reste la référence pour tout le reste (structure des répertoires, menu, communication Socket.io) — les mentions "TypeScript pur, pas de framework" ci-dessous et dans les sections suivantes sont **obsolètes**, conservées uniquement dans l'historique (§11).
 > **📌 v3.2** : **Comportement accordéon strict (1 seul menu déplié) et effacement systématique de la zone de données au clic**. Correction du double déclenchement des écouteurs, utilisation de classes CSS `.visible` au lieu de `style.setProperty()`.
 > **📌 v3.1** : **Structure de menu accordéon et affichage conditionnel**. Menu "Paramètres Techniques" avec sous-menus déployables. Affichage du contenu uniquement au clic sur un menu.
-> **📌 v3.0** : **Migration complète vers TypeScript pur**. Suppression de Alpine.js. Architecture basée sur **TypeScript + Web Components natifs + Socket.io**. Toute la réactivité est gérée via Custom Elements et événements DOM natifs.
+> **📌 v3.0** : **Migration complète vers TypeScript pur**. Suppression de Alpine.js. Architecture basée sur **TypeScript + Web Components natifs + Socket.io**. Toute la réactivité est gérée via Custom Elements et événements DOM natifs. *(Obsolète depuis v4.0 — voir ci-dessus.)*
 
 ---
 
@@ -30,7 +31,7 @@ Définir l'architecture de la **couche Présentation** pour les applications du 
 | Affichage des configurations | Validation métier |
 | Menu dynamique par application | Persistance |
 | Détection des paramètres manquants | Orchestration |
-| **Architecture TypeScript pure** | **Frameworks UI (Alpine.js, React, Vue, etc.)** |
+| Alpine.js (règles détaillées dans `alpinejs-implementation_specs_v1.0.md`) | Autres frameworks UI (React, Vue, Angular, etc. — non retenus) |
 
 ### 1.3 Public Cible
 - Développeurs d'applications dérivées du socle
@@ -80,7 +81,7 @@ Définir l'architecture de la **couche Présentation** pour les applications du 
 - Accéder directement à MQTT ou au WebSocket HA
 - Appeler `ConfigService` directement (tout passe par Socket.io)
 - Contenir de la logique métier
-- Utiliser des frameworks UI (React, Vue, Angular, **Alpine.js**, etc.)
+- Utiliser des frameworks UI (React, Vue, Angular, etc.) — **Alpine.js excepté depuis v4.0, sous réserve du strict respect de `alpinejs-implementation_specs_v1.0.md`**
 - **Avoir des références hardcodées à des applications spécifiques (RFXCOM, etc.)**
 
 **✅ AUTORISÉ dans la couche Présentation :**
@@ -696,9 +697,9 @@ export class EventBus {
 
 ### 6.2 Points Clés
 
-- **AUCUN** script Alpine.js
-- **AUCUN** `deferAlpineStart`
-- **Web Components natifs** (`<app-sidebar>`, `<app-config-form>`, etc.)
+- **Script Alpine.js autorisé depuis v4.0** — chargement et cycle de vie strictement conformes à `alpinejs-implementation_specs_v1.0.md` (obligatoire, aucune exception)
+- **AUCUN** `window.deferLoadingAlpine` — ignoré par le build utilisé, voir `alpinejs-implementation_specs_v1.0.md` §3.1
+- **Web Components natifs** (`<app-sidebar>`, `<app-config-form>`, etc.) — Alpine s'utilise À L'INTÉRIEUR de ces composants (directives sur le contenu de leur Shadow DOM), ne les remplace pas
 - **Socket.io** chargé avant le bundle TS
 - **Bundle TypeScript** généré par la compilation
 
@@ -1215,19 +1216,20 @@ customElements.define('app-config-form', ConfigForm);
 
 ### 10.1 Checklist
 
-- [ ] Pas de mention d'Alpine.js dans le code
-- [ ] Tous les composants sont des Web Components natifs
+- [ ] Toute utilisation d'Alpine.js respecte `alpinejs-implementation_specs_v1.0.md` (checklist dédiée §6 de ce document)
+- [ ] Tous les composants sont des Web Components natifs (Alpine s'utilise à l'intérieur, ne les remplace pas)
 - [ ] La communication passe uniquement par Socket.io
 - [ ] TypeScript est utilisé avec typage strict
-- [ ] Les managers gèrent l'état via Custom Events
-- [ ] Pas de dépendance externe pour l'UI (sauf Socket.io)
+- [ ] Les managers gèrent l'état via Custom Events ou stores Alpine partagés (voir `alpinejs-implementation_specs_v1.0.md` §3.7)
+- [ ] Pas de dépendance externe pour l'UI (sauf Socket.io et Alpine.js)
 - [ ] Le build TypeScript fonctionne sans erreur
 
 ### 10.2 Tests
 
 ```bash
-# Vérifier qu'il n'y a pas de référence à Alpine.js
-! grep -r "Alpine" src/presentation/ui/ || echo "✓ Pas de référence à Alpine.js"
+# Vérifier que toute utilisation d'Alpine.js respecte les règles de cycle de vie
+# (voir alpinejs-implementation_specs_v1.0.md §6 pour la checklist complète)
+! grep -rn "Alpine.start()" src/presentation/ui/ || echo "✗ Appel manuel à Alpine.start() détecté — interdit, voir §3.1"
 
 # Vérifier que les Web Components sont définis
 grep -r "customElements.define" src/presentation/ui/ts/components/ | wc -l
@@ -1244,6 +1246,7 @@ grep -r "SocketService" src/presentation/ui/ts/ | wc -l
 
 | Version | Date | Auteur | Modifications |
 |---------|------|--------|---------------|
+| 4.0 | 22/07/2026 | Claude | **Réintroduction d'Alpine.js**, retiré en v3.0. Les règles de chargement/cycle de vie sont désormais dans un document dédié, `alpinejs-implementation_specs_v1.0.md`, qui fait autorité sur le sujet — écrit après une démonstration interactive validant empiriquement chaque règle (le retrait de v3.0 venait d'un cycle de vie mal respecté par un assistant précédent, pas d'un défaut d'Alpine lui-même). |
 | 3.2 | 16/07/2026 | Mistral Vibe | **Comportement accordéon strict et effacement de zone**. Un seul menu déplié à la fois. Effacement systématique de la zone de données dès le clic sur un menu principal. Correction du double déclenchement des écouteurs. Utilisation de classes CSS `.visible` au lieu de `style.setProperty()`. |
 | 3.1 | 15/07/2026 | Mistral Vibe | **Structure de menu accordéon**. Menu "Paramètres Techniques" avec sous-menus déployables (Web-services, MQTT, Serveur Web, Journalisation, Gestion des applications). Affichage conditionnel du contenu au clic. Module core géré par ConfigForm, pas de chargement HTML. |
 | 3.0 | 15/07/2026 | Mistral Vibe | **Migration complète vers TypeScript pur**. Suppression d'Alpine.js. Architecture basée sur Web Components natifs + Socket.io + TypeScript. |
