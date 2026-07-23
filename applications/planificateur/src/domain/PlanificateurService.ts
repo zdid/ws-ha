@@ -1,0 +1,188 @@
+/**
+ * PlanificateurService — orchestrateur unique de l'application planificateur.
+ *
+ * Point d'exécution unique du système (specs §1) : reçoit le JSON structuré et les appels d'outil
+ * résolus depuis `ia` (EventBus), gère le cycle de vie des minuteurs, et exécute réellement les
+ * actions sur HA (resolution.ts + HaCommandService, ou repli HaWsClient.processConversation).
+ */
+
+import * as path from 'node:path';
+import {
+  HaCommandService,
+  type IEventBus,
+  type Logger,
+  type IAppConfigProvider,
+  type HaStructureRegistry,
+  type HaWsClient
+} from '../../../core/src/exports';
+import { planificateurConfigSchema, type PlanificateurConfig } from './config-schema';
+import { macrosConfigSchema, planificationsConfigSchema, DEFAULT_MACROS_CONFIG, DEFAULT_PLANIFICATIONS_CONFIG, type MacrosConfigFile, type PlanificationsConfigFile } from './storage-schema';
+import { ConfigFileManager } from './yaml/ConfigFileManager';
+import { SchedulerRuntime } from './scheduler-runtime';
+import { ExecutionEngine } from './execution';
+import { CommandHandler } from './handler';
+import type { DomoticNode, ExecuterActionParams } from './types';
+import { PLANIFICATEUR_CLIENT_EVENTS } from './socket-events';
+
+export interface IPlanificateurService {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+}
+
+export class PlanificateurService implements IPlanificateurService {
+  private readonly config: PlanificateurConfig;
+  private readonly macrosManager: ConfigFileManager<MacrosConfigFile>;
+  private readonly planificationsManager: ConfigFileManager<PlanificationsConfigFile>;
+  private readonly schedulerRuntime: SchedulerRuntime;
+  private readonly executionEngine: ExecutionEngine;
+  private readonly handler: CommandHandler;
+  private readonly haCommandService?: HaCommandService;
+
+  constructor(
+    private readonly eventBus: IEventBus,
+    private readonly logger: Logger,
+    configProvider: IAppConfigProvider<PlanificateurConfig>,
+    private readonly haStructureRegistry?: HaStructureRegistry,
+    private readonly haWsClient?: HaWsClient
+  ) {
+    this.config = planificateurConfigSchema.parse(configProvider.getAppConfig());
+
+    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data');
+    this.macrosManager = new ConfigFileManager<MacrosConfigFile>(
+      path.join(dataDir, this.config.macrosFile),
+      macrosConfigSchema,
+      DEFAULT_MACROS_CONFIG,
+      this.logger,
+      'macros'
+    );
+    this.planificationsManager = new ConfigFileManager<PlanificationsConfigFile>(
+      path.join(dataDir, this.config.planificationsFile),
+      planificationsConfigSchema,
+      DEFAULT_PLANIFICATIONS_CONFIG,
+      this.logger,
+      'planifications'
+    );
+
+    this.haCommandService = this.haWsClient
+      ? new HaCommandService(this.haWsClient, {}, this.logger)
+      : undefined;
+
+    if (!this.haCommandService) {
+      this.logger.warn('PlanificateurService', 'HaWsClient indisponible — exécution directe désactivée (ha.ws_enable=false ?), seul le repli conversation.process aurait pu être tenté, également indisponible.');
+    }
+
+    this.schedulerRuntime = new SchedulerRuntime(this.logger, (plan) => {
+      this.handler.handleTriggerFired(plan).catch((e) => this.logger.error('PlanificateurService', `Erreur de déploiement pour "${plan.name}": ${e}`));
+    });
+
+    this.executionEngine = new ExecutionEngine(
+      this.eventBus,
+      this.logger,
+      this.haStructureRegistry,
+      this.haCommandService,
+      this.haWsClient,
+      this.config.deployTimeoutMs
+    );
+
+    this.handler = new CommandHandler(
+      this.logger,
+      this.macrosManager,
+      this.planificationsManager,
+      this.schedulerRuntime,
+      this.executionEngine
+    );
+  }
+
+  async start(): Promise<void> {
+    this.logger.info('PlanificateurService', 'Démarrage du service planificateur...');
+
+    this.handler.load();
+    this.wireEventBus();
+    this.setupSocketEventListeners();
+    this.emitStatus();
+    this.emitMacros();
+    this.emitPlanifications();
+
+    this.logger.info('PlanificateurService', 'Service planificateur démarré');
+  }
+
+  async stop(): Promise<void> {
+    this.logger.info('PlanificateurService', 'Arrêt du service planificateur...');
+    this.schedulerRuntime.stopAll();
+    this.logger.info('PlanificateurService', 'Service planificateur arrêté');
+  }
+
+  // ==========================================================================
+  // Communication interne avec `ia` (EventBus) — specs §9
+  // ==========================================================================
+
+  private wireEventBus(): void {
+    this.eventBus.onGeneric<DomoticNode & { correlation_id: string }>('ia:command', (payload) => {
+      this.handler.handleCommand(payload)
+        .then((reply) => this.eventBus.emitGeneric('ia:command:reply', reply))
+        .catch((e) => this.logger.error('PlanificateurService', `Erreur ia:command: ${e}`));
+    });
+
+    this.eventBus.onGeneric<ExecuterActionParams & { correlation_id: string }>('ia:tool:execute', (payload) => {
+      this.handler.handleToolExecute(payload)
+        .then((reply) => this.eventBus.emitGeneric('ia:tool:execute:reply', reply))
+        .catch((e) => this.logger.error('PlanificateurService', `Erreur ia:tool:execute: ${e}`));
+    });
+  }
+
+  // ==========================================================================
+  // Statut / UI (Socket.io, via EventBus générique)
+  // ==========================================================================
+
+  private setupSocketEventListeners(): void {
+    this.eventBus.onGeneric(PLANIFICATEUR_CLIENT_EVENTS.GET_STATUS, () => this.emitStatus());
+    this.eventBus.onGeneric(PLANIFICATEUR_CLIENT_EVENTS.GET_MACROS, () => this.emitMacros());
+    this.eventBus.onGeneric(PLANIFICATEUR_CLIENT_EVENTS.GET_PLANIFICATIONS, () => this.emitPlanifications());
+
+    this.eventBus.onGeneric<{ name: string }>(PLANIFICATEUR_CLIENT_EVENTS.PLANIFICATION_ACTIVER, ({ name }) => {
+      this.handler.handleCommand({ type: 'gestion', operation: 'activer', cible: 'planification', name, correlation_id: 'ui' })
+        .then(() => { this.emitPlanifications(); });
+    });
+
+    this.eventBus.onGeneric<{ name: string }>(PLANIFICATEUR_CLIENT_EVENTS.PLANIFICATION_DESACTIVER, ({ name }) => {
+      this.handler.handleCommand({ type: 'gestion', operation: 'desactiver', cible: 'planification', name, correlation_id: 'ui' })
+        .then(() => { this.emitPlanifications(); });
+    });
+
+    this.eventBus.onGeneric<{ name: string }>(PLANIFICATEUR_CLIENT_EVENTS.PLANIFICATION_SUPPRIMER, ({ name }) => {
+      this.handler.handleCommand({ type: 'gestion', operation: 'supprimer', cible: 'planification', name, correlation_id: 'ui' })
+        .then(() => { this.emitPlanifications(); });
+    });
+
+    this.eventBus.onGeneric<{ name: string }>(PLANIFICATEUR_CLIENT_EVENTS.MACRO_SUPPRIMER, ({ name }) => {
+      this.handler.handleCommand({ type: 'gestion', operation: 'supprimer', cible: 'macro', name, correlation_id: 'ui' })
+        .then(() => { this.emitMacros(); });
+    });
+  }
+
+  private emitStatus(): void {
+    this.eventBus.emitGeneric('planificateur:status', {
+      macrosCount: this.handler.listMacros().length,
+      planificationsCount: this.handler.listPlanifications().length,
+      activeSchedules: this.schedulerRuntime.listScheduled()
+    });
+  }
+
+  private emitMacros(): void {
+    this.eventBus.emitGeneric('planificateur:macros:list', this.handler.listMacros());
+  }
+
+  private emitPlanifications(): void {
+    this.eventBus.emitGeneric('planificateur:planifications:list', this.handler.listPlanifications());
+  }
+
+  static create(
+    eventBus: IEventBus,
+    logger: Logger,
+    configProvider: IAppConfigProvider<PlanificateurConfig>,
+    haStructureRegistry?: HaStructureRegistry,
+    haWsClient?: HaWsClient
+  ): PlanificateurService {
+    return new PlanificateurService(eventBus, logger, configProvider, haStructureRegistry, haWsClient);
+  }
+}

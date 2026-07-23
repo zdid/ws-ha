@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planificateur - Macros & planifications</title>
+
+  <link rel="stylesheet" href="/styles/main.css">
+
+  <style>
+    .plan-container { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .plan-header { text-align: center; margin-bottom: 30px; }
+    .plan-header h1 { color: var(--color-accent); font-size: 2em; }
+
+    .status-card {
+      background: var(--color-surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .status-card h2 { margin-top: 0; color: var(--color-text); border-bottom: 1px solid var(--color-primary); padding-bottom: 10px; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .status-item .label { font-size: 0.85em; color: var(--color-text-muted); margin-bottom: 5px; display: block; }
+    .status-item .value { font-size: 1.3em; color: var(--color-text); }
+
+    .loading { text-align: center; padding: 40px; color: var(--color-text-muted); }
+    .actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn { padding: 10px 20px; border-radius: var(--radius); border: none; cursor: pointer; font-size: 0.9em; }
+    .btn-primary { background: var(--color-accent); color: white; }
+    .btn-secondary { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-primary); }
+  </style>
+</head>
+<body>
+  <div class="plan-container">
+    <div class="plan-header">
+      <h1>🗓️ Planificateur</h1>
+      <p class="description">Macros et planifications domotiques en langage naturel</p>
+    </div>
+
+    <div id="main-container">
+      <div class="status-card" id="status-card" style="display: none;">
+        <h2>Statut</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <span class="label">Macros</span>
+            <span class="value" id="macros-count">0</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Planifications</span>
+            <span class="value" id="planifications-count">0</span>
+          </div>
+          <div class="status-item">
+            <span class="label">Minuteurs actifs</span>
+            <span class="value" id="active-count">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="loading" id="loading">Chargement de l'application Planificateur</div>
+    </div>
+
+    <div class="actions" id="actions" style="display: none;">
+      <button class="btn btn-primary" onclick="refreshStatus()">✅ Rafraîchir</button>
+      <a class="btn btn-secondary" href="/applications/planificateur/presentation/planificateur/config.html">📋 Macros & planifications</a>
+    </div>
+  </div>
+
+  <script type="module" src="/applications/planificateur/presentation/ts/app.js"></script>
+
+  <!-- Derniere modification: 2026-07-23 00:00:00 - Création de l'application planificateur -->
+</body>
+</html>
