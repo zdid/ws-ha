@@ -548,7 +548,7 @@ export class ConfigForm extends HTMLElement {
         if (input.tagName === 'SELECT') {
           input.addEventListener('change', (e) => moduleManager.setSelectField(e, module, field));
         } else if ((input as HTMLInputElement).type === 'checkbox') {
-          input.addEventListener('change', () => moduleManager.toggleModuleField(module, field));
+          input.addEventListener('change', (e) => moduleManager.setModuleField(e, module, field));
         } else {
           input.addEventListener('input', (e) => moduleManager.setModuleField(e, module, field));
           input.addEventListener('change', (e) => moduleManager.setModuleField(e, module, field));

@@ -182,23 +182,6 @@ export class ModuleManager {
   }
 
   /**
-   * Bascule un champ booléen d'un module
-   */
-  toggleModuleField(moduleId: string, fieldName: string): void {
-    if (!this.moduleConfigs[moduleId]) {
-      this.moduleConfigs[moduleId] = {};
-    }
-
-    const current = this.getModuleField(moduleId, fieldName);
-    const value = !current;
-    this.setNestedValue(this.moduleConfigs[moduleId], fieldName, value);
-
-    window.dispatchEvent(new CustomEvent('module:field:updated', {
-      detail: { moduleId, fieldName, value }
-    }));
-  }
-
-  /**
    * Écrit une valeur déjà résolue (ex: un tableau) dans un champ de module — utilisé par les
    * champs Alpine (type 'array'), où un x-effect republie l'état géré par Alpine directement à
    * chaque mutation, sans passer par un événement DOM input/change comme setModuleField().
@@ -233,7 +216,7 @@ export class ModuleManager {
     console.log('[ModuleManager] Sauvegarde config module - moduleId:', moduleId);
     
     // Utiliser this.moduleConfigs, alimenté en direct par les éditions du formulaire
-    // (setModuleField/toggleModuleField/setSelectField) — TechnicalConfigManager ne
+    // (setModuleField/setSelectField) — TechnicalConfigManager ne
     // reflète jamais ces éditions, seulement la dernière config confirmée par le serveur.
     const config = this.moduleConfigs[moduleId] || {};
     console.log('[ModuleManager] Config module:', JSON.stringify(config, null, 2));
