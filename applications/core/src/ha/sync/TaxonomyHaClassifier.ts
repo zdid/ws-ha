@@ -78,6 +78,9 @@ const DOMAIN_QUOI_MAP: Record<string, QuoiFallback> = {
   // device_class exploitable, l'entité reste non classée plutôt que mal classée.
 };
 
+// Lieu par défaut pour une entité sans zone HA assignée (taxonomie virtuelle uniquement).
+const DEFAULT_LIEU = 'maison';
+
 export class TaxonomyHaClassifier implements IHaClassifier {
   private readonly catalog = new Map<string, HaQuoiDefinition>();
 
@@ -94,11 +97,14 @@ export class TaxonomyHaClassifier implements IHaClassifier {
     this.registerQuoi(fallback.quoi_id, fallback.label);
 
     if (!entity.attributes?.attributs_taxonomie) {
+      // Pas de zone HA assignée : "maison" plutôt que null — une entité reste rattachée à un
+      // lieu par défaut plutôt que de sortir de toute hiérarchie OÙ.
+      const lieu = entity.area_id || DEFAULT_LIEU;
       const virtualTaxonomy: AttributsTaxonomie = {
         quoi: fallback.label,
         slug_quoi: fallback.quoi_id,
-        lieu_principal: entity.area_id || null,
-        slug_lieu: entity.area_id || null,
+        lieu_principal: lieu,
+        slug_lieu: lieu,
         lieu_precis: null,
         slug_precis: null,
         lieu_pere: null,
