@@ -1,0 +1,5973 @@
+{
+    "surfacesLieux": {
+        "Boutons": [],
+        "Buanderie": [],
+        "Bureau": [],
+        "Chambre": [],
+        "Chambre d'ami": [],
+        "Chambre de jojo": [],
+        "Chambre du bas": [],
+        "Cuisine": [],
+        "Entrée": [],
+        "Escalier": [],
+        "Extérieur": [],
+        "Infra": [],
+        "Maison": [],
+        "Relais": [],
+        "Rez-de-chaussée": [],
+        "Salle": [],
+        "Salle de bain": [],
+        "Salle de bain du bas": [],
+        "Sms": [],
+        "Système": [],
+        "Toilettes du bas": [],
+        "Tous": [],
+        "Versions": [],
+        "Toilettes du haut": [],
+        "Étage": [],
+        "buanderie": [
+            {
+                "x": 84,
+                "y": 684,
+                "w": 64,
+                "h": 64
+            }
+        ],
+        "bureau": [
+            {
+                "x": 443,
+                "y": 178,
+                "w": 151,
+                "h": 172
+            }
+        ],
+        "chambre": [
+            {
+                "w": 105,
+                "x": 489,
+                "h": 153,
+                "y": 18
+            }
+        ],
+        "chambre d'ami": [
+            {
+                "w": 139,
+                "x": 218,
+                "h": 228,
+                "y": 18
+            }
+        ],
+        "chambre de jojo": [
+            {
+                "x": 364,
+                "y": 18,
+                "w": 118,
+                "h": 153
+            }
+        ],
+        "chambre du bas": [
+            {
+                "w": 136,
+                "x": 83,
+                "h": 263,
+                "y": 418
+            },
+            {
+                "x": 26,
+                "y": 607,
+                "w": 57,
+                "h": 118
+            }
+        ],
+        "cuisine": [
+            {
+                "w": 132,
+                "x": 226,
+                "h": 239,
+                "y": 422
+            }
+        ],
+        "entrée": [
+            {
+                "w": 136,
+                "x": 228,
+                "h": 114,
+                "y": 661
+            }
+        ],
+        "escalier": [
+            {
+                "x": 364,
+                "y": 178,
+                "w": 72,
+                "h": 139
+            },
+            {
+                "x": 403,
+                "y": 313,
+                "w": 36,
+                "h": 80
+            },
+            {
+                "x": 439,
+                "y": 355,
+                "w": 158,
+                "h": 39
+            }
+        ],
+        "extérieur": [
+            {
+                "x": 17,
+                "y": 3,
+                "w": 601,
+                "h": 18
+            },
+            {
+                "x": 18,
+                "y": 767,
+                "w": 342,
+                "h": 45
+            },
+            {
+                "x": 30,
+                "y": 367,
+                "w": 332,
+                "h": 43
+            }
+        ],
+        "salle": [
+            {
+                "w": 232,
+                "x": 366,
+                "h": 372,
+                "y": 418
+            }
+        ],
+        "salle de bain": [
+            {
+                "w": 139,
+                "x": 222,
+                "h": 128,
+                "y": 250
+            }
+        ],
+        "salle de bain du bas": [
+            {
+                "x": 26,
+                "y": 482,
+                "w": 55,
+                "h": 128
+            }
+        ],
+        "toilettes du bas": [
+            {
+                "x": 149,
+                "y": 684,
+                "w": 68,
+                "h": 64
+            }
+        ],
+        "grenier": [
+            {
+                "x": 24,
+                "y": 20,
+                "w": 197,
+                "h": 343
+            }
+        ],
+        "toilettes du haut": [
+            {
+                "x": 364,
+                "y": 311,
+                "w": 39,
+                "h": 86
+            }
+        ]
+    },
+    "version": "v2.3",
+    "materiels": {
+        "1000542": {
+            "protocol": "gpio",
+            "num": "phys15:o::on",
+            "equivalences": "",
+            "lieu": "relais",
+            "lieuprecis": "relais15",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": true,
+            "___nummat": 1000542,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "isautomatique": true,
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000602": {
+            "protocol": "arc",
+            "num": "e2",
+            "equivalences": "",
+            "lieu": "boutons",
+            "lieuprecis": "infra-lampadaire",
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1000602,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on"
+                    ]
+                }
+            ]
+        },
+        "1000699": {
+            "protocol": "elec3",
+            "num": "0x8112",
+            "equivalences": "",
+            "lieu": "infra",
+            "lieuprecis": "consommation",
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1000699,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "consom": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                },
+                "consomtotal": {
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "newsensorstypes": [
+                "consomtotal",
+                "consom"
+            ],
+            "storevoletdelaydescente": "",
+            "sensorstypes": [
+                {
+                    "name": "consomtotal"
+                },
+                {
+                    "name": "consom"
+                }
+            ]
+        },
+        "1000785": {
+            "num": "0x01a3a576/10",
+            "lieu": "boutons",
+            "lieuprecis": "cuisine1",
+            "___nummat": 1000785,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000801": {
+            "num": "0x00c53f52/11",
+            "lieu": "boutons",
+            "lieuprecis": "entree1",
+            "___nummat": 1000801,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000802": {
+            "num": "0x00c53f52/12",
+            "lieu": "boutons",
+            "lieuprecis": "devant",
+            "___nummat": 1000802,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000803": {
+            "num": "0x01731b7e/10",
+            "lieu": "boutons",
+            "lieuprecis": "entree2",
+            "___nummat": 1000803,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000820": {
+            "num": "0x01570f52/12",
+            "lieu": "boutons",
+            "lieuprecis": "bureau1",
+            "___nummat": 1000820,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "equivalences": "",
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000822": {
+            "protocol": "ac",
+            "num": "0x01037dae/12",
+            "equivalences": "",
+            "lieu": "boutons",
+            "lieuprecis": "chambre",
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "correction": 0,
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "isautomatique": false,
+            "___nummat": 1000822,
+            "systmotor": false,
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000823": {
+            "num": "0x01532d72/12",
+            "lieu": "boutons",
+            "lieuprecis": "chambre d'ami",
+            "___nummat": 1000823,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "equivalences": "",
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000824": {
+            "num": "0x0156d382/12",
+            "lieu": "boutons",
+            "lieuprecis": "chambre de jojo",
+            "___nummat": 1000824,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "equivalences": "",
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000825": {
+            "num": "0x0156f9fa/11",
+            "lieu": "boutons",
+            "lieuprecis": "lumière salle de bain",
+            "___nummat": 1000825,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "equivalences": "",
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000827": {
+            "protocol": "ac",
+            "num": "0x0173442a/10",
+            "equivalences": "",
+            "lieu": "boutons",
+            "lieuprecis": "lumière wc",
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1000827,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000831": {
+            "lieu": "chambre d'ami",
+            "lieuprecis": "plafonnier de la chambre d'ami",
+            "equivalences": "0x01525c02/13;0x01532d72/12;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00016/1",
+            "___nummat": 1000831,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 257,
+                        "y": 160
+                    },
+                    "paysage": {
+                        "x": 138,
+                        "y": 313
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 257,
+                    "y": 160
+                },
+                "paysage": {
+                    "x": 138,
+                    "y": 313
+                }
+            }
+        },
+        "1000851": {
+            "lieu": "rez-de-chaussée",
+            "lieuprecis": "",
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00005/1",
+            "___nummat": 1000851,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "equivalences": "",
+            "newsensorstypes": [
+                "bouton",
+                "lumiere"
+            ],
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                },
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000852": {
+            "lieu": "étage",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "bouton",
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00007/1",
+            "___nummat": 1000852,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "equivalences": "",
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                },
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000853": {
+            "lieu": "maison",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "bouton",
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00006/1",
+            "___nummat": 1000853,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "equivalences": "",
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                },
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000854": {
+            "lieu": "chambre de jojo",
+            "lieuprecis": "plafonnier de la chambre de jojo",
+            "zequivalences": "0x0156d382/12;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num1": "0x0aa00013/1",
+            "num": "lumière---plafonnier--chambre de jo--1er étage",
+            "___nummat": 1000854,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 404,
+                        "y": 96
+                    },
+                    "paysage": {
+                        "x": 88,
+                        "y": 217
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000886": {
+            "num": "0x01037dae/11",
+            "lieu": "boutons",
+            "lieuprecis": "chevet de la chambre",
+            "___nummat": 1000886,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000887": {
+            "num": "0x0156d382/11",
+            "lieu": "boutons",
+            "lieuprecis": "chevet de la chambre de jojo",
+            "___nummat": 1000887,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000888": {
+            "num": "0x01532d72/11",
+            "lieu": "boutons",
+            "lieuprecis": "chevet de la chambre d'ami",
+            "___nummat": 1000888,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000889": {
+            "num": "0x0156f9fa/12",
+            "lieu": "boutons",
+            "lieuprecis": "vmc de la salle de bain",
+            "___nummat": 1000889,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000890": {
+            "lieu": "chambre",
+            "lieuprecis": "plafonnier de la chambre",
+            "equivalences": "0x02be2c02/13;0x01037dae/12;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa0000d/1",
+            "___nummat": 1000890,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 537,
+                        "y": 92
+                    },
+                    "paysage": {
+                        "x": 92,
+                        "y": 54
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000919": {
+            "lieu": "entrée",
+            "lieuprecis": "",
+            "equivalences": "0x00c53f52/11;0x01731b7e/10;0x0aa00006/1;0x0aa00005/1",
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00003/1",
+            "___nummat": 1000919,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 294,
+                        "y": 706
+                    },
+                    "paysage": {
+                        "x": 712,
+                        "y": 316
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000948": {
+            "num": "0x017334a2/10",
+            "lieu": "boutons",
+            "lieuprecis": "escalier bas",
+            "___nummat": 1000948,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000949": {
+            "num": "0x01732532/10",
+            "lieu": "boutons",
+            "lieuprecis": "escalier haut",
+            "___nummat": 1000949,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000964": {
+            "num": "0x01732d92/10",
+            "lieu": "boutons",
+            "lieuprecis": "escalier haut 2",
+            "___nummat": 1000964,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000965": {
+            "num": "0x006658f3/2",
+            "lieu": "boutons",
+            "lieuprecis": "cuisine d'été",
+            "___nummat": 1000965,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000966": {
+            "num": "0x006658f3/1",
+            "lieu": "boutons",
+            "lieuprecis": "la maison",
+            "___nummat": 1000966,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000979": {
+            "num": "0x01571fa6/11",
+            "lieu": "boutons",
+            "lieuprecis": "bas escalier lumiere lampadaire",
+            "___nummat": 1000979,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000980": {
+            "num": "0x01571fa6/12",
+            "lieu": "boutons",
+            "lieuprecis": "bas escalier lumiere fenetre",
+            "___nummat": 1000980,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000981": {
+            "num": "0x01570892/11",
+            "lieu": "boutons",
+            "lieuprecis": "bas escalier lumiere milieu",
+            "___nummat": 1000981,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000985": {
+            "num": "0x01570d5a/11",
+            "lieu": "boutons",
+            "lieuprecis": "salle lumiere lampadaire",
+            "___nummat": 1000985,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000986": {
+            "num": "0x01570d5a/12",
+            "lieu": "boutons",
+            "lieuprecis": "salle lumiere fenetre",
+            "___nummat": 1000986,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000987": {
+            "lieu": "salle",
+            "lieuprecis": "salon",
+            "equivalences": "0x01571fa6/12;0x01570d5a/12;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00026/1",
+            "___nummat": 1000987,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 505,
+                        "y": 501
+                    },
+                    "paysage": {
+                        "x": 475,
+                        "y": 130
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 505,
+                    "y": 501
+                },
+                "paysage": {
+                    "x": 475,
+                    "y": 130
+                }
+            }
+        },
+        "1000988": {
+            "lieu": "salle",
+            "lieuprecis": "lampadaire",
+            "equivalences": "0x01571fa6/11;0x01570d5a/11;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00027/1",
+            "___nummat": 1000988,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 574,
+                        "y": 437
+                    },
+                    "paysage": {
+                        "x": 441,
+                        "y": 39
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000990": {
+            "num": "0x01570892/12",
+            "lieu": "boutons",
+            "lieuprecis": "bas escalier lumiere bibliotheque",
+            "___nummat": 1000990,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000991": {
+            "num": "0x0156f0d6/11",
+            "lieu": "boutons",
+            "lieuprecis": "salle lumiere bibliothèque",
+            "___nummat": 1000991,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1000992": {
+            "lieu": "salle",
+            "lieuprecis": "bibliothèque",
+            "equivalences": "0x01570892/12;0x0156f0d6/11;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa0002b/1",
+            "___nummat": 1000992,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 442,
+                        "y": 743
+                    },
+                    "paysage": {
+                        "x": 758,
+                        "y": 178
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001006": {
+            "num": "0x0156f0d6/12",
+            "lieu": "boutons",
+            "lieuprecis": "salle lumiere milieu",
+            "___nummat": 1001006,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "equivalences": "",
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001063": {
+            "num": "0x01976816/10",
+            "lieu": "toilettes du bas",
+            "lieuprecis": "",
+            "___nummat": 1001063,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001069": {
+            "lieu": "toilettes du bas",
+            "lieuprecis": "",
+            "equivalences": "0x0aa00006/1;0x0aa00005/1;0x01976816/10",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "persistence": true,
+            "num": "0x0aa0002e/1",
+            "___nummat": 1001069,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 185,
+                        "y": 715
+                    },
+                    "paysage": {
+                        "x": 732,
+                        "y": 433
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 600,
+                    "minuteriedeclencheur": "on",
+                    "persistence": true,
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 185,
+                    "y": 715
+                },
+                "paysage": {
+                    "x": 732,
+                    "y": 433
+                }
+            }
+        },
+        "1001070": {
+            "num": "0x01a39c3a/10",
+            "lieu": "boutons",
+            "lieuprecis": "salle de bain du bas",
+            "___nummat": 1001070,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001083": {
+            "num": "0x01902c66/1",
+            "lieu": "boutons",
+            "lieuprecis": "tel-rezchaussee-etage",
+            "___nummat": 1001083,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001095": {
+            "num": "0x01a678ba/1",
+            "lieu": "boutons",
+            "lieuprecis": "tel-4-buttons-1",
+            "___nummat": 1001095,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001096": {
+            "num": "0x01a678ba/2",
+            "lieu": "boutons",
+            "lieuprecis": "tel-4-buttons-2",
+            "___nummat": "1001096",
+            "actionsuppression": "non",
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001097": {
+            "num": "0x01a678ba/3",
+            "lieu": "boutons",
+            "lieuprecis": "tel-4-buttons-3",
+            "___nummat": 1001097,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001098": {
+            "num": "0x01a678ba",
+            "lieu": "boutons",
+            "lieuprecis": "tel-4-buttons-4",
+            "___nummat": 1001098,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001130": {
+            "protocol": "evoo7",
+            "num": "consigne_eco",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "eco",
+            "newsensorstypes": [
+                "thermostat"
+            ],
+            "commandstypes": [
+                "bright",
+                "dim",
+                "xdim"
+            ],
+            "minuteriedelay": null,
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "15",
+            "max": "25",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001130,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "thermostat",
+                    "min": "15",
+                    "max": "25",
+                    "commandstypes": [
+                        "bright",
+                        "dim",
+                        "xdim"
+                    ]
+                }
+            ]
+        },
+        "1001155": {
+            "protocol": "tasmota",
+            "num": "a9f97b::1",
+            "equivalences": "",
+            "lieu": "salle",
+            "lieuprecis": "poele",
+            "newsensorstypes": [
+                "radiateur"
+            ],
+            "___nummat": 1001155,
+            "temperatureassociee": "",
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "newcoordonnees": {
+                "radiateur": {
+                    "portrait": {
+                        "x": 385,
+                        "y": 580
+                    },
+                    "paysage": {
+                        "x": 579,
+                        "y": 228
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "radiateur",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 385,
+                    "y": 580
+                },
+                "paysage": {
+                    "x": 579,
+                    "y": 228
+                }
+            }
+        },
+        "1001157": {
+            "protocol": "virtualther",
+            "num": "thermostat_poele",
+            "equivalences": "",
+            "lieu": "salle",
+            "lieuprecis": "poele",
+            "newsensorstypes": [
+                "prog",
+                "thermostat"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch",
+                "manuel",
+                "bright",
+                "dim",
+                "xdim"
+            ],
+            "isautomatique": false,
+            "___nummat": 1001157,
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "thermostat": {
+                    "portrait": {
+                        "x": 370,
+                        "y": 538
+                    },
+                    "paysage": {
+                        "x": 562,
+                        "y": 239
+                    }
+                }
+            },
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "prog",
+                    "min": "15",
+                    "max": "25",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch",
+                        "manuel"
+                    ]
+                },
+                {
+                    "name": "thermostat",
+                    "min": "15",
+                    "max": "25",
+                    "defaultvalue": "18",
+                    "commandstypes": [
+                        "bright",
+                        "dim",
+                        "xdim"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 370,
+                    "y": 538
+                },
+                "paysage": {
+                    "x": 562,
+                    "y": 239
+                }
+            }
+        },
+        "1001158": {
+            "protocol": "evoo7",
+            "num": "thermostat",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "chaudière",
+            "newsensorstypes": [
+                "prog",
+                "thermostat"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch",
+                "manuel",
+                "bright",
+                "dim",
+                "xdim"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "15",
+            "max": "25",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001158,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "thermostat": {
+                    "portrait": {
+                        "x": 73,
+                        "y": 168
+                    },
+                    "paysage": {
+                        "x": 73,
+                        "y": 537
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "prog",
+                    "min": "15",
+                    "max": "25",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch",
+                        "manuel"
+                    ]
+                },
+                {
+                    "name": "thermostat",
+                    "min": "15",
+                    "max": "25",
+                    "commandstypes": [
+                        "bright",
+                        "dim",
+                        "xdim"
+                    ]
+                }
+            ]
+        },
+        "1001159": {
+            "protocol": "evoo7",
+            "num": "etat_circulateur_radiateur",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "chaudière",
+            "newsensorstypes": [
+                "radiateur"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001159,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "radiateur": {
+                    "portrait": {
+                        "x": 79,
+                        "y": 146
+                    },
+                    "paysage": {
+                        "x": 95,
+                        "y": 447
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "radiateur"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 79,
+                    "y": 146
+                },
+                "paysage": {
+                    "x": 95,
+                    "y": 447
+                }
+            }
+        },
+        "1001175": {
+            "protocol": "evoo7",
+            "num": "temp_ext",
+            "equivalences": "",
+            "lieu": "extérieur",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "temperature"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001175,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "temperature": {
+                    "portrait": {
+                        "x": 146,
+                        "y": 374
+                    },
+                    "paysage": {
+                        "x": 349,
+                        "y": 493
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": true,
+            "sensorstypes": [
+                {
+                    "name": "temperature",
+                    "persistence": true
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 146,
+                    "y": 374
+                },
+                "paysage": {
+                    "x": 349,
+                    "y": 493
+                }
+            }
+        },
+        "1001233": {
+            "protocol": "teleinfo",
+            "num": "edf",
+            "equivalences": "",
+            "lieu": "entrée",
+            "lieuprecis": "edf",
+            "newsensorstypes": [
+                "consom"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001233,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "consom": {
+                    "portrait": {
+                        "x": 20,
+                        "y": 372
+                    },
+                    "paysage": {
+                        "x": 330,
+                        "y": 564
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "consom"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 20,
+                    "y": 372
+                },
+                "paysage": {
+                    "x": 330,
+                    "y": 564
+                }
+            }
+        },
+        "1001256": {
+            "protocol": "gpio",
+            "num": "phys13:o:inv:on",
+            "equivalences": "",
+            "lieu": "salle de bain du bas",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "radiateur"
+            ],
+            "commandstypes": [
+                "off",
+                "on"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": true,
+            "___nummat": 1001256,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "minuteriedelay": 0,
+            "persistence": false,
+            "minuteriedeclencheur": "on",
+            "newcoordonnees": {
+                "radiateur": {
+                    "portrait": {
+                        "x": 38,
+                        "y": 587
+                    },
+                    "paysage": {
+                        "x": 554,
+                        "y": 586
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "radiateur",
+                    "isautomatique": true,
+                    "commandstypes": [
+                        "off",
+                        "on"
+                    ]
+                }
+            ]
+        },
+        "1001269": {
+            "lieu": "escalier",
+            "lieuprecis": "couloir",
+            "equivalences": "0x017334a2/10;0x01732532/10;0x01732d92/10;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00025/1",
+            "___nummat": 1001269,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 398,
+                        "y": 240
+                    },
+                    "paysage": {
+                        "x": 244,
+                        "y": 204
+                    }
+                }
+            },
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 600,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001272": {
+            "num": "0x0156f95e/11",
+            "lieu": "boutons",
+            "lieuprecis": "chbas- chambre du bas",
+            "___nummat": 1001272,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001273": {
+            "num": "0x0156f95e/12",
+            "lieu": "boutons",
+            "lieuprecis": "chbas - salle de bains du bas",
+            "___nummat": 1001273,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001274": {
+            "num": "0x0196e326/10",
+            "lieu": "boutons",
+            "lieuprecis": "chbas-fenetre",
+            "___nummat": 1001274,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001276": {
+            "lieu": "salle de bain du bas",
+            "lieuprecis": "",
+            "equivalences": "0x0156f95e/12;0x01a39c3a/10;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 7200,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa00030/1",
+            "___nummat": 1001276,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 42,
+                        "y": 542
+                    },
+                    "paysage": {
+                        "x": 590,
+                        "y": 584
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 7200,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001277": {
+            "lieu": "toilettes du haut",
+            "lieuprecis": "toilettes du haut",
+            "zequivalences": "0x0173442a/10;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num1": "0x0aa00022/1",
+            "num": "lumière---plafonnier--toilettes du haut--1er étage",
+            "___nummat": 1001277,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 383,
+                        "y": 354
+                    },
+                    "paysage": {
+                        "x": 366,
+                        "y": 234
+                    }
+                }
+            },
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ],
+                    "minuteriedelay": 900,
+                    "minuteriedeclencheur": "on"
+                }
+            ]
+        },
+        "1001288": {
+            "lieu": "extérieur",
+            "lieuprecis": "devant",
+            "equivalences": "0x00c53f52/12;0x0aa00006/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 3600,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa0003a/1",
+            "___nummat": 1001288,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 237,
+                        "y": 771
+                    },
+                    "paysage": {
+                        "x": 789,
+                        "y": 349
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 3600,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001289": {
+            "lieu": "chambre du bas",
+            "lieuprecis": "",
+            "equivalences": "0x0156f95e/11;0x0196e326/10;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00009/1",
+            "___nummat": 1001289,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 138,
+                        "y": 531
+                    },
+                    "paysage": {
+                        "x": 536,
+                        "y": 477
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001300": {
+            "num": "0x03973b56/16",
+            "lieu": "boutons",
+            "lieuprecis": "buanderie-old",
+            "___nummat": 1001300,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001311": {
+            "num": "0x017340ca/10",
+            "lieu": "boutons",
+            "lieuprecis": "machines",
+            "___nummat": 1001311,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001312": {
+            "lieu": "buanderie",
+            "lieuprecis": "",
+            "equivalences": "0x017340ca/10;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 600,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa00031/1",
+            "___nummat": 1001312,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 600,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001313": {
+            "lieu": "bureau",
+            "lieuprecis": "plafonnier du bureau",
+            "equivalences": "0x01570f52/12;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa0001a/1",
+            "___nummat": 1001313,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 525,
+                        "y": 258
+                    },
+                    "paysage": {
+                        "x": 287,
+                        "y": 104
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001324": {
+            "lieu": "salle",
+            "lieuprecis": "salle à manger",
+            "equivalences": "0x01570892/11;0x0156f0d6/12;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 0,
+            "num": "0x0aa00029/1",
+            "___nummat": 1001324,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 504,
+                        "y": 643
+                    },
+                    "paysage": {
+                        "x": 628,
+                        "y": 128
+                    }
+                }
+            },
+            "persistence": true,
+            "minuteriedeclencheur": "on",
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "persistence": true,
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 504,
+                    "y": 643
+                },
+                "paysage": {
+                    "x": 628,
+                    "y": 128
+                }
+            }
+        },
+        "1001337": {
+            "lieu": "salle de bain",
+            "lieuprecis": "vmc salle de bain",
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "persistence": false,
+            "num": "lumière---salle de bain du haut--salle de bain du haut--1er étage/l2",
+            "___nummat": 1001337,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "equivalences": "",
+            "newsensorstypes": [
+                "ventilateur"
+            ],
+            "sensorstypes": [
+                {
+                    "name": "ventilateur",
+                    "minuteriedelay": 1800,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001339": {
+            "lieu": "salle de bain",
+            "lieuprecis": "",
+            "equivalences": "",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "lumière---salle de bain du haut--salle de bain du haut--1er étage/l1",
+            "___nummat": 1001339,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 313,
+                        "y": 345
+                    },
+                    "paysage": {
+                        "x": 348,
+                        "y": 320
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 313,
+                    "y": 345
+                },
+                "paysage": {
+                    "x": 348,
+                    "y": 320
+                }
+            }
+        },
+        "1001362": {
+            "lieu": "grenier",
+            "lieuprecis": "petit grenier",
+            "equivalences": "0x0aa00006/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa0002d/1",
+            "___nummat": 1001362,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 146,
+                        "y": 74
+                    },
+                    "paysage": {
+                        "x": 34,
+                        "y": 510
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 146,
+                    "y": 74
+                },
+                "paysage": {
+                    "x": 34,
+                    "y": 510
+                }
+            }
+        },
+        "1001363": {
+            "protocol": "gpio",
+            "num": "phys7:o::on",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "petit grenier",
+            "newsensorstypes": [
+                "journuit"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "persistence": true,
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": true,
+            "___nummat": 1001363,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "journuit": {
+                    "portrait": {
+                        "x": 54,
+                        "y": 252
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "sensorstypes": [
+                {
+                    "name": "journuit",
+                    "isautomatique": true,
+                    "persistence": true,
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 54,
+                    "y": 252
+                },
+                "paysage": {
+                    "x": -1,
+                    "y": -1
+                }
+            }
+        },
+        "1001364": {
+            "protocol": "zigbee",
+            "num": "gros ballon---maison--maison--rez de chaussée",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "gros ballon",
+            "newsensorstypes": [
+                "ballon"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "persistence": true,
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": true,
+            "___nummat": 1001364,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "ballon": {
+                    "portrait": {
+                        "x": 184,
+                        "y": 257
+                    },
+                    "paysage": {
+                        "x": 248,
+                        "y": 461
+                    }
+                }
+            },
+            "minuteriedelay": 10800,
+            "minuteriedeclencheur": "on",
+            "sensorstypes": [
+                {
+                    "name": "ballon",
+                    "minuteriedelay": 14400,
+                    "minuteriedeclencheur": "on",
+                    "isautomatique": true,
+                    "persistence": true,
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 184,
+                    "y": 257
+                },
+                "paysage": {
+                    "x": 248,
+                    "y": 461
+                }
+            }
+        },
+        "1001365": {
+            "protocol": "evoo7",
+            "num": "temp_amb",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "entrée",
+            "newsensorstypes": [
+                "temperature"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001365,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "temperature": {
+                    "portrait": {
+                        "x": 99,
+                        "y": 138
+                    },
+                    "paysage": {
+                        "x": 78,
+                        "y": 494
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "temperature"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 99,
+                    "y": 138
+                },
+                "paysage": {
+                    "x": 78,
+                    "y": 494
+                }
+            }
+        },
+        "1001411": {
+            "num": "0x015705ee/11",
+            "lieu": "boutons",
+            "lieuprecis": "cuisine double 1",
+            "___nummat": 1001411,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001413": {
+            "num": "0x015705ee/12",
+            "lieu": "boutons",
+            "lieuprecis": "table",
+            "___nummat": 1001413,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001414": {
+            "lieu": "cuisine",
+            "lieuprecis": "table",
+            "equivalences": "0x015705ee/12;0x0aa00006/1;0x0aa00005/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa00043/1",
+            "___nummat": 1001414,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 238,
+                        "y": 559
+                    },
+                    "paysage": {
+                        "x": 561,
+                        "y": 376
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 238,
+                    "y": 559
+                },
+                "paysage": {
+                    "x": 561,
+                    "y": 376
+                }
+            }
+        },
+        "1001415": {
+            "lieu": "cuisine",
+            "lieuprecis": "plafonnier de la cuisine",
+            "equivalences": "0x01a3a576/10;0x0aa00006/1;0x0aa00005/1;0x0229e8ae/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "0x0aa00002/1",
+            "___nummat": 1001415,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 265,
+                        "y": 470
+                    },
+                    "paysage": {
+                        "x": 454,
+                        "y": 340
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 265,
+                    "y": 470
+                },
+                "paysage": {
+                    "x": 454,
+                    "y": 340
+                }
+            }
+        },
+        "1001420": {
+            "lieu": "chambre du bas",
+            "lieuprecis": "dressing",
+            "equivalences": "",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "num": "chambre--lumiere dressing",
+            "___nummat": 1001420,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 69,
+                        "y": 684
+                    },
+                    "paysage": {
+                        "x": 684,
+                        "y": 532
+                    }
+                }
+            },
+            "minuteriedelay": null,
+            "persistence": false,
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 69,
+                    "y": 684
+                },
+                "paysage": {
+                    "x": 684,
+                    "y": 532
+                }
+            }
+        },
+        "1001425": {
+            "protocol": "ac",
+            "num": "0x0026aad7/2",
+            "equivalences": "",
+            "lieu": "boutons",
+            "lieuprecis": "dressing",
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001425,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "radiateur": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001441": {
+            "protocol": "ac",
+            "num": "0x117322e6/10",
+            "equivalences": "",
+            "lieu": "boutons",
+            "lieuprecis": "bureau de jojo",
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001441,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "radiateur": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001451": {
+            "lieu": "chambre de jojo",
+            "lieuprecis": "leds de jojo",
+            "zequivalences": "0x0156d382/11;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "lumière---leds--chambre de jo--1er étage",
+            "___nummat": 1001451,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 266,
+                        "y": 40
+                    },
+                    "paysage": {
+                        "x": 28,
+                        "y": 347
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 266,
+                    "y": 40
+                },
+                "paysage": {
+                    "x": 28,
+                    "y": 347
+                }
+            }
+        },
+        "1001452": {
+            "lieu": "chambre de jojo",
+            "lieuprecis": "chevet droit de jojo",
+            "zequivalences": "0x0156d382/11;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "lumière---chevets--chambre de jo--1er étage/l2",
+            "___nummat": 1001452,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 336,
+                        "y": 199
+                    },
+                    "paysage": {
+                        "x": 171,
+                        "y": 270
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 336,
+                    "y": 199
+                },
+                "paysage": {
+                    "x": 171,
+                    "y": 270
+                }
+            }
+        },
+        "1001453": {
+            "lieu": "chambre de jojo",
+            "lieuprecis": "chevet gauche de jojo",
+            "zequivalences": "0x0156d382/11;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "lumière---chevets--chambre de jo--1er étage/l1",
+            "___nummat": 1001453,
+            "isautomatique": false,
+            "protocol": "zigbee",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 341,
+                        "y": 131
+                    },
+                    "paysage": {
+                        "x": 105,
+                        "y": 270
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 341,
+                    "y": 131
+                },
+                "paysage": {
+                    "x": 105,
+                    "y": 270
+                }
+            }
+        },
+        "1001463": {
+            "protocol": "arexx",
+            "num": "1312",
+            "equivalences": "",
+            "lieu": "buanderie",
+            "lieuprecis": "",
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001463,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newsensorstypes": [],
+            "commandstypes": [],
+            "sensorstypes": [
+                {
+                    "name": "temperature"
+                }
+            ]
+        },
+        "1001572": {
+            "protocol": "zigbee",
+            "num": "lumière---vitrine--cuisine--rez de chaussée",
+            "equivalences": "",
+            "lieu": "cuisine",
+            "lieuprecis": "vitrine",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "persistence": false,
+            "___nummat": 1001572,
+            "systmotor": false,
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": -1,
+                    "y": -1
+                },
+                "paysage": {
+                    "x": -1,
+                    "y": -1
+                }
+            }
+        },
+        "1001573": {
+            "protocol": "zigbee",
+            "num": "lumière---plan de travail--cuisine--rez de chaussée",
+            "equivalences": "",
+            "lieu": "cuisine",
+            "lieuprecis": "plan de travail",
+            "newsensorstypes": [
+                "couleur",
+                "kelvin",
+                "lumiere",
+                "lumierexdim"
+            ],
+            "commandstypes": [
+                "bright",
+                "color",
+                "dim",
+                "kelvin",
+                "off",
+                "on",
+                "switch",
+                "xdim"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "150",
+            "max": "550",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001573,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 349,
+                        "y": 530
+                    },
+                    "paysage": {
+                        "x": 529,
+                        "y": 281
+                    }
+                },
+                "kelvin": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "couleur",
+                    "min": "150",
+                    "max": "550",
+                    "commandstypes": [
+                        "color"
+                    ]
+                },
+                {
+                    "name": "kelvin",
+                    "min": "150",
+                    "max": "550",
+                    "commandstypes": [
+                        "kelvin"
+                    ]
+                },
+                {
+                    "name": "lumiere",
+                    "min": "150",
+                    "max": "550",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                },
+                {
+                    "name": "lumierexdim",
+                    "min": "150",
+                    "max": "550",
+                    "commandstypes": [
+                        "bright",
+                        "dim",
+                        "xdim"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 349,
+                    "y": 530
+                },
+                "paysage": {
+                    "x": 529,
+                    "y": 281
+                }
+            }
+        },
+        "1001574": {
+            "protocol": "zigbee",
+            "num": "petit ballon---maison--maison--rez de chaussée",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "petit ballon",
+            "newsensorstypes": [
+                "ballon",
+                "power",
+                "current",
+                "energy"
+            ],
+            "commandstypes": [
+                "ballon"
+            ],
+            "___nummat": 1001574,
+            "newcoordonnees": {
+                "ballon ": {
+                    "portrait": {
+                        "x": -1,
+                        "y": -1
+                    },
+                    "paysage": {
+                        "x": -1,
+                        "y": -1
+                    }
+                },
+                "ballon": {
+                    "portrait": {
+                        "x": 120,
+                        "y": 290
+                    },
+                    "paysage": {
+                        "x": 247,
+                        "y": 418
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "ballon",
+                    "minuteriedelay": 14400,
+                    "minuteriedeclencheur": "on",
+                    "isautomatique": true,
+                    "persistence": true,
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 120,
+                    "y": 290
+                },
+                "paysage": {
+                    "x": 247,
+                    "y": 418
+                }
+            }
+        },
+        "1001575": {
+            "protocol": "zigbee",
+            "num": "chambre du bas--lumière chevet",
+            "equivalences": "",
+            "lieu": "chambre du bas",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "prise",
+                "power",
+                "current",
+                "energy"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "___nummat": 1001575,
+            "sensorstypes": [
+                {
+                    "name": "prise",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                },
+                {
+                    "name": "power"
+                },
+                {
+                    "name": "current"
+                },
+                {
+                    "name": "energy"
+                }
+            ]
+        },
+        "1001601": {
+            "protocol": "evoo7",
+            "num": "decalage_tdeg_ambiante",
+            "equivalences": "",
+            "lieu": "grenier",
+            "lieuprecis": "decalage temperature",
+            "newsensorstypes": [
+                "num"
+            ],
+            "commandstypes": [
+                "set"
+            ],
+            "persistence": false,
+            "precision": "1",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001601,
+            "sensorstypes": [
+                {
+                    "name": "num",
+                    "precision": "1",
+                    "commandstypes": [
+                        "set"
+                    ]
+                }
+            ]
+        },
+        "1001607": {
+            "protocol": "th9",
+            "num": "0x0501",
+            "equivalences": "",
+            "lieu": "chambre de jo",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "humidity",
+                "temperature"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "1",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001607,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "humidity": {
+                    "portrait": {
+                        "x": 292,
+                        "y": 71
+                    },
+                    "paysage": {
+                        "x": 195,
+                        "y": 305
+                    }
+                },
+                "temperature": {
+                    "portrait": {
+                        "x": 294,
+                        "y": 55
+                    },
+                    "paysage": {
+                        "x": 195,
+                        "y": 334
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "humidity",
+                    "precision": "1"
+                },
+                {
+                    "name": "temperature",
+                    "precision": "1"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 292,
+                    "y": 71
+                },
+                "paysage": {
+                    "x": 195,
+                    "y": 305
+                }
+            }
+        },
+        "1001608": {
+            "protocol": "th9",
+            "num": "0xBB02",
+            "equivalences": "",
+            "lieu": "salle",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "humidity",
+                "temperature"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "1",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001608,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "humidity": {
+                    "portrait": {
+                        "x": 375,
+                        "y": 689
+                    },
+                    "paysage": {
+                        "x": 552,
+                        "y": 72
+                    }
+                },
+                "temperature": {
+                    "portrait": {
+                        "x": 376,
+                        "y": 657
+                    },
+                    "paysage": {
+                        "x": 552,
+                        "y": 45
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "humidity",
+                    "precision": "1"
+                },
+                {
+                    "name": "temperature",
+                    "precision": "1"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 375,
+                    "y": 689
+                },
+                "paysage": {
+                    "x": 552,
+                    "y": 72
+                }
+            }
+        },
+        "1001609": {
+            "protocol": "arexx",
+            "num": "17500",
+            "equivalences": "",
+            "lieu": "chambre",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "temperature"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001609,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "temperature": {
+                    "portrait": {
+                        "x": 516,
+                        "y": 49
+                    },
+                    "paysage": {
+                        "x": 71,
+                        "y": 80
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "temperature"
+                }
+            ]
+        },
+        "1001610": {
+            "protocol": "arexx",
+            "num": "17500RH",
+            "equivalences": "",
+            "lieu": "chambre",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "humidity"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001610,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "humidity": {
+                    "portrait": {
+                        "x": 516,
+                        "y": 120
+                    },
+                    "paysage": {
+                        "x": 72,
+                        "y": 109
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "humidity"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 516,
+                    "y": 120
+                },
+                "paysage": {
+                    "x": 72,
+                    "y": 109
+                }
+            }
+        },
+        "1001611": {
+            "protocol": "arexx",
+            "num": "11719",
+            "equivalences": "",
+            "lieu": "chambre de jojo",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "temperature"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "1",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001611,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "temperature": {
+                    "portrait": {
+                        "x": 399,
+                        "y": 120
+                    },
+                    "paysage": {
+                        "x": 65,
+                        "y": 335
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "temperature",
+                    "precision": "1"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 399,
+                    "y": 120
+                },
+                "paysage": {
+                    "x": 65,
+                    "y": 335
+                }
+            }
+        },
+        "1001612": {
+            "protocol": "arexx",
+            "num": "11673",
+            "equivalences": "",
+            "lieu": "chambre d'ami",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "temperature"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "1",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001612,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "temperature": {
+                    "portrait": {
+                        "x": 531,
+                        "y": 311
+                    },
+                    "paysage": {
+                        "x": 126,
+                        "y": 36
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "temperature",
+                    "precision": "1"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 531,
+                    "y": 311
+                },
+                "paysage": {
+                    "x": 126,
+                    "y": 36
+                }
+            }
+        },
+        "1001615": {
+            "num": "0x0229e8ae/2",
+            "lieu": "boutons",
+            "lieuprecis": "cuisine-porte-coulissante-exterieur",
+            "___nummat": 1001615,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001616": {
+            "num": "0x0229e8ae/1",
+            "lieu": "boutons",
+            "lieuprecis": "cuisine-porte-coulissante-cuisine",
+            "___nummat": 1001616,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001630": {
+            "num": "0x02780002/1",
+            "lieu": "boutons",
+            "lieuprecis": "tel jojo but1",
+            "___nummat": 1001630,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001637": {
+            "num": "0x02780002/5",
+            "lieu": "boutons",
+            "lieuprecis": "tel jojo but2",
+            "___nummat": 1001637,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001638": {
+            "num": "0x02780002/13",
+            "lieu": "boutons",
+            "lieuprecis": "tel jojo but3",
+            "___nummat": 1001638,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001641": {
+            "num": "0x02780002",
+            "lieu": "boutons",
+            "lieuprecis": "tel jojo but4",
+            "___nummat": 1001641,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001648": {
+            "lieu": "chambre d'ami",
+            "lieuprecis": "chevet droit",
+            "equivalences": "0x01525c02/1;0x01532d72/11;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 86340,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa00045/1",
+            "___nummat": 1001648,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 86340,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001649": {
+            "lieu": "chambre d'ami",
+            "lieuprecis": "chevet gauche",
+            "equivalences": "0x01525c02/5;0x01532d72/11;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 86340,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa00046/1",
+            "___nummat": 1001649,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 86340,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001650": {
+            "num": "0x02be2c02/1",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre but1",
+            "___nummat": 1001650,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001651": {
+            "num": "0x02be2c02/5",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre but2",
+            "___nummat": 1001651,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001652": {
+            "num": "0x02be2c02/13",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre but3",
+            "___nummat": 1001652,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001653": {
+            "num": "0x02be2c02",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre but4",
+            "___nummat": 1001653,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001654": {
+            "num": "0x01525c02/1",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre d ami but1",
+            "___nummat": 1001654,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001655": {
+            "num": "0x01525c02/5",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre d ami but2",
+            "___nummat": 1001655,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001656": {
+            "num": "0x01525c02/13",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre d ami but3",
+            "___nummat": 1001656,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001657": {
+            "num": "0x01525c02",
+            "lieu": "boutons",
+            "lieuprecis": "tel chambre d ami but4",
+            "___nummat": 1001657,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001658": {
+            "lieu": "chambre",
+            "lieuprecis": "chevet gauche chambre",
+            "equivalences": "0x02be2c02/1;0x01037dae/11;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 86340,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa00047/1",
+            "___nummat": 1001658,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 86340,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001659": {
+            "lieu": "chambre",
+            "lieuprecis": "chevet droit chambre",
+            "equivalences": "0x02be2c02/5;0x01037dae/11;0x0aa00006/1;0x0aa00007/1",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "minuteriedelay": 86340,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "num": "0x0aa00048/1",
+            "___nummat": 1001659,
+            "isautomatique": false,
+            "protocol": "ac",
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 86340,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001660": {
+            "num": "0x00faf16e/10",
+            "lieu": "boutons",
+            "lieuprecis": "detecteur couloir",
+            "___nummat": 1001660,
+            "newsensorstypes": [
+                "bouton"
+            ],
+            "commandstypes": [
+                "on",
+                "off",
+                "switch"
+            ],
+            "isautomatique": false,
+            "systmotor": false,
+            "protocol": "ac",
+            "correction": 0,
+            "sensorstypes": [
+                {
+                    "name": "bouton",
+                    "commandstypes": [
+                        "on",
+                        "off",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001667": {
+            "protocol": "arc",
+            "num": "k9",
+            "equivalences": "",
+            "lieu": "infra",
+            "lieuprecis": "octoprint",
+            "newsensorstypes": [
+                "prise"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001667,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "sensorstypes": [
+                {
+                    "name": "prise",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001675": {
+            "protocol": "zigbee",
+            "num": "baromètre---salle de bain du haut--salle de bain du haut--1er étage",
+            "equivalences": "",
+            "lieu": "salle de bain",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "battery",
+                "humidity",
+                "pressure",
+                "temperature",
+                "voltage"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001675,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "humidity": {
+                    "portrait": {
+                        "x": 286,
+                        "y": 287
+                    },
+                    "paysage": {
+                        "x": 260,
+                        "y": 306
+                    }
+                },
+                "temperature": {
+                    "portrait": {
+                        "x": 289,
+                        "y": 264
+                    },
+                    "paysage": {
+                        "x": 261,
+                        "y": 277
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "battery"
+                },
+                {
+                    "name": "humidity",
+                    "precision": "0"
+                },
+                {
+                    "name": "pressure",
+                    "precision": "0"
+                },
+                {
+                    "name": "temperature",
+                    "precision": "1"
+                },
+                {
+                    "name": "voltage",
+                    "precision": "1"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 289,
+                    "y": 264
+                },
+                "paysage": {
+                    "x": 261,
+                    "y": 277
+                }
+            }
+        },
+        "1001676": {
+            "protocol": "zigbee",
+            "num": "baromètre---salle de bain du bas--salle de bain du bas--rez de chaussée",
+            "equivalences": "",
+            "lieu": "salle de bain du bas",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "battery",
+                "humidity",
+                "pressure",
+                "temperature",
+                "voltage"
+            ],
+            "minuteriedelay": 0,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001676,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "humidity": {
+                    "portrait": {
+                        "x": 26,
+                        "y": 515
+                    },
+                    "paysage": {
+                        "x": 546,
+                        "y": 558
+                    }
+                },
+                "temperature": {
+                    "portrait": {
+                        "x": 28,
+                        "y": 489
+                    },
+                    "paysage": {
+                        "x": 544,
+                        "y": 537
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "battery"
+                },
+                {
+                    "name": "humidity",
+                    "precision": "0"
+                },
+                {
+                    "name": "pressure",
+                    "precision": "0"
+                },
+                {
+                    "name": "temperature",
+                    "precision": "1"
+                },
+                {
+                    "name": "voltage",
+                    "precision": "1"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 28,
+                    "y": 489
+                },
+                "paysage": {
+                    "x": 544,
+                    "y": 537
+                }
+            }
+        },
+        "1001682": {
+            "protocol": "zigbee",
+            "num": "baromètre---chambre du bas--chambre du bas--rez de chaussée",
+            "equivalences": "",
+            "lieu": "chambre du bas",
+            "lieuprecis": "chambre du bas",
+            "newsensorstypes": [
+                "battery",
+                "humidity",
+                "pressure",
+                "temperature",
+                "voltage"
+            ],
+            "minuteriedelay": 0,
+            "persistence": false,
+            "correction": 0,
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "isautomatique": false,
+            "___nummat": 1001682,
+            "systmotor": false,
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {
+                "humidity": {
+                    "portrait": {
+                        "x": 128,
+                        "y": 463
+                    },
+                    "paysage": {
+                        "x": 463,
+                        "y": 471
+                    }
+                },
+                "pressure": {
+                    "portrait": {
+                        "x": 126,
+                        "y": 574
+                    },
+                    "paysage": {
+                        "x": 463,
+                        "y": 445
+                    }
+                },
+                "temperature": {
+                    "portrait": {
+                        "x": 60,
+                        "y": 639
+                    },
+                    "paysage": {
+                        "x": 464,
+                        "y": 415
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "battery"
+                },
+                {
+                    "name": "humidity"
+                },
+                {
+                    "name": "pressure"
+                },
+                {
+                    "name": "temperature"
+                },
+                {
+                    "name": "voltage"
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 128,
+                    "y": 463
+                },
+                "paysage": {
+                    "x": 463,
+                    "y": 471
+                }
+            }
+        },
+        "1001683": {
+            "protocol": "tasmota",
+            "num": "tasmota_15B765",
+            "equivalences": "",
+            "lieu": "cuisine d'été",
+            "lieuprecis": "lave vaisselle",
+            "newsensorstypes": [
+                "onoff",
+                "current",
+                "total",
+                "yesterday",
+                "today",
+                "power",
+                "apparentpower",
+                "reactivepower",
+                "voltage"
+            ],
+            "minuteriedelay": 0,
+            "persistence": false,
+            "correction": 0,
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "isautomatique": false,
+            "___nummat": 1001683,
+            "systmotor": false,
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {},
+            "sensorstypes": [
+                {
+                    "name": "onoff",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                },
+                {
+                    "name": "current"
+                },
+                {
+                    "name": "total"
+                },
+                {
+                    "name": "yesterday"
+                },
+                {
+                    "name": "today"
+                },
+                {
+                    "name": "apparentpower"
+                },
+                {
+                    "name": "reactivepower"
+                },
+                {
+                    "name": "voltage"
+                }
+            ]
+        },
+        "1001684": {
+            "protocol": "tasmota",
+            "num": "tasmota_CE4CB8",
+            "equivalences": "",
+            "lieu": "cuisine d'été",
+            "lieuprecis": "",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "minuteriedelay": 0,
+            "persistence": false,
+            "correction": 0,
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "isautomatique": false,
+            "___nummat": 1001684,
+            "systmotor": false,
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {},
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ]
+        },
+        "1001685": {
+            "protocol": "tasmota",
+            "num": "tasmota_56ef70",
+            "equivalences": "",
+            "lieu": "cuisine d'été",
+            "lieuprecis": "sèche linge",
+            "newsensorstypes": [
+                "onoff",
+                "current",
+                "total",
+                "yesterday",
+                "today",
+                "power",
+                "apparentpower",
+                "reactivepower",
+                "voltage"
+            ],
+            "minuteriedelay": 0,
+            "persistence": false,
+            "correction": 0,
+            "min": "",
+            "max": "",
+            "textlgmax": "",
+            "isautomatique": false,
+            "___nummat": 1001685,
+            "systmotor": false,
+            "storevoletdelay": "",
+            "storevoletdelaydecol": "",
+            "storevoletdelaydescente": "",
+            "temperatureassociee": "",
+            "commandstypes": [],
+            "newcoordonnees": {},
+            "sensorstypes": [
+                {
+                    "name": "onoff",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                },
+                {
+                    "name": "current"
+                },
+                {
+                    "name": "total"
+                },
+                {
+                    "name": "yesterday"
+                },
+                {
+                    "name": "today"
+                },
+                {
+                    "name": "apparentpower"
+                },
+                {
+                    "name": "reactivepower"
+                },
+                {
+                    "name": "voltage"
+                }
+            ]
+        },
+        "1001689": {
+            "protocol": "zigbee",
+            "num": "lumière---terrasse--terrasse--rez de chaussée",
+            "equivalences": "",
+            "lieu": "extérieur",
+            "lieuprecis": "terrasse",
+            "newsensorstypes": [
+                "lumiere"
+            ],
+            "commandstypes": [
+                "off",
+                "on",
+                "switch"
+            ],
+            "minuteriedelay": 3600,
+            "minuteriedeclencheur": "on",
+            "persistence": false,
+            "precision": "0",
+            "correction": 0,
+            "min": "0",
+            "max": "0",
+            "textlgmax": "0",
+            "isautomatique": false,
+            "___nummat": 1001689,
+            "systmotor": false,
+            "storevoletdelay": "0",
+            "storevoletdelaydecol": "0",
+            "storevoletdelaydescente": "0",
+            "temperatureassociee": "",
+            "newcoordonnees": {
+                "lumiere": {
+                    "portrait": {
+                        "x": 360,
+                        "y": 18
+                    },
+                    "paysage": {
+                        "x": 21,
+                        "y": 257
+                    }
+                }
+            },
+            "sensorstypes": [
+                {
+                    "name": "lumiere",
+                    "minuteriedelay": 3600,
+                    "minuteriedeclencheur": "on",
+                    "commandstypes": [
+                        "off",
+                        "on",
+                        "switch"
+                    ]
+                }
+            ],
+            "coordonnees": {
+                "portrait": {
+                    "x": 360,
+                    "y": 18
+                },
+                "paysage": {
+                    "x": 21,
+                    "y": 257
+                }
+            }
+        }
+    },
+    "associations": {
+        "1": {
+            "key": 1,
+            "active": true,
+            "select": {
+                "lieu": "infra-lampadaire",
+                "sensortype": "bouton",
+                "signe": "equal",
+                "status": "on"
+            },
+            "actions": [
+                {
+                    "lieu": "lampadaire",
+                    "sensortype": "lumiere",
+                    "commandtype": "switch",
+                    "status": ""
+                }
+            ]
+        },
+        "2": {
+            "key": 2,
+            "active": true,
+            "select": {
+                "lieu": "tel-rezchaussee-etage",
+                "sensortype": "bouton",
+                "signe": "equal",
+                "status": "on"
+            },
+            "actions": [
+                {
+                    "lieu": "étage",
+                    "sensortype": "lumiere",
+                    "commandtype": "off",
+                    "status": ""
+                }
+            ]
+        },
+        "3": {
+            "key": 3,
+            "active": true,
+            "select": {
+                "lieu": "tel-rezchaussee-etage",
+                "sensortype": "bouton",
+                "signe": "equal",
+                "status": "off"
+            },
+            "actions": [
+                {
+                    "lieu": "rez-de-chaussée",
+                    "sensortype": "lumiere",
+                    "commandtype": "off",
+                    "status": ""
+                }
+            ]
+        },
+        "4": {
+            "key": 4,
+            "active": true,
+            "select": {
+                "lieu": "tel-4-buttons-1",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "bibliothèque",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "5": {
+            "key": 5,
+            "active": true,
+            "select": {
+                "lieu": "tel-4-buttons-2",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "salle à manger",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "6": {
+            "key": 6,
+            "active": true,
+            "select": {
+                "lieu": "tel-4-buttons-4",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "lampadaire",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "7": {
+            "key": 7,
+            "active": true,
+            "select": {
+                "lieu": "salle de bain",
+                "sensortype": "lumiere",
+                "signe": "equal",
+                "status": "on"
+            },
+            "actions": [
+                {
+                    "lieu": "vmc salle de bain",
+                    "sensortype": "ventilateur",
+                    "commandtype": "on",
+                    "status": ""
+                }
+            ]
+        },
+        "8": {
+            "key": 8,
+            "active": true,
+            "select": {
+                "lieu": "douche",
+                "sensortype": "lumiere",
+                "signe": "equal",
+                "status": "on"
+            },
+            "actions": [
+                {
+                    "lieu": "vmc",
+                    "sensortype": "ventilateur",
+                    "commandtype": "on",
+                    "status": ""
+                }
+            ]
+        },
+        "9": {
+            "key": 9,
+            "active": true,
+            "select": {
+                "lieu": "maison",
+                "sensortype": "lumiere",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "plan de travail",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "10": {
+            "key": 10,
+            "active": true,
+            "select": {
+                "lieu": "tel-4-buttons-3",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "salon",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "11": {
+            "key": 11,
+            "active": true,
+            "select": {
+                "lieu": "tel jojo but1",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "plafonnier de la chambre de jojo",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "12": {
+            "key": 12,
+            "active": true,
+            "select": {
+                "lieu": "tel jojo but2",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "chevet gauche de jojo",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "13": {
+            "key": 13,
+            "active": true,
+            "select": {
+                "lieu": "tel jojo but3",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "chevet droit de jojo",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "14": {
+            "key": 14,
+            "active": true,
+            "select": {
+                "lieu": "tel jojo but4",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "leds de jojo",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "15": {
+            "key": 15,
+            "active": true,
+            "select": {
+                "lieu": "detecteur couloir",
+                "sensortype": "bouton",
+                "signe": "equal",
+                "status": "on"
+            },
+            "actions": [
+                {
+                    "lieu": "couloir",
+                    "sensortype": "lumiere",
+                    "commandtype": "on",
+                    "status": ""
+                }
+            ]
+        },
+        "16": {
+            "key": 16,
+            "active": true,
+            "select": {
+                "lieu": "cuisine-porte-coulissante-exterieur",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "terrasse",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "17": {
+            "key": 17,
+            "active": true,
+            "select": {
+                "lieu": "chambre du bas",
+                "sensortype": "lumiere",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "chambre du bas",
+                    "sensortype": "prise",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "18": {
+            "key": 18,
+            "active": true,
+            "select": {
+                "lieu": "la maison",
+                "sensortype": "bouton",
+                "signe": "=",
+                "status": "on"
+            },
+            "actions": [
+                {
+                    "lieu": "maison",
+                    "sensortype": "lumiere",
+                    "commandtype": "onoff",
+                    "status": "off"
+                }
+            ]
+        },
+        "19": {
+            "key": 19,
+            "active": true,
+            "select": {
+                "lieu": "la maison",
+                "sensortype": "bouton",
+                "signe": "=",
+                "status": "off"
+            },
+            "actions": [
+                {
+                    "lieu": "maison",
+                    "sensortype": "lumiere",
+                    "commandtype": "onoff",
+                    "status": "off"
+                }
+            ]
+        },
+        "20": {
+            "key": 20,
+            "active": true,
+            "select": {
+                "lieu": "cuisine d ete",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "cuisine d ete",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "21": {
+            "key": 21,
+            "active": true,
+            "select": {
+                "lieu": "dressing",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "dressing",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        },
+        "22": {
+            "key": 22,
+            "active": true,
+            "select": {
+                "lieu": "lumière wc",
+                "sensortype": "bouton",
+                "signe": "",
+                "status": ""
+            },
+            "actions": [
+                {
+                    "lieu": "toilettes du haut",
+                    "sensortype": "lumiere",
+                    "commandtype": "",
+                    "status": ""
+                }
+            ]
+        }
+    }
+}
