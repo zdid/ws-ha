@@ -73,21 +73,12 @@
 - **Statut** : Corrigé (2026-07-22) pour `arbreouquoi` uniquement — même chantier à refaire pour `evoo7`/`rfxcom`/`nommage` si besoin.
 - **Priorité** : Basse (le pipeline marche ; le blocage d'exécution des scripts qui restait est désormais résolu, voir l'entrée dédiée ci-dessus)
 
-### 🔴 [HAUTE PRIORITE] Indicateur de connexion RFXCOM
-- **Problème** : L'UI affiche "Déconnecté" alors que le serveur a bien reçu des messages RFXCOM (transceiver connecté sur /dev/ttyUSB0)
-- **Observé** :
-  - Serveur trace : `[RfxComService] Message RFXCOM brut reçu: ...` (donc connexion OK)
-  - Serveur trace : `[SocketBridge] Broadcast rfxcom:status, data: {"connected":true,...}`
-  - Client affiche : "Déconnecté"
-- **Hypothèses** :
-  - Problème de synchronisation entre SocketBridge et le client après reconnexion
-  - L'événement `rfxcom:status` n'est pas reçu ou pas traité correctement par l'UI
-  - L'indicateur de connexion n'est pas mis à jour correctement
-- **À vérifier** :
-  - Le client reçoit-il bien l'événement `rfxcom:status` avec `connected: true` ?
-  - L'écouteur dans `setupConnectionStatus()` est-il toujours actif après reconnexion ?
-  - L'élément `#rfxcom-connection-status` existe-t-il dans le DOM ?
-- **Statut** : En attente - trop de temps passé, à investiguer plus tard
+### 🟡 Indicateur de connexion RFXCOM — Corrigé (effet de bord du pipeline navigateur)
+- **Problème** : L'UI affiche "Déconnecté" alors que le serveur a bien reçu des messages RFXCOM et broadcase `rfxcom:status` avec `connected:true`.
+- **Cause réelle, identifiée rétrospectivement** : même bug que "Tableaux de bord des apps : scripts injectés inertes" — `updateStatusDisplay()` utilisait `document.getElementById('connection-badge')`, qui ne traverse pas le Shadow DOM de `ModuleContainer` ; l'élément n'était donc jamais trouvé et le badge restait figé sur sa valeur HTML par défaut ("Déconnecté"), quel que soit le vrai statut.
+- **Correctif** : déjà résolu par le chantier pipeline navigateur + Shadow DOM du 2026-07-23 (`$()` scopé sur `window.__moduleContainerRoot`, voir "Pipeline de build navigateur pour arbreouquoi").
+- **Vérifié en direct (2026-07-23)** : serveur sans transceiver physique réel connecté broadcastant tout de même `connected:true` (bibliothèque `rfxcom` en environnement de dev) — badge affiche bien "Connecté" (couleur verte), au lieu du défaut HTML "Déconnecté".
+- **Statut** : Corrigé (2026-07-23)
 
 ---
 
@@ -112,7 +103,7 @@
 - **Problème** : `this.configService.getAppConfig is not a function`
 - **Statut** : Corrigé (commit 32543ab)
 
-### 🔴 Sauvegarde configuration avec anciennes données (module) — PERSISTE malgré 3 correctifs
+### 🟡 Sauvegarde configuration avec anciennes données (module) — Corrigé
 - **Problème** : Sur un module (testé EVOO7 et RFXCOM), modifier un champ (ex: `bridgeInstance`) et cliquer Sauvegarder réaffiche l'ancienne valeur à l'écran. Un arrêt/relance de l'application affiche bien la dernière valeur modifiée — donc la donnée envoyée et persistée en disque est correcte, seul l'affichage post-sauvegarde dans la même session reste faux.
 - **Observé** : 
   - Client envoie : `serialPort: "/dev/ttyUSB0"` dans le payload
@@ -121,8 +112,10 @@
   1. `ModuleManager.saveModuleConfig()` lisait `window.app.configManager.getConfig()[moduleId]` au lieu de `this.moduleConfigs[moduleId]` — corrigé.
   2. Les champs de module passaient par le handler générique de `ConfigForm.ts`, écrivant dans `TechnicalConfigManager.config` (écrasable par `config:current`) — corrigé en routant vers `ModuleManager.setModuleField`/`toggleModuleField`/`setSelectField`.
   3. `ConfigForm`'s listener `config:updated` faisait un `render()` inconditionnel qui réinjectait `moduleConfigFormHtml` figé — corrigé en sautant le `render()` quand `this.moduleId` est défini.
-- **Statut** : Retest du 2026-07-22 invalidé — découvert après coup que `npm run build` (core) n'a jamais recompilé les fichiers UI navigateur (`presentation/ui/ts/**` est exclu de `tsconfig.json`, il faut `npm run build:ui`, jamais lancé avant ce jour). Les 3 correctifs n'avaient donc probablement jamais atteint le navigateur testé. `build:ui` lancé le 2026-07-22, correctifs confirmés présents dans le JS compilé — **à retester**.
-- **Priorité** : Haute
+- **Cause racine réelle, trouvée le 2026-07-23** (en corrigeant un bug similaire sur le nouveau champ `array` de Nommage) : `app:modules:list` ET `app:module:ui:register` déclenchent chacun indépendamment `app:modules:config:get` pour un même module — au moins 2 réponses serveur `app:module:config` arrivent par module, chacune écrasant l'édition en cours dans `ModuleManager.moduleConfigs`. Un clic sur Sauvegarder juste avant l'arrivée de la 2e réponse voit donc son édition écrasée par l'ancienne valeur.
+- **Correctif** (2026-07-23) : nouveau `ModuleManager.moduleConfigLoaded: Set<string>` — seule la toute première réponse `app:module:config` par module est acceptée, les suivantes sont ignorées.
+- **Vérifié en direct (2026-07-23)** : champ `bridgeInstance` d'EVOO7 modifié puis sauvegardé — valeur conservée à l'écran (pas de réapparition de l'ancienne), confirmée persistée dans `data/config.yaml`, et toujours correcte après un rechargement complet de la page (qui redéclenche exactement le double appel `app:modules:config:get` en cause).
+- **Statut** : Corrigé (2026-07-23)
 
 ### 🟡 Aucune confirmation visible pour l'utilisateur après une sauvegarde de config
 - **Problème** : `ConfigForm.saveConfig()` (`applications/core/src/presentation/ui/ts/components/ConfigForm.ts`) réactive le bouton "Sauvegarder" après un simple `setTimeout(1000)`, sans jamais attendre ni afficher le vrai résultat de la sauvegarde (succès, erreurs de validation, échec d'écriture disque). Le serveur envoie pourtant deux événements dédiés à ce résultat réel (`config:save:result` pour la sauvegarde globale, `app:module:config:saved` pour un module) — désormais correctement relayés au navigateur (voir "Sauvegarde configuration avec anciennes données" ci-dessus et le point 1 du chantier config:current), mais côté UI, rien ne les écoute.
