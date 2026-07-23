@@ -537,6 +537,19 @@ function updateConnectionStatus(status: any): void {
 }
 
 // ============================================================================
+// Gestion des onglets
+// ============================================================================
+
+function showConfigTab(tabId: string): void {
+  document.querySelectorAll('.config-tab').forEach((el) => {
+    el.classList.toggle('active', el.getAttribute('data-tab') === tabId);
+  });
+  document.querySelectorAll('.config-tab-panel').forEach((el) => {
+    el.classList.toggle('active', el.getAttribute('data-tab-panel') === tabId);
+  });
+}
+
+// ============================================================================
 // Gestion de l'affichage
 // ============================================================================
 
@@ -602,6 +615,7 @@ declare global {
       resetConfig: () => void;
       addSource: () => void;
     };
+    showConfigTab: (tabId: string) => void;
   }
 }
 
@@ -611,6 +625,8 @@ window.nommageConfig = {
   resetConfig,
   addSource
 };
+
+window.showConfigTab = showConfigTab;
 
 // ============================================================================
 // Initialisation automatique au chargement de la page

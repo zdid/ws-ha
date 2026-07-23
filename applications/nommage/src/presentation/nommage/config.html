@@ -294,6 +294,38 @@
       padding: 6px 12px;
       cursor: pointer;
     }
+
+    .config-tabs {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--color-primary);
+    }
+
+    .config-tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      font-size: 0.95em;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+    }
+
+    .config-tab.active {
+      color: var(--color-accent);
+      border-bottom-color: var(--color-accent);
+      font-weight: 500;
+    }
+
+    .config-tab-panel {
+      display: none;
+    }
+
+    .config-tab-panel.active {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -319,41 +351,42 @@
       <div id="status-details"></div>
     </div>
 
+    <!-- Onglets -->
+    <div class="config-tabs">
+      <button type="button" class="config-tab active" data-tab="mqtt" onclick="showConfigTab('mqtt')">📡 MQTT Entrant</button>
+      <button type="button" class="config-tab" data-tab="general" onclick="showConfigTab('general')">⚙️ Général</button>
+    </div>
+
     <!-- Formulaire de configuration -->
     <form class="config-form" id="config-form" novalidate>
-      
-      <!-- Sources MQTT — une ou plusieurs, toutes connectées et traitées simultanément -->
-      <div class="form-section">
-        <h3>📡 Sources MQTT</h3>
-        <p class="description">
-          Une ou plusieurs connexions MQTT indépendantes, toutes actives en même temps (ex : le broker HA
-          lui-même, et séparément Zigbee2MQTT sur un préfixe de topics différent).
-        </p>
 
-        <div id="sources-container"></div>
-        <button type="button" class="btn-add" onclick="addSource()">+ Ajouter une source</button>
-      </div>
+      <!-- Onglet MQTT Entrant : sources — une ou plusieurs, toutes connectées et traitées simultanément -->
+      <div class="config-tab-panel active" data-tab-panel="mqtt">
+        <div class="form-section">
+          <h3>📡 Sources MQTT</h3>
+          <p class="description">
+            Une ou plusieurs connexions MQTT indépendantes, toutes actives en même temps (ex : le broker HA
+            lui-même, et séparément Zigbee2MQTT sur un préfixe de topics différent).
+          </p>
 
-      <!-- Section Home Assistant -->
-      <div class="form-section">
-        <h3>🏠 Configuration Home Assistant</h3>
-        <p class="description">Options pour la transmission vers Home Assistant (Passthrough MQTT — commune à toutes les sources)</p>
-
-        <div class="form-group">
-          <div class="checkbox-group">
-            <input type="checkbox" id="ha-injectTaxonomyAttributes" checked>
-            <label for="ha-injectTaxonomyAttributes" style="margin: 0; cursor: pointer;">Injecter les attributs de taxonomie</label>
-          </div>
-          <span class="hint">Ajouter les attributs de taxonomie au message relayé vers HA</span>
+          <div id="sources-container"></div>
+          <button type="button" class="btn-add" onclick="addSource()">+ Ajouter une source</button>
         </div>
       </div>
-      
-      <!-- Section Logging -->
-      <div class="form-section">
-        <h3>📝 Configuration du Logging</h3>
-        <p class="description">Niveau de logging et options de débogage</p>
-        
-        <div class="form-row">
+
+      <!-- Onglet Général : tout le reste, à plat (Home Assistant + Logging) -->
+      <div class="config-tab-panel" data-tab-panel="general">
+        <div class="form-section">
+          <h3>⚙️ Paramètres généraux</h3>
+
+          <div class="form-group">
+            <div class="checkbox-group">
+              <input type="checkbox" id="ha-injectTaxonomyAttributes" checked>
+              <label for="ha-injectTaxonomyAttributes" style="margin: 0; cursor: pointer;">Injecter les attributs de taxonomie</label>
+            </div>
+            <span class="hint">Ajouter les attributs de taxonomie au message relayé vers HA (Passthrough MQTT — commun à toutes les sources)</span>
+          </div>
+
           <div class="form-group">
             <label for="logging-level">Niveau de Log</label>
             <select id="logging-level" class="select-control">
@@ -363,9 +396,7 @@
               <option value="error">Error</option>
             </select>
           </div>
-        </div>
-        
-        <div class="form-row">
+
           <div class="form-group">
             <div class="checkbox-group">
               <input type="checkbox" id="logging-showRawMessages">
@@ -373,6 +404,7 @@
             </div>
             <span class="hint">Afficher les messages MQTT bruts dans les logs</span>
           </div>
+
           <div class="form-group">
             <div class="checkbox-group">
               <input type="checkbox" id="logging-showParsedMessages">
@@ -382,7 +414,7 @@
           </div>
         </div>
       </div>
-      
+
       <!-- Actions -->
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="resetConfig()">
@@ -404,6 +436,6 @@
   <script src="/applications/nommage/presentation/nommage/config-app.js"></script>
   
   <!-- Derniere modification -->
-  <!-- Derniere modification: 2026-07-21 18:00:00 - Passage a sources[] multi-sources (remplace le bloc MQTT unique) -->
+  <!-- Derniere modification: 2026-07-22 - Page en 2 onglets (MQTT Entrant / General), remplace les 3 sous-entrees de menu qui menaient au meme affichage -->
 </body>
 </html>

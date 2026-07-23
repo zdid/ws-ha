@@ -61,10 +61,10 @@ export const NOMMAGE_UI_METADATA: ModuleUiMetadata = {
   description: 'Application de gestion des conventions de nommage QUOI/OÙ pour Home Assistant. Parse les messages de découverte MQTT et normalise les noms selon le protocole unifié.',
   icon: '🏷️',
   category: 'Nommage',
-  menuLabel: 'Conventions de Nommage',
+  menuLabel: 'Nommage',
   menuIcon: '🏷️',
   menuOrder: 10,
-  menuPath: '/nommage/config',
+  menuPath: '/applications/nommage/presentation/nommage/config.html',
   badge: 'MQTT',
   
   // ⭐ v1.1 : les sources MQTT (config.sources[], une ou plusieurs, ajout/suppression dynamique)
@@ -124,9 +124,9 @@ export const NOMMAGE_MENU_CONFIG: ApplicationMenuConfig = {
   category: 'Paramètres Techniques',
   section: 'Nommage',
   entry: {
-    label: 'Conventions de Nommage',
+    label: 'Nommage',
     icon: '🏷️',
-    path: '/nommage/config',
+    path: '/applications/nommage/presentation/nommage/config.html',
     order: 20,
     badge: 'MQTT'
   },
@@ -142,29 +142,8 @@ export const NOMMAGE_MENU_CONFIG: ApplicationMenuConfig = {
       id: 'config',
       label: 'Configuration',
       icon: '⚙️',
-      path: '/nommage/config',
+      path: '/applications/nommage/presentation/nommage/config.html',
       order: 2
-    },
-    {
-      id: 'discovery',
-      label: 'Messages de Découverte',
-      icon: '📡',
-      path: '/nommage/discovery',
-      order: 3
-    },
-    {
-      id: 'taxonomy',
-      label: 'Structure Taxonomique',
-      icon: '🗂️',
-      path: '/nommage/taxonomy',
-      order: 4
-    },
-    {
-      id: 'logs',
-      label: 'Logs',
-      icon: '📜',
-      path: '/nommage/logs',
-      order: 5
     }
   ]
 };
