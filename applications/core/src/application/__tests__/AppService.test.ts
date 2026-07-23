@@ -52,6 +52,7 @@ const mockConfigService = {
   getLoggingConfig: vi.fn(),
   saveConfig: vi.fn(),
   reload: vi.fn(),
+  ensureModuleSections: vi.fn(),
 } as unknown as ConfigService;
 
 const mockSocketBridge = {
@@ -67,6 +68,8 @@ const mockLogger = {
   warn: vi.fn(),
   debug: vi.fn(),
   error: vi.fn(),
+  getLevel: vi.fn().mockReturnValue('info'),
+  setLevel: vi.fn(),
 } as unknown as Logger;
 
 const mockHaWsClient = {

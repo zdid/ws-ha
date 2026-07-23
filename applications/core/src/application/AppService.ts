@@ -14,6 +14,8 @@ import type { ConfigService } from '../infrastructure/config/ConfigService';
 import type { Logger } from '../infrastructure/logger/index';
 import type { HaWsClient } from '../ha/sync/HaWsClient';
 import type { HaStructureRegistry } from '../ha/sync/HaStructureRegistry';
+import { HaRegistryTracer } from '../ha/sync/HaRegistryTracer';
+import type { HaRawEntity } from '../ha/types/ha-entity';
 import type { HaWsConfig, ConfigSaveResult } from '../types/config';
 import type {
   TechnicalConfig,
@@ -53,7 +55,9 @@ export class AppService {
   // Composants HA
   private haWsClient?: HaWsClient;
   private haStructureRegistry?: HaStructureRegistry;
-  
+  private haRegistryTracer: HaRegistryTracer;
+  private haEventsWired: boolean = false;
+
   // État HA WebSocket
   private wsEnabled: boolean = false; // Flag pour gérer l'état WS
   private _isWsConnected: boolean = false; // État de connexion WS
@@ -85,6 +89,8 @@ export class AppService {
     this.logger = logger;
     this.haWsClient = haWsClient;
     this.haStructureRegistry = haStructureRegistry;
+    this.haRegistryTracer = new HaRegistryTracer(this.logger);
+    this.haRegistryTracer.resetChangeLog();
 
     // Initialiser le gestionnaire d'applications
     this.applicationManager = new ApplicationManager(restartManager, logger);
@@ -883,6 +889,7 @@ export class AppService {
       this._isWsConnected = true;
       this.logger.info('AppService', 'Connecté à Home Assistant WebSocket');
       this.eventBus.emitGeneric('ha:connected', undefined);
+      void this.loadHaRegistry();
     });
 
     // @ts-ignore
@@ -897,6 +904,106 @@ export class AppService {
     this.haWsClient.onError((error: Error) => {
       this.logger.error('AppService', `Erreur HA WebSocket: ${error.message}`);
     });
+  }
+
+  /**
+   * Charge le référentiel HA initial (get_states + area/device/entity registry) et peuple
+   * HaStructureRegistry — conforme à specs-techniques-socle-ha-mqtt §8.1.2. Appelé à chaque
+   * connexion ET reconnexion (rebuild() couvre les deux, §8.1.4 : rechargement complet).
+   */
+  private async loadHaRegistry(): Promise<void> {
+    if (!this.haWsClient || !this.haStructureRegistry) return;
+
+    try {
+      const { entities, areas, devices, entityRegistry } = await this.haWsClient.loadInitialRegistry();
+      const registry = this.haStructureRegistry.rebuild(entities, areas, devices, entityRegistry);
+
+      this.eventBus.emitGeneric('ha:ready', {
+        entityCount: registry.entityCount,
+        areaCount: registry.areaCount,
+        deviceCount: registry.deviceCount,
+      });
+      this.haRegistryTracer.writeSnapshot(registry);
+
+      this.wireHaRegistryEvents();
+    } catch (error) {
+      this.logger.error('AppService', `Échec du chargement du référentiel HA: ${error}`);
+    }
+  }
+
+  /**
+   * Souscrit aux événements temps réel HA et route chaque mise à jour vers HaStructureRegistry.
+   * Idempotent (haEventsWired) : onConnect peut se redéclencher à chaque reconnexion, il ne faut
+   * jamais souscrire deux fois (callbacks empilés en double sur HaWsClient sinon).
+   */
+  private wireHaRegistryEvents(): void {
+    if (this.haEventsWired || !this.haWsClient || !this.haStructureRegistry) return;
+    this.haEventsWired = true;
+
+    const registry = this.haStructureRegistry;
+
+    // @ts-ignore
+    this.haWsClient.onAreaUpdated((area) => {
+      if (area.action === 'delete') {
+        registry.removeArea(area.area_id);
+      } else if (area.action === 'create') {
+        registry.addArea(area);
+      } else {
+        registry.updateArea(area);
+      }
+      this.haRegistryTracer.logChange({ type: 'area', action: area.action, id: area.area_id, name: area.name });
+      this.eventBus.emitGeneric('ha:area:updated', area);
+      this.haRegistryTracer.writeSnapshot(registry.getRegistry());
+    });
+
+    // @ts-ignore
+    this.haWsClient.onDeviceUpdated((device) => {
+      if (device.action === 'delete') {
+        registry.removeDevice(device.device_id);
+      } else if (device.action === 'create') {
+        registry.addDevice(device);
+      } else {
+        registry.updateDevice(device);
+      }
+      this.haRegistryTracer.logChange({ type: 'device', action: device.action, id: device.device_id, name: device.name });
+      this.eventBus.emitGeneric('ha:device:updated', device);
+      this.haRegistryTracer.writeSnapshot(registry.getRegistry());
+    });
+
+    // @ts-ignore
+    this.haWsClient.onEntityUpdated((entityMeta) => {
+      if (entityMeta.action === 'delete') {
+        registry.removeEntity(entityMeta.entity_id);
+      } else {
+        // Pas d'état dans un entity_registry_updated (métadonnées seules) — on préserve le
+        // dernier état connu du registre s'il existe, sinon un état minimal en attendant le
+        // prochain state_changed.
+        const existing = registry.getEntity(entityMeta.entity_id);
+        const rawEntity: HaRawEntity = {
+          entity_id: entityMeta.entity_id,
+          state: existing?.state ?? 'unknown',
+          attributes: existing?.attributes ?? {},
+          last_changed: new Date().toISOString(),
+          last_updated: new Date().toISOString(),
+          context: { id: '', parent_id: null, user_id: null },
+        };
+        registry.updateEntity(rawEntity, entityMeta);
+      }
+      this.haRegistryTracer.logChange({ type: 'entity', action: entityMeta.action, id: entityMeta.entity_id });
+      this.eventBus.emitGeneric('ha:entity:updated', entityMeta);
+      this.haRegistryTracer.writeSnapshot(registry.getRegistry());
+    });
+
+    // @ts-ignore
+    this.haWsClient.onStateChanged((rawEntity: HaRawEntity) => {
+      registry.updateEntity(rawEntity);
+      this.eventBus.emitGeneric('ha:entity:state_changed', rawEntity);
+      // Volontairement absent du journal des changements (états exclus, demande explicite) et
+      // pas de writeSnapshot() ici : trop fréquent pour un fichier réécrit en entier à chaque
+      // appel, réservé aux changements de structure (area/device/entity).
+    });
+
+    this.haWsClient.subscribeToEvents();
   }
 
   // ===========================================================================
@@ -942,7 +1049,10 @@ export class AppService {
 
       // Recharger la configuration
       this.configService.reload();
-      
+
+      // Rediffuser la configuration à jour à tous les clients connectés
+      this.eventBus.emit('config:current', this.configService.getConfig());
+
       // Émettre un événement pour notifier que la config a été rechargée
       this.eventBus.emit('config:reload', { timestamp: new Date().toISOString() });
     } else {
@@ -997,7 +1107,12 @@ export class AppService {
     
     // Recharger la configuration globale après une sauvegarde de module
     this.configService.reload();
-    
+
+    if (saveResult.success) {
+      // Rediffuser la configuration à jour à tous les clients connectés
+      this.eventBus.emit('config:current', this.configService.getConfig());
+    }
+
     // Émettre un événement global pour que SocketBridge puisse le relayer
     this.eventBus.emit('config:save:result', {
       success: saveResult.success,

@@ -57,6 +57,7 @@ export interface ServerToClientEvents {
   'config:current': (config: TechnicalConfig) => void;
   'config:validation:result': (result: ConfigValidationResult) => void;
   'config:saved': (result: ConfigSaveResult) => void;
+  'config:save:result': (result: ConfigSaveResult) => void;
   
   // MQTT
   'mqtt:connected': () => void;
@@ -127,6 +128,8 @@ export interface AppEvents {
   'ha:reconnected': void;
   'ha:entity:state_changed': unknown; // HaStructuredEntity
   'ha:area:updated': unknown; // HaArea
+  'ha:device:updated': unknown; // HaDevice
+  'ha:entity:updated': unknown; // HaStructuredEntity
   'ha:structure:rebuilt': unknown; // HaStructuredRegistry
   'ha:command:result': unknown; // HaCommandResult
   

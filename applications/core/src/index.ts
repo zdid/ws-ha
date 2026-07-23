@@ -105,6 +105,14 @@ class ApplicationBootstrap {
     const configWriter = new ConfigWriter(configPath);
     this.configService = new ConfigService(configLoader, configWriter, this.logger);
 
+    // Le logger est créé avant la config (ci-dessus) avec un niveau par défaut 'info' — le
+    // synchroniser immédiatement avec logging.level une fois la config disponible, sans
+    // attendre une sauvegarde/config:reload pour que le niveau réel du fichier s'applique.
+    const initialLoggingLevel = this.configService.getConfig().logging?.level;
+    if (initialLoggingLevel) {
+      this.logger.setLevel(initialLoggingLevel as 'debug' | 'info' | 'warn' | 'error');
+    }
+
     // 3. Créer l'EventBus
     this.eventBus = new EventBus();
 

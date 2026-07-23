@@ -149,7 +149,9 @@ describe('HaWsClient', () => {
       getStates.mockResolvedValue([{ entity_id: 'sensor.test', state: 'on' }]);
       fakeConnection.sendMessagePromise
         .mockResolvedValueOnce({ areas: [{ area_id: 'a1', name: 'Salon' }] })
-        .mockResolvedValueOnce([{ device_id: 'd1', name: 'Device 1' }])
+        // config/device_registry/list utilise `id` comme identifiant, PAS `device_id`
+        // (vérifié en live sur une instance HA réelle) — HaWsClient doit le remapper.
+        .mockResolvedValueOnce([{ id: 'd1', name: 'Device 1' }])
         .mockResolvedValueOnce([{ entity_id: 'sensor.test', domain: 'sensor' }]);
 
       const result = await client.loadInitialRegistry();
@@ -160,7 +162,7 @@ describe('HaWsClient', () => {
       expect(fakeConnection.sendMessagePromise).toHaveBeenCalledWith({ type: 'config/entity_registry/list' });
       expect(result.entities).toHaveLength(1);
       expect(result.areas).toEqual([{ area_id: 'a1', name: 'Salon' }]);
-      expect(result.devices).toEqual([{ device_id: 'd1', name: 'Device 1' }]);
+      expect(result.devices).toEqual([{ device_id: 'd1', name: 'Device 1', area_id: undefined }]);
       expect(client.getIsReady()).toBe(true);
     });
   });
@@ -199,7 +201,7 @@ describe('HaWsClient', () => {
       expect(stateCallback).toHaveBeenCalledWith({ entity_id: 'sensor.test', state: 'on' });
     });
 
-    it('should ignore area_registry_updated events with action=delete', async () => {
+    it('should notify area_registry_updated events with action=delete (id only, needed to remove from registry)', async () => {
       const fakeConnection = createFakeConnection();
       createConnection.mockResolvedValue(fakeConnection);
       client.connect();
@@ -214,7 +216,7 @@ describe('HaWsClient', () => {
       )![0];
       areaHandler({ data: { area_id: 'a1', action: 'delete' } });
 
-      expect(areaCallback).not.toHaveBeenCalled();
+      expect(areaCallback).toHaveBeenCalledWith({ area_id: 'a1', name: '', picture: undefined, action: 'delete' });
     });
   });
 

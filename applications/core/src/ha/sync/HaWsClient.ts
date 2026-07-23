@@ -23,10 +23,11 @@ if (typeof (globalThis as { WebSocket?: unknown }).WebSocket === 'undefined') {
 // Callbacks pour les événements HA
 // =============================================================================
 
+type RegistryAction = 'create' | 'update' | 'delete';
 type EntityStateCallback = (entity: HaRawEntity) => void;
-type AreaUpdatedCallback = (area: { area_id: string; name: string; picture?: string }) => void;
-type DeviceUpdatedCallback = (device: { device_id: string; name: string; area_id?: string }) => void;
-type EntityUpdatedCallback = (entity: { entity_id: string; domain: string; device_class?: string; area_id?: string }) => void;
+type AreaUpdatedCallback = (area: { area_id: string; name: string; picture?: string; action: RegistryAction }) => void;
+type DeviceUpdatedCallback = (device: { device_id: string; name: string; area_id?: string; action: RegistryAction }) => void;
+type EntityUpdatedCallback = (entity: { entity_id: string; domain: string; device_class?: string; area_id?: string; action: RegistryAction }) => void;
 type ConnectCallback = () => void;
 type DisconnectCallback = (reason?: string) => void;
 type ErrorCallback = (error: Error) => void;
@@ -187,16 +188,23 @@ export class HaWsClient {
     // config/{area,device,entity}_registry/list n'ont pas d'équivalent haut niveau dans
     // home-assistant-js-websocket (seuls get_states/get_config/get_services/get_user en ont) —
     // passe par l'échappatoire bas niveau sendMessagePromise, comportement documenté.
-    const [entities, areasResult, devices, entityRegistry] = await Promise.all([
+    const [entities, areasResult, devicesResult, entityRegistry] = await Promise.all([
       getStates(conn) as unknown as Promise<HaRawEntity[]>,
       conn.sendMessagePromise<{ areas: Array<{ area_id: string; name: string; picture?: string }> }>({ type: 'config/area_registry/list' }),
-      conn.sendMessagePromise<Array<{ device_id: string; name: string; area_id?: string }>>({ type: 'config/device_registry/list' }),
+      conn.sendMessagePromise<Array<{ id: string; name: string; area_id?: string }>>({ type: 'config/device_registry/list' }),
       conn.sendMessagePromise<Array<{ entity_id: string; domain: string; device_class?: string; area_id?: string }>>({ type: 'config/entity_registry/list' }),
     ]);
 
     // config/area_registry/list retourne soit { areas: [...] } (anciennes versions HA) soit
     // directement [...] (versions récentes) — gère les deux formes.
     const areas = Array.isArray(areasResult) ? areasResult : areasResult.areas;
+
+    // ⚠️ Le champ d'identifiant renvoyé par config/device_registry/list s'appelle `id`, PAS
+    // `device_id` (vérifié en live sur une instance HA réelle) — contrairement aux entités, où
+    // c'est bien `device_id`/`area_id`. Sans ce remappage, this.devices.set(undefined, device)
+    // pour chaque device : ils s'écrasent tous mutuellement dans HaStructureRegistry, un seul
+    // survit (le dernier traité).
+    const devices = devicesResult.map((d) => ({ device_id: d.id, name: d.name, area_id: d.area_id }));
 
     this.logger.info('ha:ws', `Référentiel chargé: ${entities.length} entités, ${areas.length} areas, ${devices.length} devices`);
     this.isReady = true;
@@ -286,38 +294,34 @@ export class HaWsClient {
   }
 
   private handleAreaRegistryUpdated(message: HaAreaRegistryUpdatedMessage): void {
-    if (message.data.action === 'delete') {
-      return; // Pas de data pour delete
-    }
+    // action === 'delete' : HA ne renvoie pas les données de l'area supprimée, seul l'id
+    // est garanti — notifié quand même, indispensable pour retirer l'area du registre.
     const area = {
       area_id: message.data.area_id,
       name: message.data.area?.name || '',
       picture: message.data.area?.picture,
+      action: message.data.action,
     };
     this.notifyAreaUpdated(area);
   }
 
   private handleDeviceRegistryUpdated(message: HaDeviceRegistryUpdatedMessage): void {
-    if (message.data.action === 'delete') {
-      return; // Pas de data pour delete
-    }
     const device = {
       device_id: message.data.device_id,
       name: message.data.device?.name || '',
       area_id: message.data.device?.area_id,
+      action: message.data.action,
     };
     this.notifyDeviceUpdated(device);
   }
 
   private handleEntityRegistryUpdated(message: HaEntityRegistryUpdatedMessage): void {
-    if (message.data.action === 'delete') {
-      return; // Pas de data pour delete
-    }
     const entity = {
       entity_id: message.data.entity_id,
       domain: message.data.entity?.domain || '',
       device_class: message.data.entity?.device_class,
       area_id: message.data.entity?.area_id,
+      action: message.data.action,
     };
     this.notifyEntityUpdated(entity);
   }
@@ -336,7 +340,7 @@ export class HaWsClient {
     }
   }
 
-  private notifyAreaUpdated(area: { area_id: string; name: string; picture?: string }): void {
+  private notifyAreaUpdated(area: { area_id: string; name: string; picture?: string; action: RegistryAction }): void {
     for (const callback of this.areaCallbacks) {
       try {
         callback(area);
@@ -346,7 +350,7 @@ export class HaWsClient {
     }
   }
 
-  private notifyDeviceUpdated(device: { device_id: string; name: string; area_id?: string }): void {
+  private notifyDeviceUpdated(device: { device_id: string; name: string; area_id?: string; action: RegistryAction }): void {
     for (const callback of this.deviceCallbacks) {
       try {
         callback(device);
@@ -356,7 +360,7 @@ export class HaWsClient {
     }
   }
 
-  private notifyEntityUpdated(entity: { entity_id: string; domain: string; device_class?: string; area_id?: string }): void {
+  private notifyEntityUpdated(entity: { entity_id: string; domain: string; device_class?: string; area_id?: string; action: RegistryAction }): void {
     for (const callback of this.entityCallbacks) {
       try {
         callback(entity);

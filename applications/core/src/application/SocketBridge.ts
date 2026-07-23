@@ -112,9 +112,17 @@ export class SocketBridge {
       this.broadcast('config:saved', result);
     });
 
-    // Configuration actuelle
+    // Résultat réel de la sauvegarde globale (émis par AppService.handleConfigSave)
+    this.eventBus.onGeneric('config:save:result', (result) => {
+      this.logger.info('SocketBridge', 'EventBus → Socket.io: config:save:result');
+      this.broadcast('config:save:result', result as ConfigSaveResult);
+    });
+
+    // Configuration actuelle — événement persistant : mis en cache et rejoué
+    // automatiquement à chaque nouvelle connexion (voir boucle persistentEvents ci-dessous)
     this.eventBus.on('config:current', (config: TechnicalConfig) => {
       this.logger.info('SocketBridge', 'EventBus → Socket.io: config:current');
+      this.persistentEvents.set('config:current', { appId: 'core', eventName: 'config:current', lastData: config });
       this.broadcast('config:current', config);
     });
 
@@ -142,13 +150,10 @@ export class SocketBridge {
       // Ici on ne fait que relayer vers le client si c'est émis depuis EventBus
     });
 
-    // Configuration des modules - Sauvegarde
-    this.eventBus.onGeneric('app:modules:config:save', (data) => {
-      // Relay vers le client avec un événement unique
-      this.broadcast('app:module:config:saved', {
-        moduleId: (data as { moduleId: string }).moduleId,
-        success: true,
-      });
+    // Configuration des modules - Résultat réel de la sauvegarde (émis par AppService
+    // une fois l'écriture effectuée, avec le succès/erreur véritable)
+    this.eventBus.onGeneric('app:module:config:saved', (data) => {
+      this.broadcast('app:module:config:saved', data as { moduleId: string; success: boolean; error?: string });
     });
 
     // Configuration des modules - Relay de la config
