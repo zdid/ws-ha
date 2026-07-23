@@ -1,0 +1,168 @@
+plan_de_travail_on:
+  trigger:
+    platform: state
+    entity: lumière---vitrine--cuisine--rez de chaussée
+    state: ON
+  action:
+    entity: lumière---plan de travail--cuisine--rez de chaussée
+    service: turn_on
+plan_de_travail_off:
+  trigger:
+    platform: state
+    entity: lumière---vitrine--cuisine--rez de chaussée
+    state: OFF
+  action:
+    entity: lumière---plan de travail--cuisine--rez de chaussée
+    service: turn_off
+toogle_plafonnier_chambre_jo:
+  trigger: 
+    platform: action
+    entity: scènes switch---noir
+    action: 2_single
+  action:
+    entity: lumière---plafonnier--chambre de jo--1er étage
+    service: toggle
+toogle_leds_chambre_jo:
+  trigger: 
+    platform: action
+    entity: scènes switch---noir
+    action: 1_single
+  action:
+    entity: lumière---leds--chambre de jo--1er étage
+    service: toggle
+toogle_chevetdroit_chambre_jo:
+  trigger: 
+    platform: action
+    entity: scènes switch---noir
+    action: 3_single
+  action:
+    entity: lumière---chevets--chambre de jo--1er étage
+    attribute: state_l1
+    service: toggle
+toogle_chevetgauche_chambre_jo:
+  trigger: 
+    platform: action
+    entity: scènes switch---noir
+    action: 4_single
+  action:
+    entity: lumière---chevets--chambre de jo--1er étage
+    attribute: state_l2
+    service: toggle
+toogle_eteinttout_chambre_jo:
+  trigger: 
+    platform: action
+    entity: scènes switch---noir
+    action: 4_double
+  action:
+    - entity: lumière---plafonnier--chambre de jo--1er étage
+      service: turn_off
+    - entity: lumière---leds--chambre de jo--1er étage
+      service: turn_off
+    - entity: lumière---chevets--chambre de jo--1er étage
+      service: custom
+      data: 
+        state_l1: OFF
+        state_l2: OFF
+toogle_allumetout_chambre_jo:
+  trigger: 
+    platform: action
+    entity: scènes switch---noir
+    action: 1_double
+  action:
+    - entity: lumière---plafonnier--chambre de jo--1er étage
+      service: turn_on
+    - entity: lumière---leds--chambre de jo--1er étage
+      service: turn_on
+    - entity: lumière---chevets--chambre de jo--1er étage
+      service: custom
+      data: 
+        state_l1: ON
+        state_l2: ON
+toilettes_du_haut_detecteur-on:
+  trigger:
+    platform: state
+    entity: détecteur---toilettes du haut--toilettes du haut--1er étage
+    attribute: occupancy
+    state: true
+  action:  
+    entity: lumière---plafonnier--toilettes du haut--1er étage
+    service: turn_on
+toilettes_du_haut_detecteur-off:
+  trigger:
+    platform: state
+    entity: détecteur---toilettes du haut--toilettes du haut--1er étage
+    attribute: occupancy
+    state: false
+  action:  
+    entity: lumière---plafonnier--toilettes du haut--1er étage
+    service: turn_off  
+salle_de_bain_start_vmc:
+  trigger:
+    platform: state
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    attribute: state_l1
+    state: ON
+  action:
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    attribute: state_l2
+    service: turn_on
+salle_de_bain_on_start_vmc:
+  trigger:
+    platform: state
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    attribute: state_l2
+    state: ON
+    for: 900
+  action:  
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    attribute: state_l2
+    service: turn_off
+salle_de_bain_single:
+  trigger:
+    platform: action
+    entity: bouton---salle de bain du haut
+    action: single
+  action:
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    attribute: state_l1
+    service: toggle
+      
+salle_de_bain_hold:
+  trigger: 
+    platform: action
+    entity: bouton---salle de bain du haut
+    action: hold
+  action:
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    attribute: state_l2
+    service: toggle  
+salle_de_bain_double:
+  trigger: 
+    platform: action
+    entity: bouton---salle de bain du haut
+    action: double
+  action:
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    attribute: state_l2
+    service: toggle  
+salle_à_manger_single:
+  trigger: 
+    platform: action
+    entity: bouton---bureau--salle à manger
+    action: single
+  action:
+    entity: lumière---bureau--salle à manger--rez de chaussée
+    attribute: state
+    service: toggle  
+test_mqtt:
+  trigger: 
+    platform: action
+    entity: scènes switch---blanc
+    action: 1_single
+  action:
+    entity: lumière---salle de bain du haut--salle de bain du haut--1er étage
+    service: mqtt    
+    topic: topic/dessai
+    message: "{ 'essai':'truc'}"     
+    
+
