@@ -266,7 +266,11 @@
     </div>
   </div>
 
-  <script src="/applications/rfxcom/presentation/rfxcom/config-app.js"></script>
+  <!-- Page de navigation complète (pas injectée dans le Shadow DOM du core comme le tableau de
+       bord) : contrairement à ce dernier, elle ne bénéficie pas du socket.io déjà chargé par
+       index.html du core — il lui faut sa propre copie du script. -->
+  <script defer src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script type="module" src="/applications/rfxcom/presentation/rfxcom/config-app.js"></script>
 
   <!-- Derniere modification: 2026-07-21 21:00:00 - Ajout de l'onglet Scènes -->
 </body>

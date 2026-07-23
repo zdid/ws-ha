@@ -2,6 +2,12 @@
 
 ## Problèmes prioritaires
 
+### 🟡 Pages dédiées evoo7/rfxcom (Paramétrage & Données / Devices & Récepteurs) injoignables — Corrigé
+- **Problème** : `menu.entry.path` et l'entrée `pages[]` "config" pointaient tous les deux vers `/evoo7/config`/`/rfxcom/config` — un chemin interne (jamais une vraie route servie par le serveur), et identique à `entry.path`, donc jamais rendu comme lien distinct par `Sidebar.ts` (`page.path !== entry.path`). Le seul endroit où ce lien apparaissait réellement était un `<a href="/evoo7/config">` en dur dans le tableau de bord de chaque app — un clic dessus donnait un 404. Même chantier que la migration Alpine.js (evoo7/rfxcom n'avaient pas non plus de pipeline de build navigateur pour ces pages dédiées : import `SocketService` cassé, pas de `type="module"`, et — spécifique aux pages de navigation complète, contrairement aux tableaux de bord injectés dans le Shadow DOM du core — pas de script socket.io chargé du tout, `io is not defined` au premier chargement).
+- **Correctif** : chemins corrigés vers `/applications/{app}/presentation/{app}/config.html` (réellement servi), pipeline `tsconfig.ui.json` étendu pour compiler aussi `config-app.ts`, script socket.io CDN ajouté à chaque `config.html`.
+- **Statut** : Corrigé (2026-07-23)
+- **Priorité** : Basse (résolu)
+
 ### 🟡 Mock ConfigService incomplet dans AppService.test.ts — Corrigé
 - **Problème** : `mockConfigService` (test) n'implémentait pas `ensureModuleSections`, une méthode pourtant appelée par `AppService.start()` — 5 tests plantaient sur ce mannequin de test incomplet, sans rapport avec un bug réel de l'application (même famille que le mock du logger, `getLevel`/`setLevel` manquants, corrigé plus tôt dans la session).
 - **Correctif** : `ensureModuleSections: vi.fn()` ajouté au mock.

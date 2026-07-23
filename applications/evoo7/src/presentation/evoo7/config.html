@@ -154,7 +154,11 @@
     </div>
   </div>
 
-  <script src="/applications/evoo7/presentation/evoo7/config-app.js"></script>
+  <!-- Page de navigation complète (pas injectée dans le Shadow DOM du core comme le tableau de
+       bord) : contrairement à ce dernier, elle ne bénéficie pas du socket.io déjà chargé par
+       index.html du core — il lui faut sa propre copie du script. -->
+  <script defer src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script type="module" src="/applications/evoo7/presentation/evoo7/config-app.js"></script>
 
   <!-- Derniere modification: 2026-07-21 22:55:00 - Création de la page de configuration EVOO7 -->
 </body>

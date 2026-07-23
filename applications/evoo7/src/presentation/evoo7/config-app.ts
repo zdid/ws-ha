@@ -2,7 +2,10 @@
  * Script TypeScript pour la page de configuration EVOO7 (Paramétrage & Données).
  */
 
-import { SocketService } from '../../../../core/src/ui-exports';
+// SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
+// et l'expose via son middleware /js/ts) — pas un chemin de fichier TypeScript, un import
+// d'exécution résolu par le navigateur lui-même. Voir presentation/tsconfig.ui.json.
+import { SocketService } from '/js/ts/services/SocketService.js';
 
 // ============================================================================
 // Types (miroir simplifié de domain/types.ts, pour l'UI uniquement)
