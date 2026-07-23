@@ -57,8 +57,11 @@ export type Evoo7SocketEvents = typeof EVOO7_SOCKET_EVENTS;
 export type Evoo7ClientEvents = typeof EVOO7_CLIENT_EVENTS;
 export type Evoo7AllEvents = typeof EVOO7_ALL_EVENTS;
 
-// Événements persistants (envoyés automatiquement aux nouveaux clients)
-export const EVOO7_PERSISTENT_EVENTS: (keyof Evoo7SocketEvents)[] = [
-  'STATUS',
-  'DONNEES_LIST'
+// Événements persistants (envoyés automatiquement aux nouveaux clients) — valeurs réelles des
+// événements (pas les clés) : SocketBridge.registerAppSocketEvents() compare contre le nom
+// d'événement émis (ex: 'evoo7:status'), pas contre la clé de l'objet (ex: 'STATUS'). Un décalage
+// clé/valeur ici désactivait silencieusement le rejeu à la reconnexion pour toute l'app.
+export const EVOO7_PERSISTENT_EVENTS: string[] = [
+  EVOO7_SOCKET_EVENTS.STATUS,
+  EVOO7_SOCKET_EVENTS.DONNEES_LIST
 ];

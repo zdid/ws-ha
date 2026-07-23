@@ -2,8 +2,23 @@
  * Script TypeScript pour le tableau de bord RFXCOM.
  */
 
-// Import SocketService depuis le core (point d'entrée UI navigateur, pas le backend)
-import { SocketService } from '../../../../core/src/ui-exports';
+// SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
+// et l'expose via son middleware /js/ts) — pas un chemin de fichier TypeScript, un import
+// d'exécution résolu par le navigateur lui-même. Voir presentation/tsconfig.ui.json.
+import { SocketService } from '/js/ts/services/SocketService.js';
+
+// Ce script est injecté par ModuleContainer.ts (core) après le chargement initial de la page —
+// tout son contenu vit dans un Shadow DOM que le `document` global ne traverse pas ;
+// `$(...)` y renverrait toujours `null`. ModuleContainer.ts expose son
+// shadow root sur `window.__moduleContainerRoot` ; `$()` l'interroge s'il existe, sinon
+// `document` (utile hors de ce pipeline, ex: tests). Même pattern qu'arbreouquoi/app.ts.
+function moduleRoot(): ParentNode {
+  return (window as any).__moduleContainerRoot || document;
+}
+
+function $(id: string): HTMLElement | null {
+  return moduleRoot().querySelector(`#${id}`);
+}
 
 interface RfxComStatus {
   connected: boolean;
@@ -78,10 +93,10 @@ function requestInitialStatus(): void {
 }
 
 function updateStatusDisplay(status: RfxComStatus): void {
-  const badgeEl = document.getElementById('connection-badge');
-  const devicesCountEl = document.getElementById('devices-count');
-  const receiversCountEl = document.getElementById('receivers-count');
-  const lastDiscoveryEl = document.getElementById('last-discovery');
+  const badgeEl = $('connection-badge');
+  const devicesCountEl = $('devices-count');
+  const receiversCountEl = $('receivers-count');
+  const lastDiscoveryEl = $('last-discovery');
 
   if (badgeEl) {
     badgeEl.textContent = status.connected ? 'Connecté' : 'Déconnecté';
@@ -97,8 +112,8 @@ function updateStatusDisplay(status: RfxComStatus): void {
 }
 
 function updateRecentDevices(discovered: RfxComDiscoveredDevice[]): void {
-  const cardEl = document.getElementById('recent-devices-card');
-  const listEl = document.getElementById('recent-devices-list');
+  const cardEl = $('recent-devices-card');
+  const listEl = $('recent-devices-list');
   if (!listEl) return;
 
   if (discovered.length === 0) {
@@ -116,14 +131,14 @@ function updateRecentDevices(discovered: RfxComDiscoveredDevice[]): void {
 }
 
 function showMainContent(): void {
-  const actionsEl = document.getElementById('actions');
-  const statusCardEl = document.getElementById('status-card');
+  const actionsEl = $('actions');
+  const statusCardEl = $('status-card');
   if (actionsEl) actionsEl.style.display = 'flex';
   if (statusCardEl) statusCardEl.style.display = 'block';
 }
 
 function hideLoading(): void {
-  const loadingEl = document.getElementById('loading');
+  const loadingEl = $('loading');
   if (loadingEl) loadingEl.style.display = 'none';
 }
 

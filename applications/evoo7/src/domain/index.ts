@@ -14,7 +14,7 @@ import {
   ConfigService,
   AppConfigProvider
 } from '../../../core/src/exports';
-import { EVOO7_SOCKET_EVENTS, EVOO7_PERSISTENT_EVENTS } from './socket-events';
+import { EVOO7_SOCKET_EVENTS, EVOO7_ALL_EVENTS, EVOO7_PERSISTENT_EVENTS } from './socket-events';
 import { Evoo7Service, type IEvoo7Service } from './Evoo7Service';
 import type { Evoo7Config } from './config-schema';
 
@@ -152,9 +152,13 @@ export function createEvoo7Service(
 ): IEvoo7Service {
   const service = Evoo7Service.create(eventBus, logger, configProvider);
 
+  // EVOO7_ALL_EVENTS (pas EVOO7_SOCKET_EVENTS) : SocketBridge.setupDynamicAppHandlers() ne câble
+  // socket.on(...) que pour les événements listés ici — se limiter aux événements serveur→client
+  // signifiait qu'aucune requête client (evoo7:status:get, evoo7:config:save, ...) n'atteignait
+  // jamais le backend.
   eventBus.emit('app:socket-events:registered', {
     appId: 'evoo7',
-    socketEvents: EVOO7_SOCKET_EVENTS,
+    socketEvents: EVOO7_ALL_EVENTS,
     persistentEvents: EVOO7_PERSISTENT_EVENTS
   });
 

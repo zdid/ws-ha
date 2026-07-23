@@ -14,7 +14,7 @@ import {
   ConfigService,
   AppConfigProvider
 } from '../../../core/src/exports';
-import { RFXCOM_SOCKET_EVENTS, RFXCOM_PERSISTENT_EVENTS } from './socket-events';
+import { RFXCOM_SOCKET_EVENTS, RFXCOM_ALL_EVENTS, RFXCOM_PERSISTENT_EVENTS } from './socket-events';
 import { RfxComService, type IRfxComService } from './RfxComService';
 import type { RfxComConfig } from './config-schema';
 
@@ -153,9 +153,13 @@ export function createRfxComService(
 ): IRfxComService {
   const service = RfxComService.create(eventBus, logger, configProvider);
 
+  // RFXCOM_ALL_EVENTS (pas RFXCOM_SOCKET_EVENTS) : SocketBridge.setupDynamicAppHandlers() ne
+  // câble socket.on(...) que pour les événements listés ici — se limiter aux événements
+  // serveur→client signifiait qu'aucune requête client (rfxcom:status:get, rfxcom:scene:execute,
+  // ...) n'atteignait jamais le backend.
   eventBus.emit('app:socket-events:registered', {
     appId: 'rfxcom',
-    socketEvents: RFXCOM_SOCKET_EVENTS,
+    socketEvents: RFXCOM_ALL_EVENTS,
     persistentEvents: RFXCOM_PERSISTENT_EVENTS
   });
 

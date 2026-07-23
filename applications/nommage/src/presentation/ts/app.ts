@@ -9,9 +9,23 @@
  * Note: UI minimaliste pour l'instant - juste affiche la présence de l'application
  */
 
-// Import SocketService depuis le core (point d'entrée UI navigateur, pas le backend)
-// Chemin depuis applications/nommage/src/presentation/ts/ vers applications/core/src/ui-exports
-import { SocketService } from '../../../../core/src/ui-exports';
+// SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
+// et l'expose via son middleware /js/ts) — pas un chemin de fichier TypeScript, un import
+// d'exécution résolu par le navigateur lui-même. Voir presentation/tsconfig.ui.json.
+import { SocketService } from '/js/ts/services/SocketService.js';
+
+// Ce script est injecté par ModuleContainer.ts (core) après le chargement initial de la page —
+// tout son contenu vit dans un Shadow DOM que le `document` global ne traverse pas ;
+// `$(...)` y renverrait toujours `null`. ModuleContainer.ts expose son
+// shadow root sur `window.__moduleContainerRoot` ; `$()` l'interroge s'il existe, sinon
+// `document` (utile hors de ce pipeline, ex: tests). Même pattern qu'arbreouquoi/app.ts.
+function moduleRoot(): ParentNode {
+  return (window as any).__moduleContainerRoot || document;
+}
+
+function $(id: string): HTMLElement | null {
+  return moduleRoot().querySelector(`#${id}`);
+}
 
 // ============================================================================
 // Types pour les données reçues
@@ -154,7 +168,7 @@ function setupEventListeners(): void {
   socket.on('nommage:status', updateStatusDisplay);
   socket.on('nommage:taxonomy:structure', (data: TaxonomyStructure) => {
     if (data.count > 0) {
-      document.getElementById('messages-counter')!.textContent = String(data.count);
+      $('messages-counter')!.textContent = String(data.count);
     }
   });
 }
@@ -180,10 +194,10 @@ function requestInitialStatus(): void {
  */
 function updateStatusDisplay(status: NommageStatus): void {
   // Mettre à jour les indicateurs
-  const appStatusEl = document.getElementById('app-status');
-  const mqttStatusEl = document.getElementById('mqtt-status');
-  const parsedCountEl = document.getElementById('parsed-count');
-  const lastParsedEl = document.getElementById('last-parsed');
+  const appStatusEl = $('app-status');
+  const mqttStatusEl = $('mqtt-status');
+  const parsedCountEl = $('parsed-count');
+  const lastParsedEl = $('last-parsed');
   
   if (appStatusEl) {
     appStatusEl.textContent = status.connected ? 'Connecté' : 'Déconnecté';
@@ -210,7 +224,7 @@ function updateStatusDisplay(status: NommageStatus): void {
 
   // Mettre à jour le compteur de messages
   if (status.parsedMessagesCount > 0) {
-    const counterEl = document.getElementById('messages-counter');
+    const counterEl = $('messages-counter');
     if (counterEl) {
       counterEl.textContent = String(status.parsedMessagesCount);
     }
@@ -218,7 +232,7 @@ function updateStatusDisplay(status: NommageStatus): void {
 
   // Afficher la date du dernier parsing
   if (status.lastParsedAt) {
-    const lastParsedDetailEl = document.getElementById('last-parsed-detail');
+    const lastParsedDetailEl = $('last-parsed-detail');
     if (lastParsedDetailEl) {
       lastParsedDetailEl.textContent = `Dernier parsing: ${new Date(status.lastParsedAt).toLocaleString('fr-FR')}`;
     }
@@ -235,8 +249,8 @@ function updateStatusDisplay(status: NommageStatus): void {
  * Affiche le statut de chaque connexion (nom + connecté/déconnecté)
  */
 function updateSourcesDisplay(sources: SourceStatus[]): void {
-  const listEl = document.getElementById('sources-list');
-  const cardEl = document.getElementById('sources-card');
+  const listEl = $('sources-list');
+  const cardEl = $('sources-card');
 
   if (!listEl || !sources || sources.length === 0) return;
 
@@ -256,9 +270,9 @@ function updateSourcesDisplay(sources: SourceStatus[]): void {
  * Affiche le nombre d'entrées traitées pour chacun des 5 derniers jours (plus ancien → plus récent)
  */
 function updateDailyStatsDisplay(dailyCounts: DailyCount[]): void {
-  const headerEl = document.getElementById('daily-stats-header');
-  const rowEl = document.getElementById('daily-stats-row');
-  const containerEl = document.getElementById('daily-stats');
+  const headerEl = $('daily-stats-header');
+  const rowEl = $('daily-stats-row');
+  const containerEl = $('daily-stats');
 
   if (!headerEl || !rowEl || !dailyCounts || dailyCounts.length === 0) return;
 
@@ -280,7 +294,7 @@ function formatShortDate(isoDate: string): string {
  * Mettre à jour l'affichage des topics de découverte
  */
 function updateDiscoveryTopics(topics: string[]): void {
-  const topicsListEl = document.getElementById('topics-list');
+  const topicsListEl = $('topics-list');
   
   if (!topicsListEl || topics.length === 0) return;
   
@@ -296,8 +310,8 @@ function updateParsedMessagesCounter(): void {
   if (!appStatus) return;
   
   appStatus.parsedMessagesCount++;
-  const parsedCountEl = document.getElementById('parsed-count');
-  const messagesCounterEl = document.getElementById('messages-counter');
+  const parsedCountEl = $('parsed-count');
+  const messagesCounterEl = $('messages-counter');
   
   if (parsedCountEl) {
     parsedCountEl.textContent = String(appStatus.parsedMessagesCount);
@@ -312,8 +326,8 @@ function updateParsedMessagesCounter(): void {
  * Mettre à jour l'affichage du dernier message parsed
  */
 function updateLastParsedDisplay(timestamp: Date): void {
-  const lastParsedEl = document.getElementById('last-parsed');
-  const lastParsedDetailEl = document.getElementById('last-parsed-detail');
+  const lastParsedEl = $('last-parsed');
+  const lastParsedDetailEl = $('last-parsed-detail');
   
   if (lastParsedEl) {
     lastParsedEl.textContent = new Date(timestamp).toLocaleString('fr-FR');
@@ -332,7 +346,7 @@ function updateLastParsedDisplay(timestamp: Date): void {
  * Masquer le chargement
  */
 function hideLoading(): void {
-  const loadingEl = document.getElementById('loading');
+  const loadingEl = $('loading');
   if (loadingEl) {
     loadingEl.style.display = 'none';
   }
@@ -342,8 +356,8 @@ function hideLoading(): void {
  * Afficher le contenu principal
  */
 function showMainContent(): void {
-  const mainContainerEl = document.getElementById('main-container');
-  const actionsEl = document.getElementById('actions');
+  const mainContainerEl = $('main-container');
+  const actionsEl = $('actions');
   
   if (mainContainerEl) {
     mainContainerEl.style.display = 'block';
@@ -354,9 +368,9 @@ function showMainContent(): void {
   }
   
   // Afficher les sections
-  const statusCardEl = document.getElementById('status-card');
-  const discoveryTopicsEl = document.getElementById('discovery-topics');
-  const parsedMessagesEl = document.getElementById('parsed-messages');
+  const statusCardEl = $('status-card');
+  const discoveryTopicsEl = $('discovery-topics');
+  const parsedMessagesEl = $('parsed-messages');
   
   if (statusCardEl) statusCardEl.style.display = 'block';
   if (discoveryTopicsEl) discoveryTopicsEl.style.display = 'block';
@@ -367,8 +381,8 @@ function showMainContent(): void {
  * Afficher la déconnexion
  */
 function showDisconnected(): void {
-  const appStatusEl = document.getElementById('app-status');
-  const mqttStatusEl = document.getElementById('mqtt-status');
+  const appStatusEl = $('app-status');
+  const mqttStatusEl = $('mqtt-status');
   
   if (appStatusEl) {
     appStatusEl.textContent = 'Déconnecté';
@@ -385,7 +399,7 @@ function showDisconnected(): void {
  * Afficher une erreur
  */
 function showError(message: string): void {
-  const errorEl = document.getElementById('error');
+  const errorEl = $('error');
   if (errorEl) {
     errorEl.textContent = `⚠️ Erreur: ${message}`;
     errorEl.style.display = 'block';
@@ -396,7 +410,7 @@ function showError(message: string): void {
  * Masquer les erreurs
  */
 function hideError(): void {
-  const errorEl = document.getElementById('error');
+  const errorEl = $('error');
   if (errorEl) {
     errorEl.style.display = 'none';
   }

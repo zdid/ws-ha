@@ -93,7 +93,10 @@ export interface NommageSocketEventsRegistration {
 // Événements persistants (envoyés automatiquement aux nouveaux clients)
 // ============================================================================
 
-export const NOMMAGE_PERSISTENT_EVENTS: (keyof NommageSocketEvents)[] = [
-  'STATUS',           // Statut actuel de l'application
-  'TAXONOMY_STRUCTURE' // Structure taxonomique actuelle
+// Valeurs réelles des événements (pas les clés) : SocketBridge.registerAppSocketEvents() compare
+// contre le nom d'événement émis (ex: 'nommage:status'), pas contre la clé de l'objet (ex:
+// 'STATUS'). Un décalage clé/valeur ici désactivait silencieusement le rejeu à la reconnexion.
+export const NOMMAGE_PERSISTENT_EVENTS: string[] = [
+  NOMMAGE_SOCKET_EVENTS.STATUS,           // Statut actuel de l'application
+  NOMMAGE_SOCKET_EVENTS.TAXONOMY_STRUCTURE // Structure taxonomique actuelle
 ];

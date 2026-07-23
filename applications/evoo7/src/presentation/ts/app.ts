@@ -2,8 +2,23 @@
  * Script TypeScript pour le tableau de bord EVOO7.
  */
 
-// Import SocketService depuis le core (point d'entrée UI navigateur, pas le backend)
-import { SocketService } from '../../../../core/src/ui-exports';
+// SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
+// et l'expose via son middleware /js/ts) — pas un chemin de fichier TypeScript, un import
+// d'exécution résolu par le navigateur lui-même. Voir presentation/tsconfig.ui.json.
+import { SocketService } from '/js/ts/services/SocketService.js';
+
+// Ce script est injecté par ModuleContainer.ts (core) après le chargement initial de la page —
+// tout son contenu vit dans un Shadow DOM que le `document` global ne traverse pas ;
+// `$(...)` y renverrait toujours `null`. ModuleContainer.ts expose son
+// shadow root sur `window.__moduleContainerRoot` ; `$()` l'interroge s'il existe, sinon
+// `document` (utile hors de ce pipeline, ex: tests). Même pattern qu'arbreouquoi/app.ts.
+function moduleRoot(): ParentNode {
+  return (window as any).__moduleContainerRoot || document;
+}
+
+function $(id: string): HTMLElement | null {
+  return moduleRoot().querySelector(`#${id}`);
+}
 
 interface Evoo7Status {
   evoo7Connected: boolean;
@@ -55,12 +70,12 @@ function requestInitialStatus(): void {
 }
 
 function updateStatusDisplay(status: Evoo7Status): void {
-  const evoo7BadgeEl = document.getElementById('evoo7-badge');
-  const bridgeBadgeEl = document.getElementById('bridge-badge');
-  const donneesCountEl = document.getElementById('donnees-count');
-  const consultationCountEl = document.getElementById('consultation-count');
-  const miseAJourCountEl = document.getElementById('miseajour-count');
-  const lastMessageEl = document.getElementById('last-message');
+  const evoo7BadgeEl = $('evoo7-badge');
+  const bridgeBadgeEl = $('bridge-badge');
+  const donneesCountEl = $('donnees-count');
+  const consultationCountEl = $('consultation-count');
+  const miseAJourCountEl = $('miseajour-count');
+  const lastMessageEl = $('last-message');
 
   if (evoo7BadgeEl) {
     evoo7BadgeEl.textContent = `Broker EVOO7: ${status.evoo7Connected ? 'Connecté' : 'Déconnecté'}`;
@@ -81,14 +96,14 @@ function updateStatusDisplay(status: Evoo7Status): void {
 }
 
 function showMainContent(): void {
-  const actionsEl = document.getElementById('actions');
-  const statusCardEl = document.getElementById('status-card');
+  const actionsEl = $('actions');
+  const statusCardEl = $('status-card');
   if (actionsEl) actionsEl.style.display = 'flex';
   if (statusCardEl) statusCardEl.style.display = 'block';
 }
 
 function hideLoading(): void {
-  const loadingEl = document.getElementById('loading');
+  const loadingEl = $('loading');
   if (loadingEl) loadingEl.style.display = 'none';
 }
 

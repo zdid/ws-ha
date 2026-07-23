@@ -100,10 +100,13 @@ export type RfxComSocketEvents = typeof RFXCOM_SOCKET_EVENTS;
 export type RfxComClientEvents = typeof RFXCOM_CLIENT_EVENTS;
 export type RfxComAllEvents = typeof RFXCOM_ALL_EVENTS;
 
-// Événements persistants (envoyés automatiquement aux nouveaux clients)
-export const RFXCOM_PERSISTENT_EVENTS: (keyof RfxComSocketEvents)[] = [
-  'STATUS',
-  'DEVICES_LIST',
-  'RECEIVERS_LIST',
-  'SCENES_LIST'
+// Événements persistants (envoyés automatiquement aux nouveaux clients) — valeurs réelles des
+// événements (pas les clés) : SocketBridge.registerAppSocketEvents() compare contre le nom
+// d'événement émis (ex: 'rfxcom:status'), pas contre la clé de l'objet (ex: 'STATUS'). Un décalage
+// clé/valeur ici désactivait silencieusement le rejeu à la reconnexion pour toute l'app.
+export const RFXCOM_PERSISTENT_EVENTS: string[] = [
+  RFXCOM_SOCKET_EVENTS.STATUS,
+  RFXCOM_SOCKET_EVENTS.DEVICES_LIST,
+  RFXCOM_SOCKET_EVENTS.RECEIVERS_LIST,
+  RFXCOM_SOCKET_EVENTS.SCENES_LIST
 ];

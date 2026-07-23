@@ -20,7 +20,7 @@ import {
   ConfigService,
   AppConfigProvider
 } from '../../../core/src/exports';
-import { NOMMAGE_SOCKET_EVENTS, NOMMAGE_PERSISTENT_EVENTS } from './socket-events';
+import { NOMMAGE_SOCKET_EVENTS, NOMMAGE_ALL_EVENTS, NOMMAGE_PERSISTENT_EVENTS } from './socket-events';
 import { NommageService, INommageService } from './NommageService';
 import { NommageMqttIntegrationService, INommageMqttIntegrationService } from '../ha/integration/nommage/NommageMqttIntegrationService';
 import type { NommageConfig } from './config-schema';
@@ -191,9 +191,13 @@ export function createNommageService(
     mqttService
   );
   
+  // NOMMAGE_ALL_EVENTS (pas NOMMAGE_SOCKET_EVENTS) : SocketBridge.setupDynamicAppHandlers() ne
+  // câble socket.on(...) que pour les événements listés ici — se limiter aux événements
+  // serveur→client signifiait qu'aucune requête client (nommage:status:get, nommage:config:save,
+  // ...) n'atteignait jamais le backend.
   eventBus.emit('app:socket-events:registered', {
     appId: 'nommage',
-    socketEvents: NOMMAGE_SOCKET_EVENTS,
+    socketEvents: NOMMAGE_ALL_EVENTS,
     persistentEvents: NOMMAGE_PERSISTENT_EVENTS
   });
   
