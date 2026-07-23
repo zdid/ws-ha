@@ -1,0 +1,56 @@
+/**
+ * Types du domaine AREXX (capteurs BS1000/BS500).
+ */
+
+// ============================================================================
+// Lecture brute normalisée (après mapping depuis un des 3 backends d'acquisition)
+// ============================================================================
+
+export type ArexxSensorKind = 'temperature' | 'humidity';
+
+/**
+ * Lecture normalisée, produite par les backends d'acquisition (push/poll/usb) à partir de leur
+ * format d'origine respectif (form-encoded HTTP, table HTML, sortie du binaire rf_usb_http.elf).
+ */
+export interface ArexxRawReading {
+  /** Identifiant matériel brut Arexx (ex: "8962"), avant préfixage. */
+  rawId: string;
+  kind: ArexxSensorKind;
+  value: number;
+  /** dBm du signal RF, si fourni par le backend. */
+  signalDbm?: number;
+  timestamp: Date;
+}
+
+// ============================================================================
+// Capteurs AREXX (arexx-sensors-v1.0.yaml — arexx_sensors)
+// ============================================================================
+
+/** Capteur détecté par un backend d'acquisition mais pas encore paramétré (mémoire uniquement). */
+export interface ArexxDiscoveredSensor {
+  uniqueId: string;
+  kind: ArexxSensorKind;
+  detectedAt: string;
+}
+
+/** Capteur paramétré (persisté), qu'il transmette ou non vers HA. */
+export interface ArexxSensorInfo {
+  uniqueId: string;
+  kind: ArexxSensorKind;
+  /** Nom complet au format QUOI---OÙ (taxonomy.ts). */
+  name: string;
+  transmitToHa: boolean;
+  lastValue?: number;
+  lastSeen?: string;
+}
+
+// ============================================================================
+// Statut
+// ============================================================================
+
+export interface ArexxStatus {
+  acquisitionMode: 'push' | 'poll' | 'usb';
+  running: boolean;
+  sensorsCount: number;
+  lastReadingAt: string | null;
+}

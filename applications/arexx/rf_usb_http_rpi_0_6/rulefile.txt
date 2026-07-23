@@ -1,0 +1,6 @@
+Vrulefile
+A1push to templogger
+B2
+C0
+Elocalhost:49161
+Ztype==$q&&id==$i&&time==$S&&v==$v&&rssi==$r&&missing==$w

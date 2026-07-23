@@ -1,0 +1,225 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deviceinfo>
+  <version>Standard</version>
+<units>
+<unit>
+<type>1</type>
+<strName>Temperature</strName>
+<strUnit>°C</strUnit>
+</unit>
+<unit>
+<type>3</type>
+<strName>Relative Humidity</strName>
+<strUnit>RH%</strUnit>
+<sfx>RH</sfx>
+</unit>
+<unit>
+<type>5</type>
+<strName>CO2 concentration</strName>
+<strUnit>ppm</strUnit>
+<sfx>CO2</sfx>
+</unit>
+<unit>
+<type>7</type>
+<strName>Voltage</strName>
+<strUnit>V</strUnit>
+<sfx>V</sfx>
+</unit>
+<unit>
+<type>9</type>
+<strName>Time</strName>
+<strUnit>s</strUnit>
+<sfx>sec</sfx>
+</unit>
+<unit>
+<type>11</type>
+<strName>Counts</strName>
+<strUnit></strUnit>
+<sfx>counts</sfx>
+</unit>
+<unit>
+<type>13</type>
+<strName>OnOff</strName>
+<strUnit></strUnit>
+<sfx>OnOff</sfx>
+</unit>
+  <unit>
+    <type>15</type>
+    <strName>CO2 concentration</strName>
+    <strUnit>%</strUnit>
+    <sfx>CO2</sfx>
+  </unit>
+</units>
+<devicetypes>
+<devicetype>
+<m1>FFFFF000</m1>
+<m2>1000</m2>
+<type>1</type>
+<dm>ffff</dm>
+<vLo>-200</vLo>
+<vUp>600</vUp>
+<i>0</i>
+<p>-273.15</p>
+<p>0.02</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF000</m1>
+<m2>2000</m2>
+<type>1</type>
+<dm>ffff</dm>
+<vLo>-60</vLo>
+<vUp>125</vUp>
+<i>1</i>
+<p>0</p>
+<p>0.0078125</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF001</m1>
+<m2>4000</m2>
+<type>1</type>
+<dm>fffe</dm>
+<vLo>-60</vLo>
+<vUp>125</vUp>
+<i>0</i>
+<p>-39.6</p>
+<p>.01</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF001</m1>
+<m2>4001</m2>
+<type>3</type>
+<dm>fffe</dm>
+<vLo>0</vLo>
+<vUp>101.0</vUp>
+<i>0</i>
+<p>-4</p>
+<p>.0405</p>
+<p>-2.8e-6</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF001</m1>
+<m2>6000</m2>
+<type>1</type>
+<dm>fffe</dm>
+<vLo>-60</vLo>
+<vUp>125</vUp>
+<i>1</i>
+<p>0</p>
+<p>0.0078125</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF001</m1>
+<m2>6001</m2>
+<type>5</type>
+<dm>fffe</dm>
+<vLo>0</vLo>
+<vUp>1000000</vUp>
+<i>0</i>
+<scale>1</scale>
+<p>6.56</p>
+<p>-1.0998E-03</p>
+<p>1.9184E-07</p>
+<p>-3.8123E-11</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF001</m1>
+<m2>3000</m2>
+<type>1</type>
+<dm>fffe</dm>
+<vLo>-60</vLo>
+<vUp>125</vUp>
+<i>1</i>
+<p>0</p>
+<p>0.0078125</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF001</m1>
+<m2>3001</m2>
+<type>5</type>
+<dm>fffe</dm>
+<vLo>0</vLo>
+<vUp>5000</vUp>
+<i>0</i> 
+<p>0</p>
+<p>1</p>
+</devicetype> 
+<devicetype>
+<m1>FFFFF003</m1>
+<m2>e001</m2>
+<type>7</type>
+<dm>fffc</dm>
+<vLo>0</vLo>
+<vUp>2.047</vUp>
+<i>0</i>
+<p>0</p>
+<p>.001</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF003</m1>
+<m2>e002</m2>
+<type>9</type>
+<dm>fffc</dm>
+<vLo>-2000</vLo>
+<vUp>2000</vUp>
+<i>1</i>
+<p>0</p>
+<p>1</p>
+</devicetype>
+<devicetype>
+<m1>FFFFF003</m1>
+<m2>e003</m2>
+<type>11</type>
+<dm>fffc</dm>
+<vLo>0</vLo>       
+<vUp>65535</vUp>  
+<i>0</i>
+<p>0</p>
+<p>1</p>
+</devicetype>
+<devicetype>
+<m1>F0000000</m1>
+<m2>20000000</m2>
+<type>1</type>
+<dm>0fffffff</dm>
+<vLo>-60</vLo>
+<vUp>125</vUp>
+<i>1</i>
+<p>0</p>
+<p>0.0078125</p>
+</devicetype>
+<devicetype>
+<m1>F0000000</m1>
+<m2>d0000000</m2>
+<type>13</type>
+<dm>0fffffff</dm>
+<vLo>0</vLo>
+<vUp>65535</vUp>  
+<i>0</i>
+<p>0</p>
+<p>0.00390625</p>
+</devicetype>
+  <devicetype>
+    <m1>FFFFF001</m1>
+    <m2>a000</m2>
+    <type>1</type>
+    <dm>fffe</dm>
+    <vLo>-60</vLo>
+    <vUp>125</vUp>
+    <i>1</i>
+    <p>0</p>
+    <p>0.0078125</p>
+  </devicetype>
+  <devicetype>
+    <m1>FFFFF001</m1>
+    <m2>a001</m2>
+    <type>15</type>
+    <dm>fffe</dm>
+    <vLo>0</vLo>
+    <vUp>65535</vUp>
+    <i>0</i>
+    <p>0</p>
+    <p>.001</p>
+  </devicetype>
+</devicetypes>
+</deviceinfo>
+

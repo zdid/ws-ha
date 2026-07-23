@@ -1,0 +1,7 @@
+# udev rules file for rf_usb devices (udev >= 0.98)
+# Put it to /lib/udev/rules.d/ directory
+#
+# USB devices (rf_usb)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0451", ATTRS{idProduct}=="3211", MODE="0666" 
+
+

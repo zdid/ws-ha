@@ -1,0 +1,10 @@
+[Unit]
+Description=Arexx rf_usb
+After=network.target
+
+[Service]
+WorkingDirectory=/root/rf_usb_http_rpi_0_6/
+ExecStart=/root/rf_usb_http_rpi_0_6/rf_usb_http.elf -v  rulefile.txt
+
+[Install]
+WantedBy=multi-user.target
