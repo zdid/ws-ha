@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import { AppConfig, HaConfig, MqttConfig, WebConfig, LoggingConfig } from './schema';
 import { ConfigLoader } from './loader';
 import { ConfigWriter, SaveResult } from './writer';
@@ -39,6 +40,11 @@ export class ConfigService {
   private readonly loader: ConfigLoader;
   private readonly writer: ConfigWriter;
   private readonly logger: Logger;
+  // Schéma Zod de chaque module, enregistré dynamiquement par AppService au chargement
+  // (module.{moduleId}ConfigSchema, convention suivie par toutes les apps métier) — permet à
+  // saveModuleConfig() de valider une section avant écriture, au lieu de tout laisser passer via
+  // le .passthrough() de configSchema (qui ne valide que ha/web/logging, jamais les modules).
+  private readonly moduleSchemas = new Map<string, z.ZodType>();
 
   /**
    * @param loader - ConfigLoader pour charger la configuration (default: new ConfigLoader())
@@ -202,13 +208,44 @@ export class ConfigService {
    * @param config - Configuration du module à sauvegarder
    * @returns Résultat de la sauvegarde
    */
+  /**
+   * Enregistre le schéma Zod d'un module — appelé par AppService au chargement de chaque
+   * application (voir module.{moduleId}ConfigSchema). Permet à saveModuleConfig() de valider
+   * la section avant écriture ; sans schéma enregistré pour ce moduleId, la sauvegarde procède
+   * sans validation dédiée (comportement antérieur, pour ne pas bloquer un module qui n'en
+   * fournit pas).
+   */
+  registerModuleSchema(moduleId: string, schema: z.ZodType): void {
+    this.moduleSchemas.set(moduleId, schema);
+  }
+
   saveModuleConfig<T>(moduleId: string, config: T): SaveResult {
     console.log('[ConfigService SERVEUR] Sauvegarde configuration module - moduleId:', moduleId);
     console.log('[ConfigService SERVEUR] Config module:', JSON.stringify(config, null, 2));
-    
+
+    // Valeur effectivement écrite : la sortie de Zod (validation.data), pas `config` brut — un
+    // schéma peut porter un .transform() qui normalise/recalcule des champs (ex: discoveryTopics
+    // de Nommage, dérivé de topicPrefix) ; utiliser `config` tel quel ignorerait cette
+    // normalisation et écrirait la valeur brute soumise par le client.
+    let configToSave: unknown = config;
+
+    const schema = this.moduleSchemas.get(moduleId);
+    if (schema) {
+      const validation = schema.safeParse(config);
+      if (!validation.success) {
+        const errorDetails = validation.error.errors
+          .map((err) => `${err.path.join('.')}: ${err.message}`)
+          .join('; ');
+        const error = `Validation échouée pour le module "${moduleId}": ${errorDetails}`;
+        this.logger.warn('ConfigService', error);
+        return { success: false, error };
+      }
+      configToSave = validation.data;
+    }
+
     const newConfig = {
       ...this.config,
-      [moduleId]: config,
+      [moduleId]: configToSave,
     };
     const result = this.writer.save(newConfig as AppConfig);
     console.log('[ConfigService SERVEUR] Résultat sauvegarde module:', result);

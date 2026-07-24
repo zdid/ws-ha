@@ -25,14 +25,15 @@ const sourceMqttConfigSchema = z.object({
   reconnectPeriod: z.number().min(1000).max(300000).default(5000),
   cleanSession: z.boolean().default(true),
 
-  // Topics à écouter (découverte)
-  discoveryTopics: z.array(z.string()).default([
-    'ha/+/+/config',
-    'homeassistant/+/+/config',
-    'homeassistant/+/+/discovery'
-  ]),
+  // Topics à écouter (découverte) — voir .transform() ci-dessous : toujours recalculé à partir
+  // de topicPrefix, jamais conservé tel quel. Ce champ n'est pas éditable dans le formulaire
+  // `array` générique (itemFields ne supporte pas les tableaux imbriqués par item) : une valeur
+  // soumise ici vient toujours du template par défaut créé à l'ajout d'une source, jamais mise à
+  // jour si topicPrefix change ensuite — la garder telle quelle a déjà causé un abonnement aux
+  // mauvais topics MQTT (TODO.md, crash serveur par afflux de messages retained).
+  discoveryTopics: z.array(z.string()).optional(),
 
-  // Préfixe des topics (ex: "ha/", "homeassistant/") — non modifié lors du passthrough
+  // Préfixe des topics (ex: "ha/", "homeassistant/") — source de vérité pour discoveryTopics
   topicPrefix: z.string().default('ha/'),
 
   // QoS
@@ -42,6 +43,21 @@ const sourceMqttConfigSchema = z.object({
   // SSL/TLS
   useTls: z.boolean().default(false),
   rejectUnauthorized: z.boolean().default(true)
+}).transform((data) => {
+  // Toujours dérivé de topicPrefix — jamais la valeur soumise (voir commentaire ci-dessus sur
+  // discoveryTopics). topicPrefix n'est pas garanti avoir un "/" final (constaté en pratique :
+  // "homeassist" sans slash pour une source réelle, alors que le défaut du schéma est "ha/" avec)
+  // — normalisé pour ne jamais produire un topic collé du type "homeassist+/+/config".
+  const prefix = data.topicPrefix.replace(/\/+$/, '');
+
+  // Format officiel de découverte MQTT HA : <prefix>/<component>/[<node_id>/]<object_id>/config
+  // — node_id est OPTIONNEL, donc exactement deux formes valides, pas un nombre arbitraire de
+  // termes. Un catch-all (`prefix/#`) couvrirait les deux mais réintroduirait le risque déjà
+  // rencontré (afflux de messages non pertinents, heap overflow) — deux patterns bornés au lieu.
+  return {
+    ...data,
+    discoveryTopics: [`${prefix}/+/+/config`, `${prefix}/+/+/+/config`]
+  };
 });
 
 // Une source = une connexion MQTT indépendante (fonctionnelles-nommage_specs §3.1, §4.3)
@@ -116,11 +132,7 @@ const DEFAULT_NOMMAGE_SOURCE: NommageSourceConfig = {
     keepalive: 60,
     reconnectPeriod: 5000,
     cleanSession: true,
-    discoveryTopics: [
-      'ha/+/+/config',
-      'homeassistant/+/+/config',
-      'homeassistant/+/+/discovery'
-    ],
+    discoveryTopics: ['ha/+/+/config', 'ha/+/+/+/config'], // recalculé au prochain parse (voir .transform() ci-dessus)
     topicPrefix: 'ha/',
     qos: 1,
     retain: true,
@@ -155,7 +167,7 @@ export function createDefaultSource(id: string): NommageSourceConfig {
       keepalive: 60,
       reconnectPeriod: 5000,
       cleanSession: true,
-      discoveryTopics: ['ha/+/+/config', 'homeassistant/+/+/config'],
+      discoveryTopics: ['ha/+/+/config', 'ha/+/+/+/config'], // recalculé au prochain parse (voir .transform() ci-dessus)
       topicPrefix: 'ha/',
       qos: 1,
       retain: true,

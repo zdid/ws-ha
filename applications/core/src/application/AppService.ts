@@ -314,6 +314,15 @@ export class AppService {
               status: configStatus,
             });
 
+            // Détecter le schéma Zod du module (convention {moduleId}ConfigSchema, ex:
+            // nommageConfigSchema) — permet à ConfigService.saveModuleConfig() de valider avant
+            // écriture plutôt que de tout accepter via le .passthrough() de configSchema.
+            const schemaKey = Object.keys(module).find(k => k.toLowerCase() === `${appModule.id}configschema`.toLowerCase());
+            if (schemaKey && module[schemaKey]) {
+              this.configService.registerModuleSchema(appModule.id, module[schemaKey] as any);
+              this.logger.debug('AppService', `Schéma de configuration enregistré pour ${appModule.id}`);
+            }
+
             // Détecter les événements Socket.io de l'application
             const socketEventsKey = Object.keys(module).find(k => k.endsWith('_SOCKET_EVENTS'));
             if (socketEventsKey && module[socketEventsKey]) {

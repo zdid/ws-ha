@@ -57,7 +57,8 @@ export type Evoo7ErrorCode =
   | 'EVOO7_UNKNOWN_DATA'
   | 'EVOO7_NOT_UPDATABLE'
   | 'EVOO7_INVALID_VALUE'
-  | 'EVOO7_COMMAND_FAILED';
+  | 'EVOO7_COMMAND_FAILED'
+  | 'EVOO7_SAVE_FAILED';
 
 /**
  * Codes d'erreur génériques (specs-erreurs-v1.0.md §6)
