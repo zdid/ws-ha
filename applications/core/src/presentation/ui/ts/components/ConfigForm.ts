@@ -226,6 +226,17 @@ const createTemplate = (): HTMLTemplateElement => {
         background-color: #bdc3c7;
         cursor: not-allowed;
       }
+
+      .save-feedback {
+        display: inline-block;
+        margin-left: 12px;
+        font-size: 0.9rem;
+        color: #2ecc71;
+      }
+
+      .save-feedback.save-feedback-error {
+        color: #e74c3c;
+      }
     </style>
     
     <div class="config-form" id="config-form">
@@ -240,6 +251,29 @@ export class ConfigForm extends HTMLElement {
   private validationErrors: Record<string, string> = {};
   private moduleId: string | null = null;
   private moduleConfigFormHtml: string = '';
+  // Résultat de la dernière sauvegarde (sections statiques) — état de CE composant, pas de
+  // l'Alpine x-data local du bouton : une sauvegarde globale déclenche presque toujours un
+  // config:current juste après (AppService.handleConfigSave), qui refait un render() ici (voir
+  // setupEventListeners ci-dessous) — un Alpine x-data local serait recréé à neuf par ce
+  // render() et perdrait le résultat avant même d'avoir pu s'afficher (constaté en direct : la
+  // confirmation n'apparaissait jamais). En le portant ici, buildSaveButton() le réinjecte tel
+  // quel à chaque render(), quelle qu'en soit la cause.
+  private saveResult: { success: boolean; message: string } | null = null;
+  private saveResultTimeout: number | undefined;
+  // Chemins de champ modifiés localement depuis la dernière sauvegarde réussie (sections
+  // statiques uniquement — les modules ne re-render jamais sur config:updated, voir plus bas).
+  // Sans ce suivi, un config:current reçu pendant que l'utilisateur édite un champ pas encore
+  // sauvegardé (sauvegarde par un autre onglet/utilisateur, ou tout autre déclencheur du même
+  // événement) écrase silencieusement sa saisie en cours (TODO.md "Édition non sauvegardée
+  // écrasée par config:current").
+  private dirtyFields: Set<string> = new Set();
+  // config:save:result est un broadcast global (tous les clients connectés, pas seulement celui
+  // à l'origine de la sauvegarde — vérifié en direct : la sauvegarde depuis un 2e onglet
+  // déclenchait bien config-save-result ici aussi) — sans ce indicateur, un succès de sauvegarde
+  // déclenché par un AUTRE onglet/utilisateur viderait dirtyFields ici et l'édition locale en
+  // cours ne serait alors plus protégée par la fusion de config:updated qui suit presque
+  // toujours. Positionné juste avant d'appeler saveConfig() (voir setupFormListeners).
+  private pendingLocalSave: boolean = false;
   
   constructor() {
     super();
@@ -279,12 +313,50 @@ export class ConfigForm extends HTMLElement {
     // l'édition en cours ou tout juste sauvegardée. Le module a son propre canal de
     // rafraîchissement (module:config:loaded, voir plus bas).
     window.addEventListener('config:updated', (e: CustomEvent) => {
-      this.config = { ...e.detail.config };
+      const incoming = { ...e.detail.config };
+      // Préserver les champs en cours d'édition (non sauvegardés) : sans ça, un config:current
+      // qui arrive pendant la frappe (sauvegarde par un autre onglet/utilisateur, entre autres
+      // déclencheurs possibles) écraserait silencieusement la saisie en cours.
+      for (const fieldPath of this.dirtyFields) {
+        const localValue = this.getFieldValue(fieldPath);
+        if (localValue !== undefined) {
+          this.setNestedValue(incoming, fieldPath, localValue);
+        }
+      }
+      this.config = incoming;
       if (!this.moduleId) {
         this.render();
       }
     });
-    
+
+    // Résultat réel d'une sauvegarde de section statique (relayé par TechnicalConfigManager,
+    // voir TODO.md "Aucune confirmation visible..."). Ce même événement socket est aussi émis
+    // par le serveur pour une sauvegarde de MODULE (AppService.handleModuleConfigSave) — sans
+    // condition ici, cette bannière apparaîtrait alors à tort en mode module ; ce chemin a de
+    // toute façon son propre bouton/état (voir ModuleManager.generateModuleConfigForm), donc on
+    // ignore l'événement tant qu'on est en mode module.
+    window.addEventListener('config-save-result', (e: CustomEvent) => {
+      if (this.moduleId) return;
+      this.saveResult = e.detail;
+      // Un succès signifie que this.config (déjà envoyé tel quel au serveur) est maintenant la
+      // vérité serveur — les champs modifiés localement ne sont plus "en avance" sur elle. Un
+      // échec (validation, écriture disque) laisse les champs dirty : l'utilisateur doit encore
+      // les corriger/renvoyer, un config:current entre-temps ne doit toujours pas les écraser.
+      // pendingLocalSave distingue NOTRE sauvegarde de celle d'un autre onglet/utilisateur (même
+      // événement broadcast à tous) — sans cette garde, un succès distant viderait dirtyFields
+      // ici et laisserait la prochaine fusion config:updated écraser l'édition locale en cours.
+      if (e.detail.success && this.pendingLocalSave) {
+        this.dirtyFields.clear();
+      }
+      this.pendingLocalSave = false;
+      this.render();
+      if (this.saveResultTimeout !== undefined) window.clearTimeout(this.saveResultTimeout);
+      this.saveResultTimeout = window.setTimeout(() => {
+        this.saveResult = null;
+        this.render();
+      }, 4000);
+    });
+
     // Écouter les validations
     window.addEventListener('config:validation:updated', (e: CustomEvent) => {
       this.validationErrors = {};
@@ -513,23 +585,39 @@ export class ConfigForm extends HTMLElement {
   }
   
   private buildSaveButton(): string {
+    // Le résultat réel (this.saveResult) est un état du composant, pas de l'Alpine x-data local
+    // du bouton — voir le commentaire sur le champ pour le pourquoi (render() déclenché par
+    // config:current juste après une sauvegarde recréerait un x-data local vierge). "saving" en
+    // revanche peut rester local à Alpine : purement une réaction immédiate au clic, sans besoin
+    // de survivre à un re-render déclenché ailleurs.
+    const feedbackHtml = this.saveResult
+      ? `<span class="save-feedback${this.saveResult.success ? '' : ' save-feedback-error'}">${this.escapeHtml(this.saveResult.message)}</span>`
+      : '';
     return `
       <div class="section-actions" x-data="{ saving: false }">
         <button
           type="button"
+          id="static-save-button"
           class="btn btn-primary"
           :disabled="saving"
-          @click="saving = true; window.app.configManager.saveConfig(); setTimeout(() => saving = false, 1000)"
+          @click="saving = true; window.app.configManager.saveConfig()"
         >
           <span x-text="saving ? 'Sauvegarde en cours...' : 'Sauvegarder'"></span>
         </button>
+        ${feedbackHtml}
       </div>
     `;
   }
 
   private setupFormListeners(): void {
     // Le bouton de sauvegarde (état saving/disabled) est géré déclarativement par Alpine
-    // (x-data/@click dans buildSaveButton()) — plus besoin d'écouteur ni de re-requête DOM ici.
+    // (x-data/@click dans buildSaveButton()) — pas besoin d'écouteur pour ça. En revanche,
+    // pendingLocalSave (voir le champ) doit être positionné en JS, avant l'appel réel à
+    // saveConfig(), pour que config-save-result sache distinguer NOTRE sauvegarde de celle d'un
+    // autre onglet/utilisateur (même événement broadcast à tous les clients connectés).
+    this.shadowRoot!.getElementById('static-save-button')?.addEventListener('click', () => {
+      this.pendingLocalSave = true;
+    });
 
     // Écouter les changements sur tous les inputs
     this.shadowRoot!.querySelectorAll('input, select').forEach(input => {
@@ -577,32 +665,32 @@ export class ConfigForm extends HTMLElement {
       value = target.value || '';
     }
     
+    this.dirtyFields.add(field);
     this.updateField(field, value);
   }
 
-  
-  private updateField(fieldPath: string, value: any): void {
+  /** Écrit une valeur dans un objet imbriqué à partir d'un chemin pointé (ex: "ha.ws.host"). */
+  private setNestedValue(target: any, fieldPath: string, value: any): void {
     const parts = fieldPath.split('.');
-    let current: any = this.config;
-    
+    let current: any = target;
+
     for (let i = 0; i < parts.length - 1; i++) {
       if (!current[parts[i]]) {
         current[parts[i]] = {};
       }
       current = current[parts[i]];
     }
-    
+
     current[parts[parts.length - 1]] = value;
-    
+  }
+
+  private updateField(fieldPath: string, value: any): void {
+    this.setNestedValue(this.config, fieldPath, value);
+
     // Mettre à jour TechnicalConfigManager pour les sauvegardes (sans déclencher config:updated pour éviter la boucle)
     if (window.app?.configManager) {
       const partialConfig: any = {};
-      let partialCurrent: any = partialConfig;
-      for (let i = 0; i < parts.length - 1; i++) {
-        partialCurrent[parts[i]] = partialCurrent[parts[i]] || {};
-        partialCurrent = partialCurrent[parts[i]];
-      }
-      partialCurrent[parts[parts.length - 1]] = value;
+      this.setNestedValue(partialConfig, fieldPath, value);
       window.app.configManager.updateConfig(partialConfig, true);
     }
   }

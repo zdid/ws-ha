@@ -40,15 +40,19 @@ declare global {
     // Config events
     'config:updated': CustomEvent<{ config: any }>;
     'config:validation:updated': CustomEvent<any>;
-    
+    // Résultat réel de config:save:result (sections statiques) — nom sans ':' (contrairement à
+    // l'événement socket.io homonyme) pour rester utilisable tel quel dans un sélecteur Alpine
+    // x-on:config-save-result.window, qui ne supporte pas les ':' au milieu d'un nom d'événement.
+    'config-save-result': CustomEvent<{ success: boolean; message?: string }>;
+
     // Module events
     'app-modules-loaded': CustomEvent<{ modules: any[] }>;
     'module:activated': CustomEvent<{ moduleId: string; module?: any }>;
     'module:config:loaded': CustomEvent<{ moduleId: string; config: any }>;
-    'module:config:saving': CustomEvent<{ moduleId: string }>;
-    'module:config:saved': CustomEvent<{ moduleId: string }>;
     'module:field:updated': CustomEvent<{ moduleId: string; fieldName: string; value: any }>;
     'module:content:loaded': CustomEvent<{ moduleId: string }>;
+    // Résultat réel de app:module:config:saved — même raison que config-save-result ci-dessus.
+    'module-config-save-result': CustomEvent<{ moduleId: string; success: boolean; error?: string }>;
     
     // Application events
     'applications:loaded': CustomEvent<{ activated: string[]; disabled: string[] }>;

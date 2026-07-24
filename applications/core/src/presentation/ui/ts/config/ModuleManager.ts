@@ -91,11 +91,13 @@ export class ModuleManager {
       this.socket.emit('app:modules:config:get', { moduleId: data.moduleId });
     });
     
-    // Configuration sauvegardée
-    this.socket.on('app:module:config:saved', (data: { moduleId: string; success: boolean }) => {
-      if (data.success) {
-        console.log(`[ModuleManager] Configuration du module ${data.moduleId} sauvegardée`);
-      }
+    // Configuration sauvegardée — relayé pour affichage réel côté formulaire (voir TODO.md
+    // "Aucune confirmation visible..."), jusqu'ici seulement loggé et jamais montré à
+    // l'utilisateur. Nom sans ':' pour rester consommable par un sélecteur Alpine
+    // x-on:module-config-save-result.window.
+    this.socket.on('app:module:config:saved', (data: { moduleId: string; success: boolean; error?: string }) => {
+      console.log(`[ModuleManager] Résultat de sauvegarde pour ${data.moduleId}:`, data);
+      window.dispatchEvent(new CustomEvent('module-config-save-result', { detail: data }));
     });
   }
   
@@ -214,7 +216,7 @@ export class ModuleManager {
    */
   saveModuleConfig(moduleId: string): void {
     console.log('[ModuleManager] Sauvegarde config module - moduleId:', moduleId);
-    
+
     // Utiliser this.moduleConfigs, alimenté en direct par les éditions du formulaire
     // (setModuleField/setSelectField) — TechnicalConfigManager ne
     // reflète jamais ces éditions, seulement la dernière config confirmée par le serveur.
@@ -222,17 +224,9 @@ export class ModuleManager {
     console.log('[ModuleManager] Config module:', JSON.stringify(config, null, 2));
     console.log('[ModuleManager] Envoi de app:modules:config:save au serveur');
     this.socket.emit('app:modules:config:save', { moduleId, config });
-    
-    window.dispatchEvent(new CustomEvent('module:config:saving', {
-      detail: { moduleId }
-    }));
-    
-    // Reset après un délai
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('module:config:saved', {
-        detail: { moduleId }
-      }));
-    }, 1000);
+    // Le bouton (Alpine, generateModuleConfigForm) passe en état "saving" localement au clic —
+    // la sortie de cet état est pilotée par le vrai résultat serveur, voir app:module:config:saved
+    // ci-dessus (module-config-save-result), plus de setTimeout optimiste ici.
   }
   
   /**
@@ -280,11 +274,18 @@ export class ModuleManager {
 
     html += `
       </form>
-      <div class="section-actions module-config-actions">
-        <button onclick="window.app.moduleManager.saveModuleConfig('${moduleId}')"
-                class="btn btn-primary">
-          Sauvegarder
+      <div class="section-actions module-config-actions"
+           x-data="{ saving: false, resultType: null, resultMessage: '' }"
+           x-on:module-config-save-result.window="if ($event.detail.moduleId === '${moduleId}') { saving = false; resultType = $event.detail.success ? 'success' : 'error'; resultMessage = $event.detail.success ? 'Configuration sauvegardée' : ($event.detail.error || 'Erreur de sauvegarde'); setTimeout(() => resultType = null, 4000) }">
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="saving"
+          @click="saving = true; resultType = null; window.app.moduleManager.saveModuleConfig('${moduleId}')"
+        >
+          <span x-text="saving ? 'Sauvegarde en cours...' : 'Sauvegarder'"></span>
         </button>
+        <span class="save-feedback" x-show="resultType" x-text="resultMessage" :class="{ 'save-feedback-error': resultType === 'error' }"></span>
       </div>
     `;
 

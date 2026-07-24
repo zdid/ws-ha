@@ -53,6 +53,12 @@ interface ValidationResult {
   requiredMissing: string[];
 }
 
+interface ConfigSaveResult {
+  success: boolean;
+  message?: string;
+  errors?: ValidationError[];
+}
+
 export class TechnicalConfigManager {
   private config: TechnicalConfig;
   private socket: any;
@@ -139,6 +145,15 @@ export class TechnicalConfigManager {
       this.validationResult = result;
       this.notifyValidationUpdated();
     });
+
+    // Résultat réel d'une sauvegarde (succès/échec/erreurs de validation) — jusqu'ici reçu mais
+    // jamais relayé à l'UI, qui affichait une confirmation optimiste via un simple setTimeout
+    // (voir TODO.md "Aucune confirmation visible..."). Redispatché sous un nom sans ':' pour
+    // rester consommable par un sélecteur Alpine x-on:config-save-result.window.
+    this.socket.on('config:save:result', (result: ConfigSaveResult) => {
+      this.saveInProgress = false;
+      window.dispatchEvent(new CustomEvent('config-save-result', { detail: result }));
+    });
     
     // Connexion HA
     this.socket.on('ha:connected', () => {
@@ -212,11 +227,8 @@ export class TechnicalConfigManager {
     
     this.saveInProgress = true;
     this.socket.emit('config:save', this.config);
-    
-    // Reset après un délai
-    setTimeout(() => {
-      this.saveInProgress = false;
-    }, 1000);
+    // this.saveInProgress est remis à false par le vrai résultat serveur (config:save:result,
+    // voir setupSocketListeners) — plus de setTimeout optimiste ici.
   }
   
   /**

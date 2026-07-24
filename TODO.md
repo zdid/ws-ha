@@ -176,18 +176,24 @@
 - **Vérifié en direct** : le champ "Format du message Commande" affiche maintenant correctement `{ "num" : "$name$", "status" : "$value$" }` (guillemets intacts, valeur non tronquée), plus aucune erreur Alpine à l'ouverture de "Paramètres Techniques → EVOO7".
 - **Statut** : Corrigé (2026-07-24)
 
-### 🟡 Aucune confirmation visible pour l'utilisateur après une sauvegarde de config
-- **Problème** : `ConfigForm.saveConfig()` (`applications/core/src/presentation/ui/ts/components/ConfigForm.ts`) réactive le bouton "Sauvegarder" après un simple `setTimeout(1000)`, sans jamais attendre ni afficher le vrai résultat de la sauvegarde (succès, erreurs de validation, échec d'écriture disque). Le serveur envoie pourtant deux événements dédiés à ce résultat réel (`config:save:result` pour la sauvegarde globale, `app:module:config:saved` pour un module) — désormais correctement relayés au navigateur (voir "Sauvegarde configuration avec anciennes données" ci-dessus et le point 1 du chantier config:current), mais côté UI, rien ne les écoute.
-- **À faire** : Dans `ConfigForm.ts`, écouter `config:save:result`/`app:module:config:saved` (via `TechnicalConfigManager`/`ModuleManager`, en socket.on ou en CustomEvent relayé) pour afficher un vrai succès/échec (et les erreurs de validation le cas échéant) au lieu du `setTimeout` optimiste actuel.
-- **Statut** : Non implémenté (reste ouvert pour le formulaire générique du core)
-- **Priorité** : Moyenne
-- **Note** : un défaut de la même famille, mais sur un mécanisme distinct (page dédiée EVOO7, actions `evoo7:donnee:set_selection`/`set_topic`), a été corrigé le 2026-07-24 — voir "EVOO7 : formulaire générique et page dédiée..." ci-dessus. `Evoo7Service` renvoyait `success:true` sans jamais regarder le résultat réel de l'écriture disque ; le client affichait une confirmation avant même que le serveur ait traité la requête.
+### 🟢 Aucune confirmation visible pour l'utilisateur après une sauvegarde de config — Corrigé
+- **Problème** : `ConfigForm.saveConfig()`/`ModuleManager.saveModuleConfig()` réactivaient le bouton "Sauvegarder" après un simple `setTimeout(1000)`, sans jamais attendre ni afficher le vrai résultat de la sauvegarde (succès, erreurs de validation, échec d'écriture disque). Le serveur envoie pourtant deux événements dédiés à ce résultat réel (`config:save:result` pour la sauvegarde globale — émis aussi pour une sauvegarde de module, voir `AppService.handleModuleConfigSave` — et `app:module:config:saved` pour un module), mais côté UI, rien ne les écoutait vraiment (le second était reçu et... seulement `console.log`).
+- **Corrigé (2026-07-24)** :
+  - `TechnicalConfigManager` écoute désormais `config:save:result` et le redispatche en `CustomEvent('config-save-result')` (nom sans `:` — un sélecteur Alpine `x-on:nom.window` ne supporte pas les `:` au milieu du nom).
+  - `ModuleManager` fait de même pour `app:module:config:saved` → `module-config-save-result`.
+  - `ConfigForm.buildSaveButton()` (sections statiques) et `ModuleManager.generateModuleConfigForm()` (modules) affichent le résultat réel (succès en vert / erreur en rouge, avec le message serveur), auto-masqué après 4s.
+  - **Piège découvert en vérifiant en direct** : une sauvegarde de section statique déclenche presque toujours un `config:current` juste après (`AppService.handleConfigSave`) — le `render()` qu'il provoque recréait un `x-data` Alpine local vierge pour le bouton, effaçant le résultat avant même qu'il ait pu s'afficher (la confirmation n'apparaissait jamais, même si l'événement arrivait bien). Corrigé en portant le résultat dans un champ du composant `ConfigForm` (`this.saveResult`, survit aux `render()` répétés), pas dans l'état local du bouton.
+- **Vérifié en direct** : succès (section statique + module EVOO7) et échec (validation, `Hôte` vidé sur Web-Services) affichent tous deux le bon message.
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Moyenne — résolu
 
-### 🟡 Édition non sauvegardée écrasée par config:current (onglets statiques)
-- **Problème** : Sur les onglets statiques (Web services, MQTT, Serveur Web, Journalisation), si une sauvegarde a lieu ailleurs (autre onglet ouvert, autre utilisateur) pendant qu'un champ vient d'être modifié mais pas encore sauvegardé, la réception de `config:current` déclenche un `render()` dans `ConfigForm.ts` qui écrase la saisie en cours avec la valeur serveur. Le même problème a été corrigé pour les formulaires de module (voir "Sauvegarde configuration avec anciennes données") en les découplant de `config:current`, mais les sections statiques n'ont pas d'autre source de vérité — pas de découplage possible sans suivi des champs "modifiés mais non sauvegardés".
-- **À faire** : Ajouter un suivi des champs "dirty" dans `ConfigForm.ts` pour ignorer/fusionner sélectivement les mises à jour entrantes sur les champs en cours d'édition.
-- **Statut** : Non implémenté
-- **Priorité** : Basse (pas encore rencontré en pratique, risque théorique identifié pendant le chantier config:current)
+### 🟢 Édition non sauvegardée écrasée par config:current (onglets statiques) — Corrigé
+- **Problème** : Sur les onglets statiques (Web services, MQTT, Serveur Web, Journalisation), si une sauvegarde a lieu ailleurs (autre onglet ouvert, autre utilisateur) pendant qu'un champ vient d'être modifié mais pas encore sauvegardé, la réception de `config:current` déclenchait un `render()` dans `ConfigForm.ts` qui écrasait la saisie en cours avec la valeur serveur.
+- **Corrigé (2026-07-24)** : nouveau `ConfigForm.dirtyFields: Set<string>` — tout champ modifié (`handleFieldChange`) y est ajouté. À la réception de `config:updated`, les valeurs des champs dirty sont réinjectées dans la config entrante avant fusion (au lieu d'un remplacement brut). Vidé uniquement après une sauvegarde **réussie**.
+- **Piège découvert en vérifiant en direct** : `config:save:result` est un **broadcast global** (tous les clients connectés, pas seulement celui à l'origine de la sauvegarde) — vider `dirtyFields` sur n'importe quel succès aurait fait qu'une sauvegarde déclenchée par un AUTRE onglet efface la protection de l'édition en cours dans CE onglet. Corrigé avec un indicateur `pendingLocalSave`, positionné juste avant le clic réel sur "Sauvegarder" (écouteur JS dédié sur le bouton, en plus du `@click` Alpine) — seul un succès qui suit NOTRE propre clic vide `dirtyFields`.
+- **Vérifié en direct** : deux onglets ouverts sur le même serveur — champ "Hôte" modifié (non sauvegardé) dans l'onglet A, sauvegarde déclenchée depuis l'onglet B (sans rapport) → la saisie en cours dans l'onglet A survit au `config:current` qui en résulte. Sauvegarde ensuite depuis l'onglet A lui-même → persistée normalement, `dirtyFields` vidé.
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Basse — résolu
 
 ### 🟡 Gestion des protocoles RFXCOM
 - **Problème** : La librairie npm rfxcom permet de limiter la réception à certains protocoles. Il faut gérer cela dans l'UI.
