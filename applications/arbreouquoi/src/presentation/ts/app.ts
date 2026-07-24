@@ -15,7 +15,9 @@ import { TreeNode, TreeNodeData } from './tree-node';
 // Types pour le client
 interface HaArea { area_id: string; name: string; picture?: string; }
 interface HaDevice { id: string; name: string; }
-interface HaQuoiDefinition { id: string; name: string; icon?: string; }
+// quoi_id/label, pas id/name/icon : forme réelle de HaQuoiDefinition (core) — icon n'existe pas
+// côté serveur, toujours calculée côté client via getQuoiIcon(quoi_id).
+interface HaQuoiDefinition { quoi_id: string; label: string; description?: string; }
 interface HaStructuredEntity {
   entity_id: string;
   domain: string;
@@ -57,7 +59,7 @@ interface QuiGroupWithOu {
   quoi: HaQuoiDefinition;
   entityCount: number;
   ouHierarchy: OuNode[];
-  entitiesByOu: Map<string, HaStructuredEntity[]>;
+  entitiesByOu: Record<string, HaStructuredEntity[]>;
 }
 
 interface QuoiFirstTree {
@@ -368,8 +370,8 @@ function normalizeOuFirstTree(tree: OuFirstTree, expandAll: boolean): TreeNodeDa
 
   const normalizeOuWithQuoi = (node: OuWithQuoiNode): TreeNodeData => {
     const quoiChildren: TreeNodeData[] = node.children.map(qg => ({
-      id: `quoi-${node.ou.id}-${qg.quoi.id}`, kind: 'quoi', label: escapeHtml(qg.quoi.name),
-      icon: qg.quoi.icon || getQuoiIcon(qg.quoi.id), count: qg.count,
+      id: `quoi-${node.ou.id}-${qg.quoi.quoi_id}`, kind: 'quoi', label: escapeHtml(qg.quoi.label),
+      icon: getQuoiIcon(qg.quoi.quoi_id), count: qg.count,
       children: [], entities: qg.entities.map(toEntityInfo), defaultOpen: expandAll
     }));
     const ouChildren: TreeNodeData[] = node.ou.children.map(child => {
@@ -394,7 +396,7 @@ function normalizeQuoiFirstTree(tree: QuoiFirstTree, expandAll: boolean): TreeNo
 
   const normalizeOuNodeForQuoi = (node: OuNode, entities: HaStructuredEntity[], group: QuiGroupWithOu): TreeNodeData => {
     const children = node.children.map(child => {
-      const childEntities = group.entitiesByOu.get(child.id) || [];
+      const childEntities = group.entitiesByOu[child.id] || [];
       return normalizeOuNodeForQuoi(child, childEntities, group);
     });
     return {
@@ -408,13 +410,13 @@ function normalizeQuoiFirstTree(tree: QuoiFirstTree, expandAll: boolean): TreeNo
   for (const group of tree.quoiGroups) {
     const ouChildren: TreeNodeData[] = [];
     for (const ouNode of group.ouHierarchy) {
-      const entities = group.entitiesByOu.get(ouNode.id) || [];
+      const entities = group.entitiesByOu[ouNode.id] || [];
       if (entities.length === 0) continue;
       ouChildren.push(normalizeOuNodeForQuoi(ouNode, entities, group));
     }
     result.push({
-      id: group.quoi.id, kind: 'quoi', label: escapeHtml(group.quoi.name),
-      icon: group.quoi.icon || getQuoiIcon(group.quoi.id), count: group.entityCount,
+      id: group.quoi.quoi_id, kind: 'quoi', label: escapeHtml(group.quoi.label),
+      icon: getQuoiIcon(group.quoi.quoi_id), count: group.entityCount,
       children: ouChildren, entities: [], defaultOpen: expandAll
     });
   }
@@ -431,7 +433,7 @@ function groupEntitiesByQuoi(entities: HaStructuredEntity[], allQuoiIds: HaQuoiD
     }
   }
   return Array.from(map.entries()).map(([qi, es]) => ({
-    quoi: allQuoiIds.find(q => q.id === qi) || { id: qi, name: qi, icon: '❓' },
+    quoi: allQuoiIds.find(q => q.quoi_id === qi) || { quoi_id: qi, label: qi },
     entities: es,
     count: es.length
   })).sort((a, b) => b.count - a.count);
@@ -439,10 +441,7 @@ function groupEntitiesByQuoi(entities: HaStructuredEntity[], allQuoiIds: HaQuoiD
 
 function renderEntity(entityInfo: EntityInfo): string {
   const entity = entityInfo.entity;
-  const quoiIcons = entity.quoi_ids.map(id => {
-    const q = state.catalog.find(c => c.quoi.id === id)?.quoi;
-    return q?.icon || getQuoiIcon(id);
-  }).join('');
+  const quoiIcons = entity.quoi_ids.map(id => getQuoiIcon(id)).join('');
   
   const domain = entity.domain || 'unknown';
   const stateValue = entity.state || 'N/A';
@@ -476,8 +475,8 @@ function renderQuoiCatalog(): void {
     <h4>Légende QUOI (${state.catalog.length} types)</h4>
     <div class="quoi-icons">
       ${state.catalog.map(item => `
-        <div class="quoi-catalog-item" title="${item.quoi.name} (${item.entityCount} entités)">
-          <span class="quoi-catalog-icon">${item.quoi.icon || getQuoiIcon(item.quoi.id)}</span>
+        <div class="quoi-catalog-item" title="${item.quoi.label} (${item.entityCount} entités)">
+          <span class="quoi-catalog-icon">${getQuoiIcon(item.quoi.quoi_id)}</span>
           <span class="quoi-catalog-count">${item.entityCount}</span>
         </div>
       `).join('')}
@@ -589,9 +588,9 @@ function renderEntityDetails(payload: {
         <h3>🏷️ Classification QUOI</h3>
         <div class="quoi-tags">
           ${payload.quiIds.map(qi => {
-            const q = state.catalog.find(c => c.quoi.id === qi)?.quoi;
-            const icon = q?.icon || getQuoiIcon(qi);
-            return `<span class="quoi-tag">${icon} ${q?.name || qi}</span>`;
+            const q = state.catalog.find(c => c.quoi.quoi_id === qi)?.quoi;
+            const icon = getQuoiIcon(qi);
+            return `<span class="quoi-tag">${icon} ${q?.label || qi}</span>`;
           }).join('')}
         </div>
       </div>

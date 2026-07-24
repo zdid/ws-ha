@@ -406,7 +406,7 @@ export class ArbreouquoiService {
         let group = quoiMap.get(quoiId);
         if (!group) {
           const quoiDef = catalog.find(q => q.quoi_id === quoiId) || { quoi_id: quoiId, label: quoiId, description: '' };
-          group = { quoi: quoiDef, entityCount: 0, ouHierarchy: [], entitiesByOu: new Map() };
+          group = { quoi: quoiDef, entityCount: 0, ouHierarchy: [], entitiesByOu: {} };
           quoiMap.set(quoiId, group);
           quoiGroups.push(group);
         }
@@ -414,8 +414,8 @@ export class ArbreouquoiService {
         const ouPath = this.extractOuPathFromEntity(entity);
         const ouNames = this.extractOuNamesFromEntity(entity);
         const ouKey = ouPath.join('/') || 'unassigned';
-        if (!group!.entitiesByOu.has(ouKey)) group!.entitiesByOu.set(ouKey, []);
-        group!.entitiesByOu.get(ouKey)!.push(entity);
+        if (!group!.entitiesByOu[ouKey]) group!.entitiesByOu[ouKey] = [];
+        group!.entitiesByOu[ouKey].push(entity);
         this.updateOuHierarchyForQuoi(group!, ouPath, ouNames);
       }
     }
@@ -449,7 +449,7 @@ export class ArbreouquoiService {
         let group = quoiMap.get(quoiId);
         if (!group) {
           const quoiDef = catalog.find(q => q.quoi_id === quoiId) || { quoi_id: quoiId, label: quoiId, description: '' };
-          group = { quoi: quoiDef, entityCount: 0, ouHierarchy: [], entitiesByOu: new Map() };
+          group = { quoi: quoiDef, entityCount: 0, ouHierarchy: [], entitiesByOu: {} };
           quoiMap.set(quoiId, group);
           quoiGroups.push(group);
         }
@@ -457,8 +457,8 @@ export class ArbreouquoiService {
         const ouPath = this.extractOuPathFromEntity(entity);
         const ouNames = this.extractOuNamesFromEntity(entity);
         const ouKey = ouPath.join('/') || 'unassigned';
-        if (!group!.entitiesByOu.has(ouKey)) group!.entitiesByOu.set(ouKey, []);
-        group!.entitiesByOu.get(ouKey)!.push(entity);
+        if (!group!.entitiesByOu[ouKey]) group!.entitiesByOu[ouKey] = [];
+        group!.entitiesByOu[ouKey].push(entity);
       }
     }
     

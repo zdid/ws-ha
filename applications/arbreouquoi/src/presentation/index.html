@@ -4,9 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arbre Où Quoi - Visualisation du Référentiel HA</title>
-  <link rel="stylesheet" href="/styles/main.css">
   <link rel="stylesheet" href="/applications/arbreouquoi/presentation/styles/arbreouquoi.css">
-  <!-- Derniere modification: 2026-07-22 - Script en type="module", compile via le nouveau build:ui (JS navigateur reel, remplace le require()/exports casse de tsc principal) -->
+  <!-- Derniere modification: 2026-07-24 - Retire le <link> vers /styles/main.css : la coquille HA/MQTT le charge deja au niveau document, et sa reinjection ici (via innerHTML dans ModuleContainer) le dupliquait a l'interieur du Shadow DOM du module, ou sa regle generique ".app-container { display:flex }" entrait en collision avec la classe .app-container propre a arbreouquoi.css (poussait l'arbre ~1800px hors ecran) -->
 </head>
 <body>
   <div class="app-container">

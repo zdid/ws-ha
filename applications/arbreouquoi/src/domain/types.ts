@@ -48,7 +48,11 @@ export interface QuiGroupWithOu {
   quoi: HaQuoiDefinition;
   entityCount: number;
   ouHierarchy: OuNode[]; // La hiérarchie OÙ pour ce QUOI
-  entitiesByOu: Map<string, HaStructuredEntity[]>; // OÙ ID → Entités
+  // Record, pas Map : cette structure part sur le fil (Socket.io) — un Map se sérialise en objet
+  // vide ({}) côté client (pas de support natif dans socket.io-parser/JSON), ce qui faisait
+  // planter le rendu client (`entitiesByOu.get is not a function`) dès que ce champ contenait
+  // vraiment des entités (jamais arrivé avant le classifieur QUOI réel de cette session).
+  entitiesByOu: Record<string, HaStructuredEntity[]>; // OÙ ID → Entités
 }
 
 // Groupe QUOI classique
