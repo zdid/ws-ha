@@ -259,17 +259,18 @@
 - **Statut** : Corrigé (2026-07-24)
 - **Priorité** : Était Basse — résolu
 
-### 🟡 Architecture RFXCOM
-- **Problème** : Le module `RfxComService` fait ~1800 lignes
-- **Proposition d'éclatement** :
-  - `RfxComCoreService` : Gestion du transceiver (connexion, déconnexion, messages bruts)
-  - `RfxComDeviceManager` : Gestion des devices (détection, stockage, auto-discovery)
-  - `RfxComReceiverManager` : Gestion des récepteurs et appairages
-  - `RfxComSceneManager` : Gestion des scènes
-  - `RfxComProtocolManager` : Gestion des protocoles activés
-  - `RfxComHaBridge` : Intégration avec HA (discovery, états, commandes)
-- **Statut** : En attente de validation
-- **Priorité** : Basse
+### 🟢 Architecture RFXCOM — Entrée périmée, déjà largement fait
+- **Problème d'origine** : `RfxComService` faisait ~1800 lignes (chiffre jamais mis à jour depuis).
+- **Constat (2026-07-24)**, en relisant le code avant de commencer ce chantier : le module est déjà décomposé, probablement progressivement au fil de la construction de l'app (commits `b704e26` "Ajoute l'application RFXCOM" et `6dd16c2` "Implémente les scènes RFXCOM") — `RfxComService.ts` ne fait plus que **651 lignes**, un orchestrateur (cycle de vie, discovery/état MQTT↔HA, routage de commande, câblage Socket.io) qui délègue déjà à :
+  - `transceiver/RfxComTransceiver.ts` (360 l.) — cycle de vie du transceiver
+  - `devices/DeviceManager.ts` (136 l.) — détection/stockage des devices
+  - `receivers/` (446 l.) — `ReceiverManager` + `BaseReceiver`/`ReceiverCover`/`ReceiverLight`/`ReceiverSwitch`
+  - `scenes/` (134 l.) — `SceneManager` + `SceneExecutor`
+  - `yaml/ConfigFileManager.ts` (96 l.) — persistance
+- Seul `RfxComProtocolManager` (gestion des protocoles activés) de la proposition d'origine n'existe pas encore — couvert par l'entrée dédiée "Gestion des protocoles RFXCOM" ci-dessous.
+- **Décision** : pas d'éclatement supplémentaire pour l'instant (le HA-bridge restant dans `RfxComService.ts` n'est plus disproportionné à 651 lignes) — on attaque directement les vrais items RFXCOM restants.
+- **Statut** : Entrée périmée — le principal (le "~1800 lignes") était déjà résolu, non annoncé
+- **Priorité** : Était Basse
 
 ---
 
