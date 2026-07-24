@@ -66,7 +66,7 @@ export class RfxComService implements IRfxComService {
   }
 
   private resolveDevicesConfigPath(): string {
-    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data');
+    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data', 'rfxcom');
     return path.join(dataDir, this.config.devicesConfigFile);
   }
 

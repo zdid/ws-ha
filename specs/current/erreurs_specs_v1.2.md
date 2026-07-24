@@ -1,8 +1,8 @@
 # Spécifications Techniques — Codes d'Erreur et États
 **Module Complémentaire aux Spécifications Socle HA/MQTT et RFXCOM**
 
-**Version :** 1.1  
-**Date :** 21 Juillet 2026  
+**Version :** 1.2  
+**Date :** 24 Juillet 2026  
 **Statut :** Document de référence pour la gestion standardisée des erreurs  
 **Conformité :** Intègre les besoins des modules `HaCommandService`, `HaWsClient`, `HaMqttIntegrationService` et `RfxComService`  
 
@@ -180,8 +180,8 @@ Tout code d'erreur suit le format :
 ### 6.1 Erreurs de Configuration
 | Code | Message | Cause | Sévérité | Action Recommandée | Événement EventBus | Événement Socket.io |
 |------|---------|-------|-----------|-------------------|-------------------|-------------------|
-| `APP_CONFIG_INVALID` | "Configuration is invalid: {errors}" | Schéma Zod non respecté | ERROR | Corriger `data/config.yaml` | - | `config:saved` (`success: false`) |
-| `APP_CONFIG_MISSING` | "Configuration file not found" | `data/config.yaml` absent | ERROR | Créer le fichier depuis `.env.example` | - | `app:log` |
+| `APP_CONFIG_INVALID` | "Configuration is invalid: {errors}" | Schéma Zod non respecté | ERROR | Corriger `data/core/config.yaml` ou `data/{app}/config.yaml` selon la section fautive | - | `config:saved` (`success: false`) |
+| `APP_CONFIG_MISSING` | "Configuration file not found" | `data/core/config.yaml` absent | ERROR | Créer le fichier depuis `.env.example` | - | `app:log` |
 | `APP_CONFIG_REQUIRED_FIELD_MISSING` | "Required field {field} is missing" | Champ obligatoire non renseigné | ERROR | Remplir le champ manquant | - | `config:saved` (`success: false`) |
 
 ### 6.2 Erreurs de Validation

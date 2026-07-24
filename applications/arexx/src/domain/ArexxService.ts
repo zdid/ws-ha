@@ -59,7 +59,7 @@ export class ArexxService implements IArexxService {
   }
 
   private resolveSensorsConfigPath(): string {
-    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data');
+    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data', 'arexx');
     return path.join(dataDir, this.config.sensorsConfigFile);
   }
 

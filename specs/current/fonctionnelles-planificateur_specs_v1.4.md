@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles — Application PLANIFICATEUR
 
-**Version :** 1.3
-**Date :** 23 Juillet 2026
+**Version :** 1.4
+**Date :** 24 Juillet 2026
 **Statut :** Document de référence pour l'application `applications/planificateur`
 
 > Conforme à `techniques-socle-ha-mqtt_specs` (architecture 5 couches, EventBus,
@@ -99,12 +99,13 @@ actif ; sa réactivation la reprogramme immédiatement selon son `trigger`.
 
 ## 5. Stockage
 
-Deux fichiers YAML locaux, gitignorés comme tout `data/` — `data/planificateur-macros-v1.0.yaml` et
-`data/planificateur-planifications-v1.0.yaml` — gérés par un `ConfigFileManager` sur le même
+Deux fichiers YAML locaux, gitignorés comme tout `data/` — `data/planificateur/planificateur-macros-v1.0.yaml` et
+`data/planificateur/planificateur-planifications-v1.0.yaml` — gérés par un `ConfigFileManager` sur le même
 principe que RFXCOM/AREXX : validation Zod avant écriture, écriture atomique (fichier temporaire
 puis renommage), copie de sauvegarde `.bak` du fichier précédent conservée à chaque sauvegarde.
 
-`data/config.yaml` (section `planificateur`) ne garde que les paramètres généraux — pas de
+`data/planificateur/config.yaml` (objet nu, ex-section `planificateur` de l'ancien fichier unique
+— voir `techniques-socle-ha-mqtt_specs` §7) ne garde que les paramètres généraux — pas de
 connexion MQTT propre à héberger, contrairement à EVOO7/Nommage.
 
 Toutes les planifications actives sont reprogrammées automatiquement au démarrage du service, à
@@ -193,7 +194,7 @@ deux côtés, pas de mécanisme partagé fourni par le socle.
 
 ## 10. Configuration
 
-Section `planificateur` de `data/config.yaml` : noms/emplacement des fichiers de données (§5),
+`data/planificateur/config.yaml` : noms/emplacement des fichiers de données (§5),
 paramètres du délai d'attente pour les échanges avec `ia`.
 
 ## 11. UI

@@ -1,7 +1,7 @@
 # Spécifications d'Implémentation - Application NOMMAGE
 
-**Version :** 1.2  
-**Date :** 21 Juillet 2026  
+**Version :** 1.3  
+**Date :** 24 Juillet 2026  
 **Auteur :** Mistral Vibe / Claude  
 **Statut :** Document technique pour les développeurs  
 **Document parent :** [fonctionnelles-nommage_specs_v1.2.md](./fonctionnelles-nommage_specs_v1.2.md)
@@ -741,44 +741,43 @@ export function registerPersistentEvents(eventBus: IEventBus): void {
 
 ### 6.3 Configuration YAML
 
-**Fichier :** `data/config.yaml`
+**Fichier :** `data/nommage/config.yaml` (objet nu, ex-section `nommage` de l'ancien fichier
+unique — voir `techniques-socle-ha-mqtt_specs` §7)
 
 ```yaml
-# Configuration NOMMAGE
-nommage:
-  enabled: true
-  
-  # ⭐ v1.1 — sources[] remplace mqtt (objet unique) : toutes connectées simultanément
-  sources:
-    - id: "ha-broker"
-      mqtt:
-        host: "localhost"
-        port: 1883
-        clientId: "nommage-ha-broker"
-        discoveryTopics:
-          - "ha/+/+/config"
-        topicPrefix: "ha/"
-        qos: 1
-        retain: true
-    
-    - id: "zigbee2mqtt"
-      mqtt:
-        host: "localhost"
-        port: 1883
-        clientId: "nommage-zigbee2mqtt"
-        discoveryTopics:
-          - "homeassist/+/+/config"
-        topicPrefix: "homeassist/"
-        qos: 1
-        retain: true
-    
-  ha:
-    injectTaxonomyAttributes: true
-    
-  logging:
-    level: "info"
-    showRawMessages: false
-    showParsedMessages: false
+enabled: true
+
+# ⭐ v1.1 — sources[] remplace mqtt (objet unique) : toutes connectées simultanément
+sources:
+  - id: "ha-broker"
+    mqtt:
+      host: "localhost"
+      port: 1883
+      clientId: "nommage-ha-broker"
+      discoveryTopics:
+        - "ha/+/+/config"
+      topicPrefix: "ha/"
+      qos: 1
+      retain: true
+
+  - id: "zigbee2mqtt"
+    mqtt:
+      host: "localhost"
+      port: 1883
+      clientId: "nommage-zigbee2mqtt"
+      discoveryTopics:
+        - "homeassist/+/+/config"
+      topicPrefix: "homeassist/"
+      qos: 1
+      retain: true
+
+ha:
+  injectTaxonomyAttributes: true
+
+logging:
+  level: "info"
+  showRawMessages: false
+  showParsedMessages: false
 ```
 
 ---
@@ -855,7 +854,7 @@ firefox http://localhost:8080/applications/nommage/presentation/index.html
 - [ ] `npm run build` passe sans erreur
 - [ ] Tous les fichiers obligatoires sont présents
 - [ ] `NOMMAGE_APP.id === 'nommage'` (correspond au répertoire)
-- [ ] Configuration MQTT valide dans `data/config.yaml`
+- [ ] Configuration MQTT valide dans `data/nommage/config.yaml`
 - [ ] Le broker MQTT est accessible
 - [ ] Le core écoute `nommage:transmit:to-core`
 - [ ] Les dépendances (`mqtt@5.x`) sont installées

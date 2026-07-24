@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles — Application ARBREOUQUOI
 
-**Version :** 1.0  
-**Date :** 20 Juillet 2026  
+**Version :** 1.1  
+**Date :** 24 Juillet 2026  
 **Auteur :** Mistral Vibe  
 **Statut :** En développement  
 **Type :** Application standalone  
@@ -445,7 +445,7 @@ graph TD
 | C-006 | **Socket.io** | L'application DOIT utiliser Socket.io pour la communication client |
 | C-007 | **Événements Prefixés** | Tous les événements DOIVENT être prefixés par "arbreouquoi:" |
 | C-008 | **Démarrage Automatique** | L'application DOIT démarrer automatiquement avec le socle |
-| C-009 | **Configuration YAML** | La configuration DOIT être stockée dans data/config.yaml |
+| C-009 | **Configuration YAML** | La configuration DOIT être stockée dans data/arbreouquoi/config.yaml |
 
 ### 8.3 Contraintes de Sécurité
 

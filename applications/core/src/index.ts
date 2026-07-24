@@ -45,6 +45,7 @@ import { Logger, createLogger } from './infrastructure/logger/index';
 import { ConfigService } from './infrastructure/config/ConfigService';
 import { ConfigLoader } from './infrastructure/config/loader';
 import { ConfigWriter } from './infrastructure/config/writer';
+import { configSchema } from './infrastructure/config/schema';
 
 // Import des services applicatifs
 import { EventBus } from './application/EventBus';
@@ -99,10 +100,13 @@ class ApplicationBootstrap {
     this.logger = createLogger(loggerConfig);
 
     // 2. Créer les services de configuration
-    // Les paths de config peuvent être personnalisés via variables d'environnement
-    const configPath = process.env.CONFIG_PATH || '/app/data/config.yaml';
-    const configLoader = new ConfigLoader(configPath);
-    const configWriter = new ConfigWriter(configPath);
+    // Les paths de config peuvent être personnalisés via variables d'environnement.
+    // dataRoot = data/ (un sous-répertoire par application, chacun son propre config.yaml) ;
+    // configPath = le config.yaml du socle (ha/web/logging), sous data/core/ par convention.
+    const dataRoot = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data');
+    const configPath = process.env.CONFIG_PATH || path.join(dataRoot, 'core', 'config.yaml');
+    const configLoader = new ConfigLoader(configPath, configSchema, dataRoot);
+    const configWriter = new ConfigWriter(configPath, configSchema, '.tmp', dataRoot);
     this.configService = new ConfigService(configLoader, configWriter, this.logger);
 
     // Le logger est créé avant la config (ci-dessus) avec un niveau par défaut 'info' — le

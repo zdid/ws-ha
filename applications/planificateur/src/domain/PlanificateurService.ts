@@ -47,7 +47,7 @@ export class PlanificateurService implements IPlanificateurService {
   ) {
     this.config = planificateurConfigSchema.parse(configProvider.getAppConfig());
 
-    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data');
+    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data', 'planificateur');
     this.macrosManager = new ConfigFileManager<MacrosConfigFile>(
       path.join(dataDir, this.config.macrosFile),
       macrosConfigSchema,

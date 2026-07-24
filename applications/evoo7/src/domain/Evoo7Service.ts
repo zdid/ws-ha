@@ -66,7 +66,7 @@ export class Evoo7Service implements IEvoo7Service {
   }
 
   private resolveDonneesConfigPath(): string {
-    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data');
+    const dataDir = path.join(process.env.PROJECT_ROOT || process.cwd(), 'data', 'evoo7');
     return path.join(dataDir, this.config.donneesConfigFile);
   }
 

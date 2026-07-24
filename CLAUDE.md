@@ -19,8 +19,17 @@ specs/
   archives/vX.Y.Z/         # Anciennes versions des specs (gitignored)
   CHANGELOG.md             # Historique des évolutions de specs
 backups/                   # Sauvegardes locales (gitignored, jamais commitées)
-data/, logs/               # Runtime, gitignored
+data/                      # Runtime, gitignored — un sous-répertoire par application
+  core/                    # config.yaml du socle (ha/web/logging)
+  <app>/                   # config.yaml de l'app (objet nu) + ses fichiers de données
+logs/                      # Runtime, gitignored
 ```
+
+Chaque application (y compris le core) a son propre sous-répertoire dans `data/`, regroupant
+config et données — objectif : pouvoir déplacer une application d'une machine à une autre en
+copiant un seul sous-répertoire. `ConfigLoader`/`ConfigService` fusionnent tout en mémoire au
+chargement ; le code métier d'une application continue de n'accéder qu'à sa propre section via
+`IAppConfigProvider`, sans changement.
 
 Il n'existe **pas** de build global fiable à la racine : le script `build` du `package.json` racine référence encore un ancien chemin (`src/applications/rfxcom/...`) qui n'existe plus dans la nouvelle arborescence — considère-le obsolète. Build toujours au niveau de l'application modifiée :
 

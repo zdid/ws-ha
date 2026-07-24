@@ -122,7 +122,13 @@ export class ConfigService {
   saveConfig(newConfig: AppConfig): SaveResult {
     console.log('[ConfigService SERVEUR] Sauvegarde configuration globale');
     console.log('[ConfigService SERVEUR] Config complète:', JSON.stringify(newConfig, null, 2));
-    const result = this.writer.save(newConfig);
+    // Le client envoie l'objet fusionné complet (TechnicalConfigManager.config, qui reflète
+    // config:current — toutes les sections d'app y compris), mais depuis la restructuration
+    // data/{app}/ ce endpoint ne possède plus que le socle : on ne retient que ha/web/logging,
+    // le reste (sections d'app) est ignoré ici, chacune ayant désormais son propre chemin de
+    // sauvegarde (savePartialConfig/saveModuleConfig, vers son propre fichier).
+    const socleConfig = { ha: newConfig.ha, web: newConfig.web, logging: newConfig.logging } as AppConfig;
+    const result = this.writer.save(socleConfig);
     console.log('[ConfigService SERVEUR] Résultat sauvegarde:', result);
     return result;
   }
@@ -136,11 +142,16 @@ export class ConfigService {
    * @returns Résultat de la sauvegarde
    */
   savePartialConfig<T extends keyof AppConfig>(section: T, partialConfig: AppConfig[T]): SaveResult {
-    const newConfig = {
-      ...this.config,
-      [section]: partialConfig,
-    };
-    return this.writer.save(newConfig as AppConfig);
+    const result = this.writer.saveModuleFile(section as string, partialConfig);
+    // Rafraîchit la vue en mémoire immédiatement après un succès — jusqu'ici cette méthode
+    // n'avait aucun effet sur this.config, obligeant l'appelant à faire un reload() explicite
+    // pour voir sa propre écriture (piège rencontré en direct sur RFXCOM/protocoles cette
+    // session : le fichier était bien à jour, mais this.config restait périmé jusqu'au prochain
+    // redémarrage). saveModuleConfig() ci-dessous le faisait déjà ; même comportement ici.
+    if (result.success) {
+      this.config = { ...this.config, [section]: partialConfig };
+    }
+    return result;
   }
 
   /**
@@ -168,28 +179,28 @@ export class ConfigService {
    * @param moduleIds - Liste des identifiants de modules détectés
    */
   ensureModuleSections(moduleIds: string[]): void {
-    let needsSave = false;
-
     for (const moduleId of moduleIds) {
       // Vérifier si la section existe déjà dans la config
       if (this.config[moduleId as keyof AppConfig] === undefined) {
         // Vérifier si on a une config par défaut pour ce module
         const defaultConfig = (ConfigService.DEFAULT_MODULE_CONFIGS as Record<string, unknown>)[moduleId];
-        
+
         if (defaultConfig) {
-          // Appliquer la configuration par défaut
-          (this.config as Record<string, unknown>)[moduleId] = defaultConfig;
-          this.logger.info('ConfigService', `Section '${moduleId}' initialisée avec les valeurs par défaut`);
-          needsSave = true;
+          // Chaque module a son propre fichier (data/{moduleId}/config.yaml) depuis la
+          // restructuration — écrire directement dedans, pas de sauvegarde groupée possible/
+          // nécessaire (ce chemin reste inatteint en pratique tant que DEFAULT_MODULE_CONFIGS
+          // n'est peuplé par aucun module).
+          const result = this.writer.saveModuleFile(moduleId, defaultConfig);
+          if (result.success) {
+            (this.config as Record<string, unknown>)[moduleId] = defaultConfig;
+            this.logger.info('ConfigService', `Section '${moduleId}' initialisée avec les valeurs par défaut`);
+          } else {
+            this.logger.error('ConfigService', `Échec d'initialisation de la section '${moduleId}': ${result.error}`);
+          }
         } else {
           this.logger.warn('ConfigService', `Pas de configuration par défaut pour le module '${moduleId}'`);
         }
       }
-    }
-
-    // Sauvegarder si des modifications ont été apportées
-    if (needsSave) {
-      this.writer.save(this.config as AppConfig);
     }
   }
 
@@ -243,14 +254,10 @@ export class ConfigService {
       configToSave = validation.data;
     }
 
-    const newConfig = {
-      ...this.config,
-      [moduleId]: configToSave,
-    };
-    const result = this.writer.save(newConfig as AppConfig);
+    const result = this.writer.saveModuleFile(moduleId, configToSave);
     console.log('[ConfigService SERVEUR] Résultat sauvegarde module:', result);
     if (result.success) {
-      this.config = newConfig as AppConfig;
+      this.config = { ...this.config, [moduleId]: configToSave } as AppConfig;
     }
     return result;
   }

@@ -7,7 +7,7 @@
     "build": "tsc",
     "build:ui": "tsc -p src/presentation/tsconfig.ui.json",
     "watch": "tsc -w",
-    "dev:local": "CONFIG_PATH=../../../data/config.yaml tsx watch src/index.ts"
+    "dev:local": "CONFIG_PATH=../../../data/core/config.yaml tsx watch src/index.ts"
   },
   "dependencies": {},
   "devDependencies": {

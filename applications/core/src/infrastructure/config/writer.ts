@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
 import { AppConfig, configSchema } from './schema';
@@ -14,28 +15,55 @@ export interface SaveResult {
 /**
  * Écrit la configuration de manière atomique (fichier temporaire → rename)
  */
+const YAML_DUMP_OPTIONS = { indent: 2, sortKeys: false, lineWidth: -1 };
+
 export class ConfigWriter {
   private readonly configPath: string;
   private readonly schema: any;
   private readonly tmpSuffix: string;
+  private readonly appDataRoot?: string;
 
   /**
-   * @param configPath - Chemin vers config.yaml (default: /app/data/config.yaml)
+   * @param configPath - Chemin vers le config.yaml du socle (default: /app/data/core/config.yaml)
    * @param schema - Schéma Zod (default: configSchema)
    * @param tmpSuffix - Suffixe pour le fichier temporaire (default: .tmp)
+   * @param appDataRoot - Répertoire `data/` contenant un sous-dossier par application — requis
+   *   pour utiliser `saveModuleFile()`. Absent : comportement inchangé pour `save()`.
    */
   constructor(
-    configPath: string = process.env.CONFIG_PATH || '/app/data/config.yaml',
+    configPath: string = process.env.CONFIG_PATH || '/app/data/core/config.yaml',
     schema: any = configSchema,
-    tmpSuffix: string = '.tmp'
+    tmpSuffix: string = '.tmp',
+    appDataRoot?: string
   ) {
     this.configPath = configPath;
     this.schema = schema;
     this.tmpSuffix = tmpSuffix;
+    this.appDataRoot = appDataRoot;
   }
 
   /**
-   * Valide et sauvegarde la configuration.
+   * Écrit `data` en YAML de façon atomique (fichier temporaire → rename), en créant le
+   * répertoire parent si nécessaire (indispensable depuis qu'un premier save doit créer
+   * `data/{app}/`, jamais nécessaire tant que `data/` existait déjà à plat).
+   */
+  private writeYamlAtomic(filePath: string, data: unknown): SaveResult {
+    const tmpPath = `${filePath}${this.tmpSuffix}`;
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      const yamlContent = yaml.dump(data, YAML_DUMP_OPTIONS);
+      fs.writeFileSync(tmpPath, yamlContent, 'utf-8');
+      fs.renameSync(tmpPath, filePath);
+      return { success: true };
+    } catch (error) {
+      try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
+      const errorMessage = error instanceof Error ? error.message : 'Unknown write error';
+      return { success: false, error: `Write failed: ${errorMessage}` };
+    }
+  }
+
+  /**
+   * Valide et sauvegarde la configuration du socle (ha/web/logging) dans `configPath`.
    * @param config - Config à sauvegarder
    * @returns Résultat { success, error? }
    */
@@ -52,24 +80,21 @@ export class ConfigWriter {
       return { success: false, error: `Validation error: ${error}` };
     }
 
-    const tmpPath = `${this.configPath}${this.tmpSuffix}`;
+    return this.writeYamlAtomic(this.configPath, config);
+  }
 
-    try {
-      const yamlContent = yaml.dump(config, {
-        indent: 2,
-        sortKeys: false,
-        lineWidth: -1,
-      });
-
-      fs.writeFileSync(tmpPath, yamlContent, 'utf-8');
-      fs.renameSync(tmpPath, this.configPath);
-
-      return { success: true };
-    } catch (error) {
-      try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
-      const errorMessage = error instanceof Error ? error.message : 'Unknown write error';
-      return { success: false, error: `Write failed: ${errorMessage}` };
+  /**
+   * Sauvegarde la section d'une application dans son propre fichier
+   * (`{appDataRoot}/{moduleId}/config.yaml`, objet nu, pas de clé d'app en tête). Pas de
+   * validation de schéma générique ici — chaque appelant (ConfigService.savePartialConfig/
+   * saveModuleConfig) gère sa propre validation le cas échéant.
+   */
+  saveModuleFile(moduleId: string, data: unknown): SaveResult {
+    if (!this.appDataRoot) {
+      return { success: false, error: 'ConfigWriter: appDataRoot non fourni, saveModuleFile() indisponible' };
     }
+    const filePath = path.join(this.appDataRoot, moduleId, 'config.yaml');
+    return this.writeYamlAtomic(filePath, data);
   }
 }
 

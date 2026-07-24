@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import { z } from 'zod';
 import { AppConfig, configSchema } from './schema';
@@ -59,17 +60,25 @@ function deepMerge<T>(defaults: T, input: Partial<T>): T {
 export class ConfigLoader {
   private readonly configPath: string;
   private readonly schema: any;
+  private readonly appDataRoot?: string;
 
   /**
-   * @param configPath - Chemin vers config.yaml (default: /app/data/config.yaml)
+   * @param configPath - Chemin vers le config.yaml du socle (default: /app/data/core/config.yaml)
    * @param schema - Schéma Zod (default: configSchema)
+   * @param appDataRoot - Répertoire `data/` contenant un sous-dossier par application
+   *   (`{appDataRoot}/{app}/config.yaml`) — si fourni, chaque section d'app est fusionnée dans
+   *   l'objet retourné par `load()` sous sa propre clé, en plus de `ha`/`web`/`logging`. Si
+   *   omis, comportement inchangé (un seul fichier) — utilisé par `config.test.ts`, qui ne
+   *   connaît pas cette notion de sous-dossiers par app.
    */
   constructor(
-    configPath: string = process.env.CONFIG_PATH || '/app/data/config.yaml',
-    schema: any = configSchema
+    configPath: string = process.env.CONFIG_PATH || '/app/data/core/config.yaml',
+    schema: any = configSchema,
+    appDataRoot?: string
   ) {
     this.configPath = configPath;
     this.schema = schema;
+    this.appDataRoot = appDataRoot;
   }
 
   /**
@@ -94,6 +103,10 @@ export class ConfigLoader {
 
     const configWithDefaults = deepMerge(DEFAULT_CONFIG, parsedConfig as Partial<AppConfig>);
 
+    if (this.appDataRoot) {
+      this.mergeAppSections(configWithDefaults as Record<string, unknown>);
+    }
+
     try {
       return this.schema.parse(configWithDefaults);
     } catch (error) {
@@ -104,6 +117,36 @@ export class ConfigLoader {
         throw new Error(`Configuration validation failed: ${errorDetails}`);
       }
       throw new Error(`Configuration validation error: ${error}`);
+    }
+  }
+
+  /**
+   * Fusionne `{appDataRoot}/{app}/config.yaml` (un sous-dossier par application, chacun un objet
+   * nu — pas de clé d'app en tête, le dossier fait déjà cette distinction) dans `target`, sous la
+   * clé `{app}`. Miroir de l'ancien `.passthrough()` sur un seul fichier : une app absente ou sans
+   * fichier n'apparaît simplement pas, pas d'erreur.
+   */
+  private mergeAppSections(target: Record<string, unknown>): void {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(this.appDataRoot!, { withFileTypes: true });
+    } catch {
+      return; // data/ absent ou pas encore créé (première installation) — rien à fusionner
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name === 'core') continue;
+
+      const sectionPath = path.join(this.appDataRoot!, entry.name, 'config.yaml');
+      if (!fs.existsSync(sectionPath)) continue;
+
+      try {
+        const parsed = yaml.load(fs.readFileSync(sectionPath, 'utf-8'));
+        target[entry.name] = parsed;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Invalid YAML in ${sectionPath}: ${message}`);
+      }
     }
   }
 }

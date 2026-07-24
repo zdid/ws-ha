@@ -1,7 +1,7 @@
 # Spécifications d'Implémentation — Application ARBREOUQUOI
 
-**Version :** 1.0  
-**Date :** 20 Juillet 2026  
+**Version :** 1.1  
+**Date :** 24 Juillet 2026  
 **Auteur :** Mistral Vibe  
 **Statut :** En développement  
 **Type :** Application standalone  
@@ -767,51 +767,40 @@ socket.on('arbreouquoi:error', (error) => {
 
 ### 8.1 Structure de Configuration
 
-**Fichier :** `data/config.yaml`
+**Fichier :** `data/arbreouquoi/config.yaml` (objet nu, ex-section `arbreouquoi` de l'ancien
+fichier unique — voir `techniques-socle-ha-mqtt_specs` §7 ; le socle vit désormais dans
+`data/core/config.yaml`, à part)
 
 ```yaml
-# Configuration du socle (existante)
-ha:
-  ws:
-    host: ha2.local
-    port: 8123
-    token: "..."
+enabled: true
 
-mqtt:
-  host: localhost
-  port: 1883
+# Options d'affichage
+display:
+  expandAll: false
+  showEntityIds: true
+  showDeviceInfo: true
+  showQuoiIcons: true
+  theme: auto  # light | dark | auto
+  compactMode: false
 
-# Configuration de ARBREOUQUOI
-arbreouquoi:
-  enabled: true
-  
-  # Options d'affichage
-  display:
-    expandAll: false
-    showEntityIds: true
-    showDeviceInfo: true
-    showQuoiIcons: true
-    theme: auto  # light | dark | auto
-    compactMode: false
-  
-  # Filtres par défaut
-  filters:
-    defaultAreaId: ""  # Optionnel
-    defaultQuoiId: ""  # Optionnel
-    showOnlyActive: true
-  
-  # Options de rafraîchissement
-  refresh:
-    autoRefreshEnabled: true
-    autoRefreshInterval: 30000  # 30 secondes
-    refreshOnHaUpdate: true
-  
-  # Options avancées
-  advanced:
-    maxDepth: 5
-    showUnassigned: true
-    groupByDevice: false
-    enableSearch: true
+# Filtres par défaut
+filters:
+  defaultAreaId: ""  # Optionnel
+  defaultQuoiId: ""  # Optionnel
+  showOnlyActive: true
+
+# Options de rafraîchissement
+refresh:
+  autoRefreshEnabled: true
+  autoRefreshInterval: 30000  # 30 secondes
+  refreshOnHaUpdate: true
+
+# Options avancées
+advanced:
+  maxDepth: 5
+  showUnassigned: true
+  groupByDevice: false
+  enableSearch: true
 ```
 
 ### 8.2 Chargement de la Configuration
@@ -841,7 +830,7 @@ this.configService.savePartialConfig({
 });
 
 // Cela déclenche automatiquement :
-// 1. Sauvegarde dans data/config.yaml
+// 1. Sauvegarde dans data/arbreouquoi/config.yaml
 // 2. Émission de 'app:module:config:saved' sur EventBus
 // 3. Redémarrage automatique du service (si nécessaire)
 ```

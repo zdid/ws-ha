@@ -29,7 +29,7 @@ export class HaRegistryTracer {
     private readonly logger: Logger,
     dataDir?: string
   ) {
-    this.dataDir = dataDir || path.dirname(process.env.CONFIG_PATH || '/app/data/config.yaml');
+    this.dataDir = dataDir || path.dirname(process.env.CONFIG_PATH || '/app/data/core/config.yaml');
     this.snapshotPath = path.join(this.dataDir, 'ha-structure-debug.yaml');
     this.changeLogPath = path.join(this.dataDir, 'ha-structure-changes.yaml');
   }

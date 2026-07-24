@@ -1,8 +1,8 @@
 # Spécifications - Implémentation Alpine.js dans la couche Présentation
 
-**Version :** 1.0
-**Date :** 22 Juillet 2026
-**Conformité :** presentation_specs_v4.0.md, techniques-socle-ha-mqtt_specs_v4.13.md
+**Version :** 1.1
+**Date :** 24 Juillet 2026
+**Conformité :** presentation_specs_v4.0.md, techniques-socle-ha-mqtt_specs_v4.14.md
 **Statut :** Document de référence pour toute utilisation d'Alpine.js dans ce projet
 
 > **📌 v1.0** : Création. Réintroduit Alpine.js dans la couche Présentation, retiré depuis `presentation_specs` v3.0 (16/07/2026). Ce document existe spécifiquement pour éviter de reproduire l'échec qui avait motivé ce retrait — voir §1.
@@ -144,4 +144,5 @@ Le détail fichier par fichier de cette migration est hors périmètre de ce doc
 
 | Version | Date | Auteur | Changements |
 |---|---|---|---|
+| 1.1 | 24/07/2026 | Claude | Correction de référence croisée uniquement : `techniques-socle-ha-mqtt_specs` v4.13→v4.14 (restructuration `data/`, sans impact sur le contenu de ce document). |
 | 1.0 | 22/07/2026 | Claude | Création. Réintroduction d'Alpine.js après retrait en v3.0 de `presentation_specs` — cette fois avec des règles de cycle de vie précises, vérifiées empiriquement via une démonstration interactive dédiée, documentant la cause racine des régressions passées. |

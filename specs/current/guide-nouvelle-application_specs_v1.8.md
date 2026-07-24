@@ -1,12 +1,12 @@
 # Guide Rapide — Création d'une Nouvelle Application
 
-**Version :** 1.7  
-**Date :** 22 Juillet 2026  
+**Version :** 1.8  
+**Date :** 24 Juillet 2026  
 **Statut :** Document pratique pour les développeurs  
 **Public cible :** Développeurs créant une nouvelle application sans modifier le socle  
 
 > **⚠️ IMPORTANT :** Ce guide suppose que vous avez lu et compris :
-> - [techniques-socle-ha-mqtt_specs_v4.13.md](techniques-socle-ha-mqtt_specs_v4.13.md) (architecture 5 couches, EventBus, cycle de vie, nouvelle arborescence applications/, §4.2.1 exports.ts vs ui-exports.ts)
+> - [techniques-socle-ha-mqtt_specs_v4.14.md](techniques-socle-ha-mqtt_specs_v4.14.md) (architecture 5 couches, EventBus, cycle de vie, nouvelle arborescence applications/, §4.2.1 exports.ts vs ui-exports.ts)
 > - **[inter-app-communication_specs_v1.0.md](inter-app-communication_specs_v1.0.md) (NOUVEAU : Communication inter-applications)**
 
 > **NOUVEAU v1.7 :** Alpine.js est réintroduit dans la couche Présentation (voir
@@ -55,10 +55,10 @@
 - Node.js 20+ (LTS)
 - TypeScript 5.x (mode strict)
 - pnpm (recommandé)
-- Comprendre l'[architecture 5 couches](techniques-socle-ha-mqtt_specs_v4.13.md#3-architecture-en-couches)
+- Comprendre l'[architecture 5 couches](techniques-socle-ha-mqtt_specs_v4.14.md#3-architecture-en-couches)
 
 ### 1.2 Connaissances requises
-- EventBus Typé (voir §9 techniques-socle-ha-mqtt_specs_v4.13.md)
+- EventBus Typé (voir §9 techniques-socle-ha-mqtt_specs_v4.14.md)
 - Socket.io (unique canal UI ↔ Serveur)
 - TypeScript pur + Web Components natifs (pour la couche Présentation), avec Alpine.js autorisé en complément selon [alpinejs-implementation_specs_v1.0.md](alpinejs-implementation_specs_v1.0.md)
 - Convention de nommage ([nommage_specs_v1.0.md](nommage_specs_v1.0.md))

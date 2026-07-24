@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles — Application IA
 
-**Version :** 1.3
-**Date :** 23 Juillet 2026
+**Version :** 1.4
+**Date :** 24 Juillet 2026
 **Statut :** Document de référence pour l'application `applications/ia`
 
 > Conforme à `techniques-socle-ha-mqtt_specs` (architecture 5 couches, EventBus),
@@ -240,7 +240,8 @@ de client tout fait) — `ia` et `planificateur` implémentent chacun un petit h
 
 ## 12. Configuration
 
-Section `ia` de `data/config.yaml` : `mistralApiKey`, `mistralBaseUrl` (défaut
+`data/ia/config.yaml` (objet nu, ex-section `ia` de l'ancien fichier unique — voir
+`techniques-socle-ha-mqtt_specs` §7) : `mistralApiKey`, `mistralBaseUrl` (défaut
 `https://api.mistral.ai/v1`), `ollamaHttpPort` (défaut `11434`), `rulesFile` (chemin du fichier de
 règles). Une entrée par fournisseur d'IA généraliste activé (§6) : clé d'API et base URL propres.
 

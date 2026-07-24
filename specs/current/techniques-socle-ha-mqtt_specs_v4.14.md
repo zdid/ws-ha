@@ -1,7 +1,7 @@
 # Spécifications Techniques — Socle Commun Applications HA/MQTT
 
-**Version :** 4.13  
-**Date :** 22 Juillet 2026  
+**Version :** 4.14  
+**Date :** 24 Juillet 2026  
 **Statut :** Document de référence projet — sert de prompt de base pour la génération de chaque application
 
 > **v4.13** : **Correction §6 "Couche Présentation"** — la liste des invariants excluait encore
@@ -190,10 +190,19 @@ projet/
 ├── .env                   # Secrets — non versionné
 ├── .env.example           # Modèle versionné sans valeurs sensibles
 ├── data/
-│   └── config.yaml        # Configuration complète de l'application
+│   ├── core/
+│   │   └── config.yaml    # Section socle (ha/web/logging)
+│   └── {app}/              # Un sous-répertoire par application (evoo7, rfxcom, ...)
+│       ├── config.yaml    # Section de config propre à l'application (objet nu)
+│       └── ...             # Fichiers de données propres à l'application
 └── logs/
     └── app.log            # Logs rotatifs
 ```
+
+Chaque application (y compris le core) a son propre sous-répertoire dans `data/`, regroupant à
+la fois sa configuration et ses fichiers de données — objectif : pouvoir déplacer une application
+d'une machine à une autre en copiant un seul sous-répertoire. Le tout reste sous `data/`, qui est
+le seul répertoire monté en volume Docker externe.
 
 ### 4.2 Structure des Répertoires
 
@@ -702,9 +711,19 @@ class SchedulerService {
 
 ---
 
-## 7. Configuration (`data/config.yaml`)
+## 7. Configuration (`data/core/config.yaml` + `data/{app}/config.yaml`)
 
-### 7.1 Structure complète de référence
+**⭐ v4.14** : La configuration n'est plus un fichier unique. Le socle (`ha`/`web`/`logging`)
+vit dans `data/core/config.yaml`. Chaque application dérivée a son propre `data/{app}/config.yaml`
+— un objet **nu** (pas de clé d'app en tête, le nom du dossier fait déjà cette distinction),
+correspondant exactement à ce que documentaient jusqu'ici les sections métier "ajoutées" au
+fichier unique. Au chargement, `ConfigLoader` fusionne le fichier socle et tous les
+`data/{app}/config.yaml` détectés en un seul objet en mémoire — de forme **identique** à
+l'ancienne : `getConfig()` retourne toujours `{ha, web, logging, evoo7, rfxcom, ...}`. Seuls le
+chargement et l'écriture sur disque changent ; `IAppConfigProvider`/code métier des applications
+ne sont pas affectés (§7.4).
+
+### 7.1 Structure complète de référence (vue fusionnée en mémoire)
 
 ```yaml
 ha:
@@ -744,15 +763,20 @@ logging:
     max_size_mb: 10
     max_files: 5
 
-# Les sections métier spécifiques à chaque application sont ajoutées ici
-# et intégrées au schéma Zod de l'application dérivée
+# Chaque application dérivée a son propre data/{app}/config.yaml (objet nu, fusionné ici
+# en mémoire sous la clé {app} par ConfigLoader), intégré au schéma Zod de l'application
 ```
 
 ### 7.2 Règles
 
-- Lecture **au démarrage uniquement** via `ConfigLoader` — erreur fatale si invalide
+- Lecture **au démarrage uniquement** via `ConfigLoader` — erreur fatale si invalide ; fusionne
+  `data/core/config.yaml` et chaque `data/{app}/config.yaml` détecté par scan de `data/`
 - Écriture **uniquement via `ConfigWriter`** déclenché par Socket.io — jamais depuis le domaine
-- Écriture **atomique** : écriture dans `.config.yaml.tmp` puis renommage en `config.yaml`
+- Écriture **atomique** par fichier : écriture dans `{fichier}.tmp` puis renommage — `saveConfig()`
+  (formulaire "Paramètres Techniques" socle) n'écrit que `data/core/config.yaml` (`ha`/`web`/
+  `logging` extraits de la config fusionnée reçue du client) ; `saveModuleConfig()`/
+  `savePartialConfig()` (config applicative) n'écrivent que `data/{moduleId}/config.yaml` —
+  jamais les deux à la fois, jamais les fichiers des autres applications
 - Le schéma **Zod** dans `schema.ts` est la source de vérité — il documente types, optionnalité et valeurs par défaut
 - Les applications dérivées **étendent** le schéma Zod de base sans le modifier
 - **HA WS et MQTT** : La section `mqtt` a été **déplacée sous `ha`** et est activée via le flag `ha.mqtt_enable`. De même, `ha.ws` est activé via `ha.ws_enable`. Les deux peuvent coexister ou être désactivés indépendamment.
@@ -1641,6 +1665,7 @@ Les applications dérivées ajoutent leurs propres pages dans l'UI sans modifier
 
 | Version | Date | Auteur | Changements |
 |---------|------|--------|-------------|
+| **4.14** | 24/07/2026 | Claude | **Restructuration `data/` en un sous-répertoire par application (§4.1, §7)**, à la demande de l'utilisateur, pour faciliter le déplacement d'une application d'une machine à une autre : le fichier unique `data/config.yaml` devient `data/core/config.yaml` (`ha`/`web`/`logging`) + un `data/{app}/config.yaml` par application (objet nu). `ConfigLoader` fusionne le tout en mémoire au chargement — `getConfig()` et le reste de l'API de `ConfigService` gardent une forme identique, `IAppConfigProvider`/code métier des applications inchangés. Écriture désormais mono-fichier et isolée par application (`saveConfig()` n'écrit que `data/core/config.yaml`, `saveModuleConfig()`/`savePartialConfig()` n'écrivent que le fichier de l'application concernée). |
 | **4.13** | 22/07/2026 | Claude | **Correction §6 "Couche Présentation"** : la liste des invariants excluait encore Alpine.js ("Aucun framework UI tiers... Alpine.js"), affirmation devenue fausse depuis la réintroduction du framework le 22/07/2026 (voir `presentation_specs_v4.0.md` et le nouveau document dédié `alpinejs-implementation_specs_v1.0.md`). Le lien vers `presentation_specs` est mis à jour vers v4.0 ; la note historique v4.7 est conservée mais annotée obsolète. |
 | **4.12** | 22/07/2026 | Claude | **Remplacement du client WebSocket HA maison par `home-assistant-js-websocket`** (lib officielle HA) : supprime `HaWsTransport.ts` et le bug de double authentification par connexion qu'il contenait (auth envoyée à la fois à l'ouverture du socket et en réponse à `auth_required`) — plus de boucle de reconnexion sur jeton invalide, la lib officielle renonce immédiatement sur `auth_invalid`. `HaWsClient` garde la même API publique ; `onMessage` disparaît (pas d'équivalent officiel), `HaCommandService` simplifié pour résoudre directement depuis la Promise de `sendCommand` au lieu d'un ré-appariement par id redondant et bugué. |
 | **4.11** | 21/07/2026 | Claude | **Correction d'un gap fonctionnel réel (§8.5.2, découvert en implémentant les scènes RFXCOM)** : `publishDiscoveryFor` abonne désormais automatiquement le bridge au topic de commande d'une entité `commandEnabled: true` — avant ce correctif, aucun module métier n'appelait jamais `subscribeCommandsFor`, donc aucune commande HA→app n'était réellement reçue pour aucun module utilisant la découverte normale (§8.5.0), en dépit d'un code de réception/routage par ailleurs correct. |

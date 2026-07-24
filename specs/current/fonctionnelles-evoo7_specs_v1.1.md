@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles — Application EVOO7
 
-**Version :** 1.0
-**Date :** 21 Juillet 2026
+**Version :** 1.1
+**Date :** 24 Juillet 2026
 **Statut :** Document de référence pour l'application `applications/evoo7`
 
 > Conforme à `techniques-socle-ha-mqtt_specs` (architecture 5 couches, EventBus, MQTT du socle),
@@ -30,7 +30,7 @@ Le fichier `applications/evoo7/seed/evoo7_donnees.json` liste les 43 données co
 Control, capturées depuis les onglets réels d'EVOO7 le 21/07/2026, puis **enrichies** avec les
 codes numériques des données à liste de valeurs (retrouvés dans les commentaires HTML de la page
 EVOO7 — absents du JSON initialement fourni). Ce fichier sert de **seed** : au premier démarrage,
-si `data/config-evoo7-donnees-v1.0.yaml` n'existe pas encore, il est généré à partir de ce JSON
+si `data/evoo7/config-evoo7-donnees-v1.0.yaml` n'existe pas encore, il est généré à partir de ce JSON
 (voir §4). Le JSON n'est plus relu ensuite — toute évolution ultérieure passe par le YAML.
 
 ## 3. Modèle de donnée
@@ -58,13 +58,14 @@ champs de sélection, de deux natures différentes :
 
 ## 4. Fichier de configuration centralisé
 
-`data/config-evoo7-donnees-v1.0.yaml` (racine du projet, gitignored comme tout `data/`) —
+`data/evoo7/config-evoo7-donnees-v1.0.yaml` (gitignored comme tout `data/`) —
 `ConfigFileManager` (`applications/evoo7/src/domain/yaml/ConfigFileManager.ts`) : chargement,
 validation Zod, sauvegarde atomique (tmp→rename) avec backup `.bak`, **pré-remplissage depuis le
 seed** si absent (contrairement à RFXCOM dont le fichier de devices démarre vide — les 43 données
 EVOO7 sont connues à l'avance).
 
-`data/config.yaml` (section `evoo7`) ne garde que les paramètres généraux : connexion au broker
+`data/evoo7/config.yaml` (objet nu, ex-section `evoo7` de l'ancien fichier unique — voir
+`techniques-socle-ha-mqtt_specs` §7) ne garde que les paramètres généraux : connexion au broker
 EVOO7 (host/port/user/pass/qos, indépendante du broker HA), `bridgeInstance` (défaut
 `evoo7_bridge_0001`), topic + format du message de commande global EVOO7.
 

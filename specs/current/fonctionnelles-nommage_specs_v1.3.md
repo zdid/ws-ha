@@ -1,7 +1,7 @@
 # Spécifications Fonctionnelles - Application NOMMAGE
 
-**Version :** 1.2  
-**Date :** 21 Juillet 2026  
+**Version :** 1.3  
+**Date :** 24 Juillet 2026  
 **Auteur :** Mistral Vibe / Claude  
 **Statut :** Document de référence pour l'application NOMMAGE  
 **Document parent :** [PROMPT_PROJET.md](../PROMPT_PROJET.md)
@@ -300,7 +300,7 @@ elle republie le message source enrichi, avec réécriture du préfixe du topic.
 
 **Méthodes :**
 - Configuration via **UI** (Paramètres Techniques)
-- Configuration via **fichier** (`data/config.yaml`)
+- Configuration via **fichier** (`data/nommage/config.yaml`)
 - **Validation** avec Zod
 - **Rechargement à chaud** (redémarrage automatique)
 
@@ -551,47 +551,47 @@ NOMMAGE ne construit **jamais** elle-même un message de découverte HA complet,
 
 ### 7.1 Configuration de Base
 
-**Fichier :** `data/config.yaml`
+**Fichier :** `data/nommage/config.yaml` (objet nu, ex-section `nommage` de l'ancien fichier
+unique — voir `techniques-socle-ha-mqtt_specs` §7)
 
 ```yaml
-nommage:
-  enabled: true
-  
-  # ⭐ v1.1 — Tableau de sources, toutes connectées et traitées simultanément (voir §3.1)
-  sources:
-    - id: "ha-broker"
-      mqtt:
-        host: "192.168.1.100"     # Broker HA lui-même
-        port: 1883
-        username: "user"
-        password: "password"
-        clientId: "nommage-ha-broker"
-        discoveryTopics:
-          - "ha/+/+/config"
-        topicPrefix: "ha/"
-        qos: 1
-        retain: true
-    
-    - id: "zigbee2mqtt"
-      mqtt:
-        host: "192.168.1.100"     # Même broker que HA...
-        port: 1883
-        username: "user"
-        password: "password"
-        clientId: "nommage-zigbee2mqtt"
-        discoveryTopics:
-          - "homeassist/+/+/config"  # ...mais préfixe différent (volontaire, voir §3.1)
-        topicPrefix: "homeassist/"
-        qos: 1
-        retain: true
-    
-  ha:
-    injectTaxonomyAttributes: true
-    
-  logging:
-    level: "info"
-    showRawMessages: false
-    showParsedMessages: false
+enabled: true
+
+# ⭐ v1.1 — Tableau de sources, toutes connectées et traitées simultanément (voir §3.1)
+sources:
+  - id: "ha-broker"
+    mqtt:
+      host: "192.168.1.100"     # Broker HA lui-même
+      port: 1883
+      username: "user"
+      password: "password"
+      clientId: "nommage-ha-broker"
+      discoveryTopics:
+        - "ha/+/+/config"
+      topicPrefix: "ha/"
+      qos: 1
+      retain: true
+
+  - id: "zigbee2mqtt"
+    mqtt:
+      host: "192.168.1.100"     # Même broker que HA...
+      port: 1883
+      username: "user"
+      password: "password"
+      clientId: "nommage-zigbee2mqtt"
+      discoveryTopics:
+        - "homeassist/+/+/config"  # ...mais préfixe différent (volontaire, voir §3.1)
+      topicPrefix: "homeassist/"
+      qos: 1
+      retain: true
+
+ha:
+  injectTaxonomyAttributes: true
+
+logging:
+  level: "info"
+  showRawMessages: false
+  showParsedMessages: false
 ```
 
 ### 7.2 Configuration via UI
