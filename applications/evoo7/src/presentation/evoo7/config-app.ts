@@ -1,5 +1,9 @@
 /**
- * Script TypeScript pour la page de configuration EVOO7 (Paramétrage & Données).
+ * Script TypeScript pour la page de configuration EVOO7 (Données).
+ *
+ * Le paramétrage (connexion broker, bridge HA, commande globale) vit uniquement dans
+ * "Paramètres Techniques → EVOO7" (formulaire générique du core) — plus de doublon ici, voir
+ * TODO.md "EVOO7 : formulaire générique et page dédiée éditent les mêmes champs".
  */
 
 // SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
@@ -30,19 +34,6 @@ interface Evoo7DataDefinition {
   formatMessageSensor: string;
 }
 
-interface Evoo7Config {
-  bridgeInstance: string;
-  mqtt: {
-    host: string;
-    port: number;
-    username?: string;
-    password?: string;
-    qos: number;
-  };
-  topicCommand: string;
-  formatMessageCommand: string;
-}
-
 // ============================================================================
 // État
 // ============================================================================
@@ -62,7 +53,6 @@ function init(): void {
   setupUiListeners();
 
   socket.emit('evoo7:donnees:list:get');
-  socket.emit('evoo7:config:get');
 
   hideLoading();
 }
@@ -73,31 +63,21 @@ function setupSocketListeners(): void {
     renderDonnees();
   });
 
-  socket.on('evoo7:config:get:response', (config: Evoo7Config) => {
-    fillParametrageForm(config);
-  });
-
-  socket.on('evoo7:config:save:response', () => showAlert('Paramétrage enregistré', 'success'));
   socket.on('evoo7:error', (error: { message: string }) => showAlert(error.message, 'error'));
+
+  // Réponse honnête à set_selection/set_topic — jamais un succès affiché avant confirmation
+  // réelle du serveur (voir TODO.md, même défaut corrigé pour le formulaire générique de config).
+  socket.on('evoo7:donnee:save:response', (response: { id: string; success: boolean; error?: string }) => {
+    if (response.success) showAlert(`Donnée "${response.id}" mise à jour`, 'success');
+    // En cas d'échec, evoo7:error a déjà affiché le message détaillé — pas de double alerte.
+  });
 }
 
 // ============================================================================
-// Onglets
+// Écouteurs UI
 // ============================================================================
 
 function setupUiListeners(): void {
-  document.querySelectorAll('.tab-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tab = (btn as HTMLElement).dataset.tab;
-      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(`tab-${tab}`)?.classList.add('active');
-    });
-  });
-
-  document.getElementById('pa-save')?.addEventListener('click', saveParametrage);
-
   // Délégation d'événements pour les éléments générés dynamiquement (table Données)
   document.addEventListener('change', (event) => {
     const target = event.target as HTMLElement;
@@ -183,52 +163,13 @@ function saveTopic(id: string): void {
   const formatMessageSensor = (row.querySelector('.format-sensor') as HTMLInputElement).value;
 
   socket.emit('evoo7:donnee:set_topic', { id, topicSensor, formatMessageSensor });
-  showAlert(`Topic mis à jour pour ${id}`, 'success');
-}
-
-// ============================================================================
-// Paramétrage
-// ============================================================================
-
-function fillParametrageForm(config: Evoo7Config): void {
-  setValue('pa-host', config.mqtt.host);
-  setValue('pa-port', String(config.mqtt.port));
-  setValue('pa-username', config.mqtt.username || '');
-  setValue('pa-password', config.mqtt.password || '');
-  setValue('pa-qos', String(config.mqtt.qos));
-  setValue('pa-bridgeInstance', config.bridgeInstance);
-  setValue('pa-topicCommand', config.topicCommand);
-  setValue('pa-formatMessageCommand', config.formatMessageCommand);
-}
-
-function saveParametrage(): void {
-  const config: Partial<Evoo7Config> = {
-    bridgeInstance: getValue('pa-bridgeInstance'),
-    mqtt: {
-      host: getValue('pa-host'),
-      port: Number(getValue('pa-port') || 1883),
-      username: getValue('pa-username') || undefined,
-      password: getValue('pa-password') || undefined,
-      qos: Number(getValue('pa-qos') || 0)
-    },
-    topicCommand: getValue('pa-topicCommand'),
-    formatMessageCommand: getValue('pa-formatMessageCommand')
-  };
-
-  socket.emit('evoo7:config:save', config);
+  // Confirmation affichée par le listener evoo7:donnee:save:response (voir setupSocketListeners)
+  // une fois le serveur réellement passé — jamais optimiste.
 }
 
 // ============================================================================
 // Utilitaires
 // ============================================================================
-
-function setValue(id: string, value: string): void {
-  const el = document.getElementById(id) as HTMLInputElement | null;
-  if (el) el.value = value;
-}
-function getValue(id: string): string {
-  return (document.getElementById(id) as HTMLInputElement | null)?.value || '';
-}
 
 function showAlert(message: string, type: 'success' | 'error' | 'info'): void {
   const successEl = document.getElementById('success-alert');

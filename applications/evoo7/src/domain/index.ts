@@ -55,17 +55,48 @@ export const EVOO7_UI_METADATA: ModuleUiMetadata = {
           required: true
         },
         {
+          name: 'mqtt.username',
+          label: 'Utilisateur',
+          type: 'string'
+        },
+        {
+          name: 'mqtt.password',
+          label: 'Mot de passe',
+          type: 'password'
+        },
+        {
+          name: 'mqtt.qos',
+          label: 'QoS',
+          type: 'number',
+          default: 0,
+          min: 0,
+          max: 2
+        },
+        {
           name: 'bridgeInstance',
           label: 'Identifiant du bridge MQTT (côté HA)',
           type: 'string',
           default: 'evoo7_bridge_0001',
           description: 'Identifie cette instance EVOO7 dans les topics MQTT du socle (LWT)'
-        },
+        }
+      ]
+    },
+    {
+      title: 'Commande EVOO7 (topic global, partagé par toutes les données)',
+      description: 'Topic et format du message de commande — $name$/$value$ substitués par l\'application.',
+      icon: '📤',
+      fields: [
         {
           name: 'topicCommand',
-          label: 'Topic Commande EVOO7 (global)',
+          label: 'Topic Commande',
           type: 'string',
           default: 'domitic/command/evoo7'
+        },
+        {
+          name: 'formatMessageCommand',
+          label: 'Format du message Commande',
+          type: 'string',
+          default: '{ "num" : "$name$", "status" : "$value$" }'
         }
       ]
     }
@@ -118,8 +149,8 @@ export const EVOO7_MENU_CONFIG: ApplicationMenuConfig = {
       // distinct par Sidebar.ts (page.path !== entry.path), et de toute façon 404 si atteint
       // (le serveur ne sert aucune route '/evoo7/config').
       id: 'config',
-      label: 'Paramétrage & Données',
-      icon: '⚙️',
+      label: 'Données',
+      icon: '📋',
       path: '/applications/evoo7/presentation/evoo7/config.html',
       order: 2
     }

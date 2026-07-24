@@ -352,9 +352,13 @@ export class Evoo7Service implements IEvoo7Service {
       (data) => {
         const donnee = this.donnees.get(data.id);
         if (!donnee) {
-          this.logger.warn('Evoo7Service', `Donnée inconnue pour set_selection: ${data.id}`);
+          this.emitDonneeError(data.id, `Donnée inconnue: ${data.id}`, 'EVOO7_UNKNOWN_DATA');
           return;
         }
+
+        // État précédent conservé pour rollback si l'écriture disque échoue — jamais laisser le
+        // client croire qu'un changement est appliqué s'il n'a pas été réellement persisté.
+        const previous = { consultation: donnee.consultation, miseAJour: donnee.miseAJour };
 
         // Se désabonner de l'ancien topic si la consultation est désactivée.
         if (donnee.consultation && !data.consultation) {
@@ -372,7 +376,14 @@ export class Evoo7Service implements IEvoo7Service {
           this.evoo7Client.subscribeTopic(topic, this.config.mqtt.qos as 0 | 1 | 2);
         }
 
-        this.persistDonneesConfig();
+        const result = this.persistDonneesConfig();
+        if (!result.success) {
+          donnee.consultation = previous.consultation;
+          donnee.miseAJour = previous.miseAJour;
+          this.emitDonneeError(data.id, `Échec de sauvegarde: ${result.error}`);
+          this.emitDonneesList(); // republie l'état réel (annulé) pour resynchroniser le client
+          return;
+        }
 
         // ⚠️ Limitation connue (même contrat que RFXCOM/transmitToHa) : désélectionner ne retire
         // pas la découverte déjà publiée côté HA (pas de mécanisme de retrait dans le socle) —
@@ -381,6 +392,7 @@ export class Evoo7Service implements IEvoo7Service {
           this.publishDonneeDiscovery(donnee);
         }
 
+        this.eventBus.emitGeneric('evoo7:donnee:save:response', { id: data.id, success: true });
         this.emitDonneesList();
       }
     );
@@ -390,9 +402,11 @@ export class Evoo7Service implements IEvoo7Service {
       (data) => {
         const donnee = this.donnees.get(data.id);
         if (!donnee) {
-          this.logger.warn('Evoo7Service', `Donnée inconnue pour set_topic: ${data.id}`);
+          this.emitDonneeError(data.id, `Donnée inconnue: ${data.id}`, 'EVOO7_UNKNOWN_DATA');
           return;
         }
+
+        const previous = { topicSensor: donnee.topicSensor, formatMessageSensor: donnee.formatMessageSensor };
 
         if (donnee.consultation) {
           this.evoo7Client.unsubscribeTopic(resolveTopic(donnee.topicSensor, donnee.id));
@@ -408,34 +422,41 @@ export class Evoo7Service implements IEvoo7Service {
           this.evoo7Client.subscribeTopic(topic, this.config.mqtt.qos as 0 | 1 | 2);
         }
 
-        this.persistDonneesConfig();
+        const result = this.persistDonneesConfig();
+        if (!result.success) {
+          donnee.topicSensor = previous.topicSensor;
+          donnee.formatMessageSensor = previous.formatMessageSensor;
+          this.emitDonneeError(data.id, `Échec de sauvegarde: ${result.error}`);
+          this.emitDonneesList();
+          return;
+        }
+
+        this.eventBus.emitGeneric('evoo7:donnee:save:response', { id: data.id, success: true });
         this.emitDonneesList();
       }
     );
 
-    this.eventBus.onGeneric('evoo7:config:get', () => {
-      this.eventBus.emitGeneric('evoo7:config:get:response', this.config);
-    });
-
-    this.eventBus.onGeneric<Partial<Evoo7Config>>('evoo7:config:save', async (partial) => {
-      const result = await this.configProvider.savePartialConfig(partial as Evoo7Config);
-      this.config = this.loadConfig();
-      // ⚠️ Limitation connue : la connexion MQTT EVOO7 déjà établie n'est pas reconfigurée à
-      // chaud (même limitation que RFXCOM pour le port série) — un redémarrage du serveur est
-      // nécessaire pour appliquer un changement d'hôte/port/identifiants MQTT EVOO7.
-      this.eventBus.emitGeneric('evoo7:config:save:response', { success: true, config: this.config });
-      void result;
-    });
   }
 
-  /** Sauvegarde l'état courant des 43 données dans config-evoo7-donnees-v1.0.yaml. */
-  private persistDonneesConfig(): void {
+  private emitDonneeError(deviceId: string, message: string, code: 'EVOO7_UNKNOWN_DATA' | 'EVOO7_SAVE_FAILED' = 'EVOO7_SAVE_FAILED'): void {
+    this.eventBus.emitGeneric('evoo7:error', createEvoo7Error(code, message, 'evoo7:donnee', { deviceId }));
+    this.eventBus.emitGeneric('evoo7:donnee:save:response', { id: deviceId, success: false, error: message });
+  }
+
+  /**
+   * Sauvegarde l'état courant des 43 données dans config-evoo7-donnees-v1.0.yaml.
+   * Retourne le résultat réel — les appelants (handlers set_selection/set_topic) doivent l'utiliser
+   * pour confirmer honnêtement au client, jamais supposer un succès (voir TODO.md, même défaut que
+   * le formulaire générique de config module avant correctif).
+   */
+  private persistDonneesConfig(): { success: boolean; error?: string } {
     const result = this.configFileManager.save({
       evoo7_donnees: Object.fromEntries(this.donnees)
     });
     if (!result.success) {
       this.logger.error('Evoo7Service', `Échec de sauvegarde de la configuration EVOO7: ${result.error}`);
     }
+    return result;
   }
 
   static create(

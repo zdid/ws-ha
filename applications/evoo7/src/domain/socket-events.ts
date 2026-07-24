@@ -17,13 +17,12 @@ export const EVOO7_SOCKET_EVENTS = {
   // --- Données ---
   DONNEES_LIST: 'evoo7:donnees:list',
   DONNEE_UPDATED: 'evoo7:donnee:updated',
+  // Réponse honnête (succès ou échec réel) à set_selection/set_topic — jamais un succès supposé
+  // côté client, voir TODO.md "EVOO7 : formulaire générique... confirmation de sauvegarde".
+  DONNEE_SAVE_RESPONSE: 'evoo7:donnee:save:response',
 
   // --- Erreurs ---
-  ERROR: 'evoo7:error',
-
-  // --- Configuration ---
-  CONFIG_GET_RESPONSE: 'evoo7:config:get:response',
-  CONFIG_SAVE_RESPONSE: 'evoo7:config:save:response'
+  ERROR: 'evoo7:error'
 } as const;
 
 // ============================================================================
@@ -37,11 +36,7 @@ export const EVOO7_CLIENT_EVENTS = {
 
   // --- Données ---
   DONNEE_SET_SELECTION: 'evoo7:donnee:set_selection',
-  DONNEE_SET_TOPIC: 'evoo7:donnee:set_topic',
-
-  // --- Configuration ---
-  CONFIG_GET: 'evoo7:config:get',
-  CONFIG_SAVE: 'evoo7:config:save'
+  DONNEE_SET_TOPIC: 'evoo7:donnee:set_topic'
 } as const;
 
 // ============================================================================
