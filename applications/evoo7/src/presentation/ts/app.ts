@@ -2,11 +2,6 @@
  * Script TypeScript pour le tableau de bord EVOO7.
  */
 
-// SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
-// et l'expose via son middleware /js/ts) — pas un chemin de fichier TypeScript, un import
-// d'exécution résolu par le navigateur lui-même. Voir presentation/tsconfig.ui.json.
-import { SocketService } from '/js/ts/services/SocketService.js';
-
 // Ce script est injecté par ModuleContainer.ts (core) après le chargement initial de la page —
 // tout son contenu vit dans un Shadow DOM que le `document` global ne traverse pas ;
 // `$(...)` y renverrait toujours `null`. ModuleContainer.ts expose son
@@ -33,8 +28,9 @@ let socket: any | null = null;
 
 function init(): void {
   try {
-    const socketService = new SocketService();
-    socket = socketService.connect();
+    // Connexion Socket.io unique, réutilisée depuis le core (window.app.socketService) au lieu
+    // d'en ouvrir une seconde — voir arbreouquoi/app.ts pour le détail du pourquoi.
+    socket = window.app.socketService.getSocket();
 
     setupEventListeners();
     requestInitialStatus();
@@ -126,3 +122,7 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+// Force ce fichier à être traité comme un module TS (nécessaire pour `declare global` ci-dessus)
+// — perdu en retirant l'import de SocketService, seul import du fichier jusqu'ici.
+export {};

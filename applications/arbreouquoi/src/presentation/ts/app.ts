@@ -5,10 +5,6 @@
  * Derniere modification: 2026-07-20 11:00:00 - Mise à jour pour les deux modes d'affichage
  */
 
-// SocketService : URL réellement servie par le socle (core la compile déjà en JS navigateur
-// et l'expose via son middleware /js/ts) — pas un chemin de fichier TypeScript, un import
-// d'exécution résolu par le navigateur lui-même. Voir presentation/tsconfig.ui.json.
-import { SocketService } from '/js/ts/services/SocketService.js';
 import { ARBREOUQUOI_SOCKET_EVENTS } from './socket-events';
 import { TreeNode, TreeNodeData } from './tree-node';
 
@@ -106,8 +102,12 @@ let state = {
   }
 };
 
-const socket = new SocketService();
-socket.connect();
+// Connexion Socket.io unique, réutilisée depuis le core (window.app.socketService) au lieu
+// d'en ouvrir une seconde — chaque app qui ouvrait sa propre connexion alimentait un bug de
+// ModuleContainer (rejeu des événements persistants à chaque nouvelle connexion, cf TODO.md).
+// window.app est garanti déjà initialisé : ce script n'est injecté qu'après un clic utilisateur
+// dans la sidebar, bien après l'exécution du script principal du core au chargement de la page.
+const socket = window.app.socketService;
 
 // Rafraîchissement auto côté client uniquement (champ "auto-refresh-seconds" de la barre
 // d'outils) — jamais persisté en config, purement local à cet onglet/cette session. 0 (défaut)
@@ -161,7 +161,7 @@ if (document.readyState === 'loading') {
 }
 
 function initEventListeners(): void {
-  socket.on('connect', () => {
+  const handleConnected = () => {
     state.isConnected = true;
     state.isLoading = true;
     updateConnectionStatus('connected');
@@ -169,7 +169,15 @@ function initEventListeners(): void {
     hideError();
     socket.emit(ARBREOUQUOI_SOCKET_EVENTS.TREE_GET);
     socket.emit(ARBREOUQUOI_SOCKET_EVENTS.CATALOG_GET);
-  });
+  };
+
+  socket.on('connect', handleConnected);
+  // La connexion partagée est déjà établie par le core au moment où ce script s'exécute — un
+  // 'connect' ne se redéclenchera qu'en cas de vraie reconnexion réseau. Il faut donc déclencher
+  // nous-même la demande initiale de données.
+  if (socket.isConnected()) {
+    handleConnected();
+  }
 
   socket.on('disconnect', () => {
     state.isConnected = false;

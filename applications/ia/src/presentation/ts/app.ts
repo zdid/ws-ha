@@ -2,8 +2,6 @@
  * Script TypeScript pour le tableau de bord IA.
  */
 
-import { SocketService } from '/js/ts/services/SocketService.js';
-
 // Voir arexx/presentation/ts/app.ts pour l'explication du Shadow DOM (ModuleContainer.ts).
 function moduleRoot(): ParentNode {
   return (window as any).__moduleContainerRoot || document;
@@ -30,8 +28,9 @@ let socket: any | null = null;
 
 function init(): void {
   try {
-    const socketService = new SocketService();
-    socket = socketService.connect();
+    // Connexion Socket.io unique, réutilisée depuis le core (window.app.socketService) au lieu
+    // d'en ouvrir une seconde — voir arbreouquoi/app.ts pour le détail du pourquoi.
+    socket = window.app.socketService.getSocket();
 
     setupEventListeners();
     requestInitialStatus();
@@ -189,3 +188,7 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+// Force ce fichier à être traité comme un module TS (nécessaire pour `declare global` ci-dessus)
+// — perdu en retirant l'import de SocketService, seul import du fichier jusqu'ici.
+export {};

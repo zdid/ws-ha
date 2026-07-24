@@ -47,7 +47,11 @@ export class ModuleContainer extends HTMLElement {
   private activeModule: string | null = null;
   private moduleContents: Record<string, string> = {};
   private moduleInited: Record<string, boolean> = {};
-  
+  // Chargement en cours par moduleId — verrou empêchant deux appels concurrents à
+  // loadModuleContent() de déclencher chacun leur propre fetch()/innerHTML/executeScripts()
+  // pour le même module (voir loadModuleContent ci-dessous pour le pourquoi).
+  private moduleLoading: Partial<Record<string, Promise<void>>> = {};
+
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -139,24 +143,48 @@ export class ModuleContainer extends HTMLElement {
       console.log('[ModuleContainer] Conteneur introuvable, abandon');
       return;
     }
-    
+
+    // Un chargement est déjà en cours pour ce module — plusieurs sources peuvent redéclencher
+    // 'module:activated'/'modules:loaded' pour la même activation en quelques millisecondes
+    // (Sidebar se réécoute elle-même, rejeu des événements persistants à chaque nouvelle
+    // connexion socket d'une app, cf. TODO.md "ModuleContainer : loadModuleContent s'exécute
+    // plusieurs fois"). Sans ce verrou, chaque appel concurrent lançait son propre
+    // fetch()/innerHTML/executeScripts() — plusieurs instances du script de l'app coexistaient
+    // brièvement, chacune avec son propre état et ses propres écouteurs, dont certains finissaient
+    // attachés à des nœuds DOM déjà remplacés (donc morts). On attend le chargement déjà en vol
+    // au lieu d'en démarrer un second.
+    if (this.moduleLoading[moduleId]) {
+      console.log(`[ModuleContainer] Chargement déjà en cours pour ${moduleId}, attente de celui-ci`);
+      return this.moduleLoading[moduleId];
+    }
+
+    const loadPromise = this.fetchAndRenderModule(moduleId, container);
+    this.moduleLoading[moduleId] = loadPromise;
+    try {
+      await loadPromise;
+    } finally {
+      delete this.moduleLoading[moduleId];
+    }
+  }
+
+  private async fetchAndRenderModule(moduleId: string, container: HTMLElement): Promise<void> {
     try {
       console.log(`[ModuleContainer] Début du chargement du module: ${moduleId}`);
-      
+
       // Afficher le chargement
       container.innerHTML = '<div class="loading-hint">Chargement du module...</div>';
-      
+
       // Récupérer le contenu depuis le serveur
       console.log(`[ModuleContainer] Fetch URL: /applications/${moduleId}/presentation/index.html`);
       const response = await fetch(`/applications/${moduleId}/presentation/index.html`);
-      
+
       console.log(`[ModuleContainer] Réponse reçue pour ${moduleId}: status=${response.status}, statusText=${response.statusText}`);
-      
+
       if (response.ok) {
         const html = await response.text();
         this.moduleContents[moduleId] = html;
         console.log(`[ModuleContainer] Contenu HTML reçu pour ${moduleId}, longueur: ${html.length}`);
-        
+
         container.innerHTML = `<div class="module-content">${html}</div>`;
 
         // innerHTML n'exécute jamais les <script> qu'il insère (comportement standard du DOM,
@@ -171,13 +199,13 @@ export class ModuleContainer extends HTMLElement {
 
         this.moduleInited[moduleId] = true;
         console.log(`[ModuleContainer] Module ${moduleId} marqué comme initialisé`);
-        
+
         // Notifier que le module est chargé
         window.dispatchEvent(new CustomEvent('module:content:loaded', {
           detail: { moduleId }
         }));
         console.log(`[ModuleContainer] Événement module:content:loaded émis pour ${moduleId}`);
-        
+
       } else if (response.status === 404) {
         // Module sans présentation HTML (comme core), ne pas afficher d'erreur
         console.log(`[ModuleContainer] Module ${moduleId} - 404: Aucun contenu HTML trouvé`);
@@ -194,7 +222,7 @@ export class ModuleContainer extends HTMLElement {
       }
     }
   }
-  
+
   /**
    * Recrée chaque <script> trouvé dans le conteneur pour forcer son exécution — un <script>
    * inséré via innerHTML reste inerte, y compris pour type="module" (même règle du DOM).
