@@ -195,22 +195,26 @@
 - **Statut** : Corrigé (2026-07-24)
 - **Priorité** : Était Basse — résolu
 
-### 🟡 Gestion des protocoles RFXCOM
-- **Problème** : La librairie npm rfxcom permet de limiter la réception à certains protocoles. Il faut gérer cela dans l'UI.
-- **À implémenter** :
-  - Récupérer la liste des protocoles supportés depuis `rfxcom.protocols` au démarrage
-  - Afficher une liste de cases à cocher dans les paramètres techniques RFXCOM
-  - Envoyer les modifications au service RFXCOM via événements Socket.io
-  - Appliquer les filtres au transceiver
-- **Événements** : `rfxcom:protocols:list`, `rfxcom:protocol:toggle`, `rfxcom:protocols:update`
-- **Statut** : Non implémenté
-- **Priorité** : Moyenne
+### 🟢 Gestion des protocoles RFXCOM — Corrigé
+- **Problème** : La librairie npm rfxcom permet de limiter la réception à certains protocoles. Il fallait gérer cela dans l'UI.
+- **Décision d'implémentation** : la spec (§8.2) mentionne "récupérés dynamiquement depuis `rfxcom.protocols`", mais son propre exemple d'UI liste des cases à cocher `Lighting1/Lighting2/Lighting4/Lighting5/Lighting6/RfxSensor/RfxMeter` — qui correspond exactement à `RfxComDeviceType` (le typage interne déjà utilisé pour classifier les messages), **pas** au registre bitmap bas niveau de la bibliothèque (`rfxcom.protocols[receiverTypeCode]`, des sous-protocoles comme AC/ARC/X10/HOMEEASY/BLYSS/...). Ce dernier dépend du type de récepteur réellement connecté (déterminé seulement après connexion), n'est vérifiable qu'avec du matériel réel, et son API d'écriture (`saveRFXProtocols`) a un nombre de cycles d'écriture non-volatile limité. Implémenté comme un **filtre logiciel** sur le type de message (`RfxComTransceiver.setEnabledTypes()`, appliqué avant `emitMessage()`), conforme à l'exemple concret de la spec, sans dépendance au matériel.
+- **Implémenté (2026-07-24)** :
+  - `RfxComTransceiver.setEnabledTypes()`/`getEnabledTypes()` — liste vide = tous activés (défaut du schéma).
+  - `RfxComService` : applique `config.enabledProtocols` au démarrage ; nouveaux handlers `rfxcom:protocols:list:get`, `rfxcom:protocol:toggle` (`{protocol, enabled}`), `rfxcom:protocols:update` (`{protocols}`) — persistent et appliquent immédiatement, pas de redémarrage nécessaire.
+  - Nouvel onglet "Protocoles" dans la page dédiée RFXCOM (`config.html`/`config-app.ts`) — cases à cocher pour les 8 types.
+  - **Piège découvert en implémentant** : `IAppConfigProvider.savePartialConfig()` **remplace** toute la section `rfxcom` malgré son nom (`ConfigService.savePartialConfig`: `{...this.config, [section]: partialConfig}`, pas de fusion) — sauvegarder seulement `{enabledProtocols}` aurait effacé `port`/`bridgeInstance`/`baudRate`/`autoDiscovery` à la première bascule. Corrigé en repartant de `this.config` complet avant d'écraser le seul champ modifié.
+  - **Second piège découvert en vérifiant en direct** : après un `savePartialConfig()` réussi, l'UI réaffichait l'ancien état à chaque rechargement de page malgré un fichier correctement écrit — `ConfigService.savePartialConfig()` écrit sur disque mais ne rafraîchit jamais sa propre config en mémoire (contrairement à `AppService.handleModuleConfigSave`, qui appelle `reload()` avant d'émettre `app:module:config:saved`). Corrigé en appelant `configProvider.reload()` avant de relire la config.
+- **Vérifié en direct** : décoché/coché Lighting1 via l'UI — persistance confirmée dans `config.yaml` (`port`/`bridgeInstance`/`baudRate` intacts), rechargement de page reflète correctement l'état après redémarrage serveur, retour à l'état "tout coché" collapse bien vers `enabledProtocols: []`.
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Moyenne — résolu
 
-### 🟡 Envoi devices vers HA au démarrage
-- **À implémenter** : Dès le démarrage de l'application, TOUS les devices avec `transmitToHa: true` doivent être envoyés à HA
-- **Vérifier** : Le service RFXCOM publie-t-il bien les discoveries MQTT au démarrage ?
-- **Statut** : Non implémenté
-- **Priorité** : Moyenne
+### 🟢 Envoi devices vers HA au démarrage — Corrigé (bug de fond trouvé)
+- **Constat (2026-07-24)** : le code SEMBLAIT déjà faire ceci — `RfxComService.start()` appelait `publishInitialDiscoveries()` juste après `transceiver.connect()` — mais c'était le **mauvais déclencheur**, donc peu fiable en pratique.
+- **Cause racine** : `integration:bridge:register` (émis dans `start()`) ne garantit ABSOLUMENT PAS que le bridge MQTT→HA du socle soit déjà connecté au moment où `transceiver.connect()` se résout — `IntegrationBridge.connectBridge()` lance la connexion MQTT de façon asynchrone, sans attendre. Publier la découverte à ce moment précis échouait donc silencieusement à chaque fois que la connexion MQTT→HA n'était pas encore établie (`HaMqttIntegrationService.getBridgeOrWarn()`, simple warning, jamais remonté) — ce qui explique pourquoi "les devices n'apparaissent pas dans HA au démarrage" pouvait être vécu comme un problème malgré un code qui semblait pourtant le faire.
+- **Corrigé (2026-07-24)** : la publication déclenche désormais sur `integration:rfxcom:bridge:connection` (`connected: true`) — même pattern déjà établi et fonctionnel pour EVOO7 (`Evoo7Service.setupSocleEventListeners`). La connexion RF433 elle-même (`transceiver.connect()`) reste indépendante : un transceiver RF433 indisponible n'empêche plus les devices déjà paramétrés d'apparaître dans HA.
+- **Vérifié en direct** : "Dernière découverte" (tableau de bord RFXCOM) s'actualise correctement à chaque démarrage du service, alignée sur la connexion réelle au bridge HA.
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Moyenne — résolu
 
 ### 🟡 EVOO7 : placeholder `$date$` jamais implémenté, `formatMessageSensor` jamais utilisé en lecture
 - **Problème**, trouvé en lisant `evoo7-templates.ts` (2026-07-23) :
@@ -235,22 +239,23 @@
 - **Statut** : Corrigé (2026-07-24)
 - **Priorité** : Était Moyenne — résolu
 
-### 🟢 Désélection d'une donnée EVOO7 ne retire pas sa découverte déjà publiée côté HA — Corrigé (EVOO7 uniquement)
-- **Problème** : Décocher "Consultation"/"Mise à jour" pour une donnée EVOO7 (`evoo7:donnee:set_selection`, `Evoo7Service.ts` ligne ~360-382) — même contrat, même limitation pour `transmitToHa` côté RFXCOM (non traité ici, reste ouvert, voir plus bas) — met bien à jour l'état interne et le persiste sur disque immédiatement, mais ne retirait **pas** la découverte MQTT déjà publiée côté Home Assistant. L'entité restait visible dans HA après désélection ; seule une nouvelle sélection republiait/actualisait. Le socle (`applications/core/src/ha/integration/discovery.ts`) n'avait aucun mécanisme de retrait de découverte MQTT.
+### 🟢 Désélection d'une donnée/device ne retire pas sa découverte déjà publiée côté HA — Corrigé (EVOO7 + RFXCOM)
+- **Problème** : Décocher "Consultation"/"Mise à jour" pour une donnée EVOO7 (`evoo7:donnee:set_selection`) ou `transmitToHa` pour un device/récepteur/scène RFXCOM (`rfxcom:device:set_transmit`, `rfxcom:receiver:update`, `rfxcom:scene:update`, ainsi que la suppression d'un récepteur/scène encore publié) — met bien à jour l'état interne et le persiste sur disque immédiatement, mais ne retirait **pas** la découverte MQTT déjà publiée côté Home Assistant. L'entité restait visible dans HA après désélection ; seule une nouvelle sélection republiait/actualisait. Le socle (`applications/core/src/ha/integration/discovery.ts`) n'avait aucun mécanisme de retrait de découverte MQTT.
 - **Constaté en testant en direct** l'onglet "Données" d'EVOO7 (2026-07-23) — le comportement était documenté en commentaire dans le code (`Evoo7Service.ts`) mais pas encore adressé.
 - **Corrigé (2026-07-24)**, dans le socle (réutilisable tel quel par les autres modules d'intégration) :
   - `discovery.ts` : nouvelle fonction `unpublishDiscovery()` — publie un payload **vide** (pas `{}`, une chaîne réellement vide) en `retain:true` sur le même topic de découverte que `publishDiscovery()` — convention MQTT Discovery standard pour faire supprimer une entité par HA.
   - `HaMqttIntegrationService.removeDiscoveryFor()` + nouvel événement EventBus `integration:{moduleName}:discovery:remove` câblé dans `IntegrationBridge.subscribeModuleEvents()`, symétrique à `integration:{moduleName}:discovery`.
   - `Evoo7Service.ts` : le handler `evoo7:donnee:set_selection` détecte désormais la transition "était publiée avant" (`previous.consultation || previous.miseAJour`) → "ne l'est plus" et émet `integration:evoo7:discovery:remove` (nouvelle méthode `removeDonneeDiscovery()`) au lieu de rester silencieux.
-- **Vérifié en direct** (sans toucher à une donnée réellement utilisée par le système domotique en production — testé sur `pente_loi_deau`, une donnée `config` normalement désélectionnée, remise dans son état d'origine après test) : `mosquitto_sub` sur `homeassistant/+/pente_loi_deau/config` (broker réel `ha2.local`) confirme la publication du message de découverte complet à la sélection, puis un payload vide (`(null)`) au même topic à la désélection.
-- **Statut** : Corrigé (2026-07-24) pour EVOO7 — RFXCOM (`transmitToHa`) a la même limitation mais n'a pas encore été câblé sur ce nouveau mécanisme socle (à faire à son tour).
-- **Priorité** : Était Basse — résolu pour EVOO7
+  - `RfxComService.ts` : même détection de transition pour `rfxcom:device:set_transmit`, `rfxcom:receiver:update`/`delete`, `rfxcom:scene:update`/`delete` (nouvelles méthodes `removeDeviceDiscovery()`/`removeReceiverDiscovery()`/`removeSceneDiscovery()`) — le `component`/`objectId` doit être capturé **avant** la mutation/suppression du récepteur ou de la scène (indisponible une fois retiré de `ReceiverManager`/`SceneManager`), et l'`objectId` d'une scène (`rfxcom_scene_...`) diffère de son `deviceId` d'état (`scene_...`), piège repéré en relisant `publishSceneDiscovery()`.
+- **Vérifié en direct** (sans toucher à une donnée/un device réellement utilisé par un système en production) : `mosquitto_sub` sur le broker réel `ha2.local` confirme la publication du message de découverte complet à la sélection, puis un payload vide (`(null)`) au même topic à la désélection — testé pour EVOO7 (`pente_loi_deau`, remis dans son état d'origine) et pour RFXCOM (device de test créé/retiré via socket direct, jamais persisté sur disque — validation Zod du device a échoué sur un champ `defaultQuoi` vide, artefact du test qui contourne la découverte matérielle normale, sans impact sur le mécanisme de découverte/retrait lui-même).
+- **Statut** : Corrigé (2026-07-24) pour EVOO7 et RFXCOM
+- **Priorité** : Était Basse — résolu
 
-### 🟢 Changement de connexion broker EVOO7 non pris en compte à chaud — Corrigé (EVOO7 uniquement)
-- **Problème** : Sauvegarder un changement d'hôte/port/identifiants MQTT via "Paramètres Techniques → EVOO7" persistait bien la nouvelle config sur disque, mais la connexion MQTT déjà établie n'était pas reconfigurée à chaud — un redémarrage du serveur était nécessaire. Même limitation, même commentaire dans le code, pour le port série RFXCOM (non traité ici, reste ouvert).
-- **Corrigé (2026-07-24)** : le redémarrage automatique du service entier sur sauvegarde de config reste désactivé globalement (`AppService.setupEventListeners`, "comme demandé" — décision antérieure non remise en cause), mais `Evoo7Service` écoute désormais lui-même `app:module:config:saved` (déjà émis par `AppService.handleModuleConfigSave`, simplement jamais consommé pour ce module) : si `moduleId === 'evoo7'` et `success`, recharge sa config et compare `mqtt` (ancien vs nouveau, comparaison structurelle) — si différent, déconnecte puis reconnecte `Evoo7MqttClient` avec la nouvelle config et réabonne les topics sélectionnés (`subscribeSelectedTopics()`), sans redémarrer le reste du service ni perturber `bridgeInstance`/le bridge HA.
-- **Vérifié en direct** : QoS basculé 1→0 puis 0→1 via le formulaire générique — à chaque sauvegarde, `data/config.yaml` mis à jour, tableau de bord EVOO7 resté "Broker EVOO7: Connecté" en continu, "Dernier message reçu" s'actualisant après coup (preuve d'une reconnexion réelle, pas d'un no-op), aucune app relancée (pas de ligne `[tsx] Restarting` dans les logs pour ce changement, contrairement à un changement de fichier source).
-- **Statut** : Corrigé (2026-07-24) pour EVOO7 — RFXCOM (port série) reste ouvert.
+### 🟢 Changement de connexion broker/port série non pris en compte à chaud — Corrigé (EVOO7 + RFXCOM)
+- **Problème** : Sauvegarder un changement d'hôte/port/identifiants MQTT via "Paramètres Techniques → EVOO7", ou de port série via "Paramètres Techniques → RFXCOM", persistait bien la nouvelle config sur disque, mais la connexion déjà établie n'était pas reconfigurée à chaud — un redémarrage du serveur était nécessaire.
+- **Corrigé (2026-07-24)** : le redémarrage automatique du service entier sur sauvegarde de config reste désactivé globalement (`AppService.setupEventListeners`, "comme demandé" — décision antérieure non remise en cause), mais `Evoo7Service`/`RfxComService` écoutent désormais eux-mêmes `app:module:config:saved` (déjà émis par `AppService.handleModuleConfigSave`, simplement jamais consommé pour ces modules) : si le `moduleId` correspond et `success`, rechargent leur config et comparent les champs de connexion (`mqtt` pour EVOO7, `port`/`baudRate` pour RFXCOM) — si différents, déconnectent puis reconnectent (`Evoo7MqttClient`/`RfxComTransceiver`) avec la nouvelle config, sans redémarrer le reste du service ni perturber `bridgeInstance`/le bridge HA.
+- **Vérifié en direct** : EVOO7 (QoS basculé 1→0→1) et RFXCOM (`baudRate` basculé 38400→38401→38400, port série réel non modifié par prudence) — à chaque sauvegarde, `data/config.yaml` mis à jour, connexion restée active en continu, log confirmant une reconnexion réelle (pas un no-op), aucune app relancée (pas de ligne `[tsx] Restarting`, contrairement à un changement de fichier source).
+- **Statut** : Corrigé (2026-07-24) pour EVOO7 et RFXCOM
 - **Priorité** : Basse
 
 ### 🟢 Pages dédiées EVOO7/RFXCOM : aucun lien de retour vers l'application — Corrigé

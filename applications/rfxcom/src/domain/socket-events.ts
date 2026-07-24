@@ -40,13 +40,11 @@ export const RFXCOM_SOCKET_EVENTS = {
   SCENE_UPDATED: 'rfxcom:scene:updated',
   SCENE_DELETED: 'rfxcom:scene:deleted',
 
-  // --- Erreurs ---
-  ERROR: 'rfxcom:error',
+  // --- Protocoles (fonctionnelles-rfxcom_specs §8.2) ---
+  PROTOCOLS_LIST: 'rfxcom:protocols:list',
 
-  // --- Configuration ---
-  CONFIG_GET_RESPONSE: 'rfxcom:config:get:response',
-  CONFIG_SAVE_RESPONSE: 'rfxcom:config:save:response',
-  CONFIG_RESET_RESPONSE: 'rfxcom:config:reset:response'
+  // --- Erreurs ---
+  ERROR: 'rfxcom:error'
 } as const;
 
 // ============================================================================
@@ -81,10 +79,10 @@ export const RFXCOM_CLIENT_EVENTS = {
   SCENE_UPDATE: 'rfxcom:scene:update',
   SCENE_DELETE: 'rfxcom:scene:delete',
 
-  // --- Configuration ---
-  CONFIG_GET: 'rfxcom:config:get',
-  CONFIG_SAVE: 'rfxcom:config:save',
-  CONFIG_RESET: 'rfxcom:config:reset'
+  // --- Protocoles (fonctionnelles-rfxcom_specs §8.2) ---
+  GET_PROTOCOLS: 'rfxcom:protocols:list:get',
+  PROTOCOL_TOGGLE: 'rfxcom:protocol:toggle',
+  PROTOCOLS_UPDATE: 'rfxcom:protocols:update'
 } as const;
 
 // ============================================================================
@@ -108,5 +106,6 @@ export const RFXCOM_PERSISTENT_EVENTS: string[] = [
   RFXCOM_SOCKET_EVENTS.STATUS,
   RFXCOM_SOCKET_EVENTS.DEVICES_LIST,
   RFXCOM_SOCKET_EVENTS.RECEIVERS_LIST,
-  RFXCOM_SOCKET_EVENTS.SCENES_LIST
+  RFXCOM_SOCKET_EVENTS.SCENES_LIST,
+  RFXCOM_SOCKET_EVENTS.PROTOCOLS_LIST
 ];

@@ -45,6 +45,14 @@ export class RfxComTransceiver {
   private connectionCallbacks: ConnectionCallback[] = [];
   // Transmitters mis en cache par "protocole:subtype" pour éviter d'en recréer un par commande
   private transmitters: Map<string, unknown> = new Map();
+  // Filtre logiciel par type de message (fonctionnelles-rfxcom_specs §8.2, "Gestion des
+  // protocoles") — null = tous activés (comportement par défaut, config.enabledProtocols vide).
+  // Filtré ici (avant emitMessage aux callbacks), pas via le registre bitmap bas niveau de la
+  // bibliothèque `rfxcom` (enableRFXProtocols) : ce dernier ne correspond pas à l'exemple d'UI de
+  // la spec, dépend du type de récepteur réellement connecté (jamais vérifiable en environnement
+  // de dev sans matériel), et écrit en mémoire non volatile à chaque appel si on utilisait
+  // saveRFXProtocols (nombre de cycles d'écriture limité).
+  private enabledTypes: Set<RfxComDeviceType> | null = null;
 
   constructor(private readonly logger: Logger) {}
 
@@ -120,6 +128,15 @@ export class RfxComTransceiver {
 
   onConnectionChange(callback: ConnectionCallback): void {
     this.connectionCallbacks.push(callback);
+  }
+
+  /** Restreint les messages relayés aux callbacks à ces types — tableau vide = tous activés. */
+  setEnabledTypes(types: RfxComDeviceType[]): void {
+    this.enabledTypes = types.length > 0 ? new Set(types) : null;
+  }
+
+  getEnabledTypes(): RfxComDeviceType[] | null {
+    return this.enabledTypes ? Array.from(this.enabledTypes) : null;
   }
 
   // ==========================================================================
@@ -242,6 +259,7 @@ export class RfxComTransceiver {
   }
 
   private emitMessage(message: RfxComRawMessage): void {
+    if (this.enabledTypes && !this.enabledTypes.has(message.type)) return;
     for (const callback of this.messageCallbacks) {
       try {
         callback(message);

@@ -92,6 +92,8 @@ let receivers: ReceiverConfig[] = [];
 let editingReceiverId: string | null = null;
 let scenes: ReceiverSceneConfig[] = [];
 let editingSceneId: string | null = null;
+let availableProtocols: string[] = [];
+let enabledProtocols: string[] = [];
 
 // ============================================================================
 // Initialisation
@@ -107,6 +109,7 @@ function init(): void {
   socket.emit('rfxcom:devices:list:get');
   socket.emit('rfxcom:receivers:list:get');
   socket.emit('rfxcom:scenes:list:get');
+  socket.emit('rfxcom:protocols:list:get');
 
   hideLoading();
 }
@@ -155,6 +158,12 @@ function setupSocketListeners(): void {
         : `Scène ${result.sceneId}: ${result.failedCommands} commande(s) en échec sur ${result.executedCommands + result.failedCommands}`,
       result.success ? 'success' : 'error'
     );
+  });
+
+  socket.on('rfxcom:protocols:list', (data: { available: string[]; enabled: string[] }) => {
+    availableProtocols = data.available;
+    enabledProtocols = data.enabled;
+    renderProtocols();
   });
 }
 
@@ -223,6 +232,7 @@ function setupUiListeners(): void {
       target.closest('.emitter-row')?.remove();
       return;
     }
+    if (action === 'toggle-protocol' && id) return toggleProtocol(id);
   });
 }
 
@@ -575,6 +585,28 @@ function saveScene(): void {
 function deleteScene(sceneId: string): void {
   if (!confirm(`Supprimer la scène ${sceneId} ?`)) return;
   socket.emit('rfxcom:scene:delete', { sceneId });
+}
+
+// ============================================================================
+// Protocoles
+// ============================================================================
+
+function renderProtocols(): void {
+  const container = document.getElementById('protocols-list');
+  if (!container) return;
+
+  container.innerHTML = availableProtocols.map((p) => `
+    <div class="checkbox-group" style="margin-bottom:10px;">
+      <input type="checkbox" id="proto-${escapeHtml(p)}" data-action="toggle-protocol" data-id="${escapeHtml(p)}" ${enabledProtocols.includes(p) ? 'checked' : ''}>
+      <label for="proto-${escapeHtml(p)}" style="margin:0;cursor:pointer;">${escapeHtml(p)}</label>
+    </div>
+  `).join('') || '<p>Aucun protocole disponible</p>';
+}
+
+function toggleProtocol(protocol: string): void {
+  const checkbox = document.getElementById(`proto-${protocol}`) as HTMLInputElement | null;
+  const enabled = checkbox?.checked ?? false;
+  socket.emit('rfxcom:protocol:toggle', { protocol, enabled });
 }
 
 function executeScene(sceneId: string): void {

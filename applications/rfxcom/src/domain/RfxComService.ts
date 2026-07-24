@@ -14,7 +14,8 @@ import type { IEventBus, Logger, IAppConfigProvider, EssentialEntityData } from 
 import { createRfxComError, getCommandTopic } from '../../../core/src/exports';
 import { rfxcomConfigSchema, type RfxComConfig } from './config-schema';
 import type { RfxComDevicesConfigFile, ReceiverConfigEntry } from './devices-config-schema';
-import type { RfxComRawMessage, RfxComStatus, RfxComDeviceInfo, ReceiverConfig, ReceiverSceneConfig, SceneExecutionResult } from './types';
+import { ALL_RFXCOM_DEVICE_TYPES } from './types';
+import type { RfxComRawMessage, RfxComStatus, RfxComDeviceInfo, RfxComDeviceType, ReceiverConfig, ReceiverSceneConfig, SceneExecutionResult } from './types';
 import { DeviceManager } from './devices/DeviceManager';
 import { ReceiverManager } from './receivers/ReceiverManager';
 import { SceneManager } from './scenes/SceneManager';
@@ -88,6 +89,7 @@ export class RfxComService implements IRfxComService {
     this.deviceManager.loadConfigured(this.devicesConfig.rfxcom_devices);
     this.receiverManager.loadReceivers(this.devicesConfig.rfxcom_receivers);
     this.sceneManager.loadScenes(this.devicesConfig.rfxcom_receivers);
+    this.transceiver.setEnabledTypes(this.config.enabledProtocols as RfxComDeviceType[]);
 
     this.setupSocleEventListeners();
     this.setupSocketEventListeners();
@@ -107,9 +109,10 @@ export class RfxComService implements IRfxComService {
 
     try {
       await this.transceiver.connect({ port: this.config.port, baudRate: this.config.baudRate });
-      this.publishInitialDiscoveries();
     } catch (error) {
       // Conforme implementation-rfxcom_specs §11.1 : échec de connexion = WARNING, pas de crash.
+      // La découverte HA n'en dépend plus (voir setupSocleEventListeners) — un transceiver RF433
+      // indisponible n'empêche donc plus les devices déjà paramétrés d'apparaître dans HA.
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn('RfxComService', `Transceiver RFXCOM indisponible au démarrage: ${message}`);
       this.eventBus.emitGeneric('rfxcom:error',
@@ -120,6 +123,7 @@ export class RfxComService implements IRfxComService {
     this.emitDevicesList();
     this.emitReceiversList();
     this.emitScenesList();
+    this.emitProtocolsList();
 
     this.logger.info('RfxComService', 'Service RFXCOM démarré');
   }
@@ -147,8 +151,57 @@ export class RfxComService implements IRfxComService {
 
     this.eventBus.onGeneric<{ bridgeInstance: string; connected: boolean }>(
       `integration:${MODULE_NAME}:bridge:connection`,
-      () => this.emitStatus()
+      (event) => {
+        // Publie (ou republie, ex: après une reconnexion) la découverte dès que le bridge socle
+        // est effectivement connecté au broker HA — jamais avant (même pattern qu'EVOO7,
+        // Evoo7Service.setupSocleEventListeners). Corrigé (2026-07-24) : c'était auparavant
+        // déclenché directement après la connexion RF433 (transceiver.connect(), dans start()),
+        // qui ne garantit ABSOLUMENT PAS que le bridge MQTT→HA soit déjà prêt à ce moment-là
+        // (enregistrement du bridge non bloquant, connexion MQTT établie de façon asynchrone en
+        // arrière-plan) — la publication échouait donc silencieusement dans ce cas
+        // (HaMqttIntegrationService.getBridgeOrWarn), expliquant pourquoi "envoi des devices vers
+        // HA au démarrage" n'était pas fiable malgré un code qui semblait pourtant le faire.
+        if (event.connected) {
+          this.publishInitialDiscoveries();
+        }
+        this.emitStatus();
+      }
     );
+
+    // Reconnecte le transceiver (port série) à chaud si sa config a réellement changé — même
+    // pattern qu'EVOO7 pour son broker MQTT (Evoo7Service.reconnectMqttIfConfigChanged). Le
+    // redémarrage automatique du service entier sur sauvegarde de config reste désactivé
+    // globalement (AppService.setupEventListeners).
+    this.eventBus.onGeneric<{ moduleId: string; success: boolean }>(
+      'app:module:config:saved',
+      (event) => {
+        if (event.moduleId !== MODULE_NAME || !event.success) return;
+        void this.reconnectTransceiverIfConfigChanged();
+      }
+    );
+  }
+
+  /** Recharge la config et reconnecte le transceiver si `port`/`baudRate` ont changé. */
+  private async reconnectTransceiverIfConfigChanged(): Promise<void> {
+    const previous = { port: this.config.port, baudRate: this.config.baudRate };
+    this.config = this.loadConfig();
+
+    if (previous.port === this.config.port && previous.baudRate === this.config.baudRate) {
+      return;
+    }
+
+    this.logger.info('RfxComService', 'Configuration du port série modifiée — reconnexion à chaud...');
+    this.transceiver.disconnect();
+    try {
+      await this.transceiver.connect({ port: this.config.port, baudRate: this.config.baudRate });
+      this.logger.info('RfxComService', 'Reconnexion au transceiver RFXCOM réussie après changement de configuration');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn('RfxComService', `Échec de reconnexion au transceiver RFXCOM après changement de configuration: ${message}`);
+      this.eventBus.emitGeneric('rfxcom:error',
+        createRfxComError('RFXCOM_CONNECTION_ERROR', message, 'rfxcom:transceiver', { port: this.config.port }));
+    }
+    this.emitStatus();
   }
 
   // ==========================================================================
@@ -271,6 +324,19 @@ export class RfxComService implements IRfxComService {
     }
   }
 
+  /**
+   * Retire une découverte de device déjà publiée côté HA — désélection (rfxcom:device:set_transmit
+   * passant de true à false). Même mécanisme socle qu'EVOO7 (discovery.ts::unpublishDiscovery).
+   */
+  private removeDeviceDiscovery(device: RfxComDeviceInfo): void {
+    const { component } = getDefaultComponent(device.type, device.subType);
+    this.eventBus.emitGeneric(`integration:${MODULE_NAME}:discovery:remove`, {
+      bridgeInstance: this.config.bridgeInstance,
+      component,
+      objectId: device.uniqueId
+    });
+  }
+
   // ==========================================================================
   // Discovery / State — récepteurs logiques
   // ==========================================================================
@@ -295,6 +361,19 @@ export class RfxComService implements IRfxComService {
       bridgeInstance: this.config.bridgeInstance,
       deviceId: receiver.config.receiverId,
       state: receiver.getState()
+    });
+  }
+
+  /**
+   * Retire une découverte de récepteur déjà publiée côté HA — désélection ou suppression.
+   * `component` doit venir de `getDiscoveryEssential()` capturé AVANT la mutation/suppression du
+   * récepteur (le composant dépend de son type, indisponible une fois retiré de ReceiverManager).
+   */
+  private removeReceiverDiscovery(receiverId: string, component: string): void {
+    this.eventBus.emitGeneric(`integration:${MODULE_NAME}:discovery:remove`, {
+      bridgeInstance: this.config.bridgeInstance,
+      component,
+      objectId: receiverId
     });
   }
 
@@ -356,6 +435,19 @@ export class RfxComService implements IRfxComService {
           duration_ms: result.duration
         }
       }
+    });
+  }
+
+  /**
+   * Retire une découverte de scène déjà publiée côté HA — désélection ou suppression. objectId
+   * doit matcher exactement celui utilisé par publishSceneDiscovery (`rfxcom_scene_...`, distinct
+   * du deviceId `scene_...` utilisé pour les topics d'état).
+   */
+  private removeSceneDiscovery(sceneId: string): void {
+    this.eventBus.emitGeneric(`integration:${MODULE_NAME}:discovery:remove`, {
+      bridgeInstance: this.config.bridgeInstance,
+      component: 'device_automation',
+      objectId: `rfxcom_scene_${sceneId}`
     });
   }
 
@@ -504,6 +596,47 @@ export class RfxComService implements IRfxComService {
     this.eventBus.emitGeneric('rfxcom:scenes:list', { scenes: this.sceneManager.getAllScenes() });
   }
 
+  /** Liste vide en config = tous activés (rfxcomConfigSchema) — reflété tel quel côté UI. */
+  private emitProtocolsList(): void {
+    const enabled = this.config.enabledProtocols.length > 0 ? this.config.enabledProtocols : ALL_RFXCOM_DEVICE_TYPES;
+    this.eventBus.emitGeneric('rfxcom:protocols:list', {
+      available: ALL_RFXCOM_DEVICE_TYPES,
+      enabled
+    });
+  }
+
+  /**
+   * Persiste la nouvelle liste de protocoles activés et l'applique immédiatement au filtre
+   * logiciel du transceiver (RfxComTransceiver.setEnabledTypes) — pas de redémarrage nécessaire.
+   */
+  private updateEnabledProtocols(protocols: string[]): void {
+    // Tous cochés = équivalent à la liste vide (comportement par défaut du schéma) — normalise
+    // pour ne pas se retrouver figé sur une liste explicite si un type est ajouté au code plus tard.
+    const normalized = protocols.length >= ALL_RFXCOM_DEVICE_TYPES.length ? [] : protocols;
+    // ⚠️ IAppConfigProvider.savePartialConfig() REMPLACE toute la section 'rfxcom' malgré son nom
+    // (ConfigService.savePartialConfig: `{...this.config, [section]: partialConfig}` — pas de
+    // fusion interne) — il faut donc repartir de this.config au complet, sous peine d'effacer
+    // port/bridgeInstance/baudRate/autoDiscovery à la première bascule de protocole.
+    const result = this.configProvider.savePartialConfig({ ...this.config, enabledProtocols: normalized });
+    if (!result.success) {
+      this.logger.error('RfxComService', `Échec de sauvegarde des protocoles activés: ${result.error}`);
+      this.eventBus.emitGeneric('rfxcom:error',
+        createRfxComError('RFXCOM_COMMAND_FAILED', result.error ?? 'Erreur inconnue', 'rfxcom:protocols'));
+      this.emitProtocolsList(); // republie l'état réel (inchangé) pour resynchroniser le client
+      return;
+    }
+    // ⚠️ ConfigService.savePartialConfig() écrit sur disque mais ne rafraîchit jamais sa propre
+    // config en mémoire (contrairement à AppService.handleModuleConfigSave, qui appelle reload()
+    // avant d'émettre app:module:config:saved) — sans ce reload() explicite, loadConfig()
+    // ci-dessous relit l'ancienne valeur en mémoire malgré une écriture disque réussie. Constaté
+    // en direct : le fichier était correctement mis à jour, mais un rechargement de page
+    // réaffichait l'ancien état tant que le serveur n'avait pas redémarré.
+    this.configProvider.reload();
+    this.config = this.loadConfig();
+    this.transceiver.setEnabledTypes(this.config.enabledProtocols as RfxComDeviceType[]);
+    this.emitProtocolsList();
+  }
+
   // ==========================================================================
   // Socket.io (via SocketBridge, EventBus générique)
   // ==========================================================================
@@ -530,13 +663,20 @@ export class RfxComService implements IRfxComService {
     });
 
     this.eventBus.onGeneric<{ uniqueId: string; transmitToHa: boolean }>('rfxcom:device:set_transmit', (data) => {
+      const previousTransmit = this.deviceManager.getDevice(data.uniqueId)?.transmitToHa;
       const device = this.deviceManager.setTransmitToHa(data.uniqueId, data.transmitToHa);
       if (!device) {
         this.logger.warn('RfxComService', `Device inconnu pour set_transmit: ${data.uniqueId}`);
         return;
       }
       this.persistDevicesConfig();
-      if (device.transmitToHa) this.publishDeviceDiscovery(device);
+      if (device.transmitToHa) {
+        this.publishDeviceDiscovery(device);
+      } else if (previousTransmit) {
+        // ⚠️ Désélection : retire la découverte déjà publiée côté HA — sans ça l'entité restait
+        // visible dans HA indéfiniment (même correctif que EVOO7, voir TODO.md).
+        this.removeDeviceDiscovery(device);
+      }
       this.emitDevicesList();
     });
 
@@ -558,16 +698,28 @@ export class RfxComService implements IRfxComService {
         this.logger.warn('RfxComService', `Récepteur inconnu pour mise à jour: ${data.receiverId}`);
         return;
       }
+      // Capturés AVANT la mutation : previousTransmit reflète l'état publié à ce jour côté HA,
+      // previousComponent dépend du type du récepteur, indisponible une fois retiré ci-dessous.
+      const previousTransmit = existing.config.transmitToHa;
+      const previousComponent = existing.getDiscoveryEssential().component;
       const updated = { ...existing.config, ...data.config } as ReceiverConfig;
       this.receiverManager.removeReceiver(data.receiverId);
       this.receiverManager.addReceiver(updated);
       this.persistDevicesConfig();
-      if (updated.transmitToHa) this.publishReceiverDiscovery(updated.receiverId);
+      if (updated.transmitToHa) {
+        this.publishReceiverDiscovery(updated.receiverId);
+      } else if (previousTransmit) {
+        this.removeReceiverDiscovery(data.receiverId, previousComponent);
+      }
       this.emitReceiversList();
       this.eventBus.emitGeneric('rfxcom:receiver:updated', { receiver: updated });
     });
 
     this.eventBus.onGeneric<{ receiverId: string }>('rfxcom:receiver:delete', (data) => {
+      const existing = this.receiverManager.getReceiver(data.receiverId);
+      if (existing?.config.transmitToHa) {
+        this.removeReceiverDiscovery(data.receiverId, existing.getDiscoveryEssential().component);
+      }
       this.receiverManager.removeReceiver(data.receiverId);
       this.persistDevicesConfig();
       this.emitReceiversList();
@@ -588,15 +740,24 @@ export class RfxComService implements IRfxComService {
         this.logger.warn('RfxComService', `Scène inconnue pour mise à jour: ${data.sceneId}`);
         return;
       }
+      const wasPublished = existing.transmitToHa;
       const updated = { ...existing, ...data.config } as ReceiverSceneConfig;
       this.sceneManager.addScene(updated);
       this.persistDevicesConfig();
-      if (updated.transmitToHa) this.publishSceneDiscovery(updated);
+      if (updated.transmitToHa) {
+        this.publishSceneDiscovery(updated);
+      } else if (wasPublished) {
+        this.removeSceneDiscovery(data.sceneId);
+      }
       this.emitScenesList();
       this.eventBus.emitGeneric('rfxcom:scene:updated', { scene: updated });
     });
 
     this.eventBus.onGeneric<{ sceneId: string }>('rfxcom:scene:delete', (data) => {
+      const existing = this.sceneManager.getScene(data.sceneId);
+      if (existing?.transmitToHa) {
+        this.removeSceneDiscovery(data.sceneId);
+      }
       this.sceneManager.removeScene(data.sceneId);
       this.persistDevicesConfig();
       this.emitScenesList();
@@ -611,15 +772,17 @@ export class RfxComService implements IRfxComService {
       this.cancelledScenes.add(data.sceneId);
     });
 
-    this.eventBus.onGeneric('rfxcom:config:get', () => {
-      this.eventBus.emitGeneric('rfxcom:config:get:response', this.config);
+    this.eventBus.onGeneric('rfxcom:protocols:list:get', () => this.emitProtocolsList());
+
+    this.eventBus.onGeneric<{ protocol: string; enabled: boolean }>('rfxcom:protocol:toggle', (data) => {
+      const current = new Set(this.config.enabledProtocols.length > 0 ? this.config.enabledProtocols : ALL_RFXCOM_DEVICE_TYPES);
+      if (data.enabled) current.add(data.protocol);
+      else current.delete(data.protocol);
+      this.updateEnabledProtocols(Array.from(current));
     });
 
-    this.eventBus.onGeneric<Partial<RfxComConfig>>('rfxcom:config:save', async (partial) => {
-      const result = await this.configProvider.savePartialConfig(partial as RfxComConfig);
-      this.config = this.loadConfig();
-      this.eventBus.emitGeneric('rfxcom:config:save:response', { success: true, config: this.config });
-      void result;
+    this.eventBus.onGeneric<{ protocols: string[] }>('rfxcom:protocols:update', (data) => {
+      this.updateEnabledProtocols(data.protocols);
     });
   }
 

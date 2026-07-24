@@ -84,6 +84,7 @@
       <button class="tab-btn active" data-tab="devices">📋 Devices</button>
       <button class="tab-btn" data-tab="receivers">🔌 Récepteurs</button>
       <button class="tab-btn" data-tab="scenes">🎬 Scènes</button>
+      <button class="tab-btn" data-tab="protocols">📶 Protocoles</button>
     </div>
 
     <!-- Onglet Devices -->
@@ -132,6 +133,18 @@
           <button class="btn btn-primary" id="btn-add-scene">+ Ajouter une scène</button>
         </div>
         <div id="scenes-list"></div>
+      </div>
+    </div>
+
+    <!-- Onglet Protocoles -->
+    <div class="tab-panel" id="tab-protocols">
+      <div class="card">
+        <h3>Protocoles RF433 traités</h3>
+        <p style="color:var(--color-text-muted);font-size:0.9em;">
+          Décocher un protocole ignore désormais tous les messages de ce type reçus par le transceiver
+          (filtre logiciel, appliqué immédiatement — pas de redémarrage nécessaire). Tout coché = comportement par défaut.
+        </p>
+        <div id="protocols-list"></div>
       </div>
     </div>
 
@@ -274,6 +287,6 @@
   <script defer src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script type="module" src="/applications/rfxcom/presentation/rfxcom/config-app.js"></script>
 
-  <!-- Derniere modification: 2026-07-21 21:00:00 - Ajout de l'onglet Scènes -->
+  <!-- Derniere modification: 2026-07-24 - Ajout de l'onglet Protocoles (gestion des protocoles RF433 traités) -->
 </body>
 </html>
