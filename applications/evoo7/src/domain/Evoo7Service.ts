@@ -163,6 +163,46 @@ export class Evoo7Service implements IEvoo7Service {
         this.emitStatus();
       }
     );
+
+    // Le redémarrage automatique du service entier sur sauvegarde de config a été désactivé
+    // globalement (AppService.setupEventListeners) — mais sans lui, un changement d'hôte/port/
+    // identifiants MQTT via "Paramètres Techniques → EVOO7" restait sans effet tant que le
+    // serveur n'était pas redémarré manuellement. Correctif ciblé, propre à ce module : ne
+    // reconnecte QUE le client MQTT EVOO7 (pas tout le service) quand `mqtt` a réellement changé.
+    this.eventBus.onGeneric<{ moduleId: string; success: boolean }>(
+      'app:module:config:saved',
+      (event) => {
+        if (event.moduleId !== MODULE_NAME || !event.success) return;
+        this.reconnectMqttIfConfigChanged();
+      }
+    );
+  }
+
+  /**
+   * Recharge la config et reconnecte le client MQTT EVOO7 si `mqtt` a changé — comparaison
+   * structurelle simple (objet de valeurs primitives uniquement, `evoo7MqttConfigSchema`).
+   */
+  private async reconnectMqttIfConfigChanged(): Promise<void> {
+    const previousMqtt = this.config.mqtt;
+    this.config = this.loadConfig();
+
+    if (JSON.stringify(previousMqtt) === JSON.stringify(this.config.mqtt)) {
+      return;
+    }
+
+    this.logger.info('Evoo7Service', 'Configuration MQTT EVOO7 modifiée — reconnexion à chaud...');
+    try {
+      await this.evoo7Client.disconnect();
+      await this.evoo7Client.connect(this.config.mqtt);
+      this.subscribeSelectedTopics();
+      this.logger.info('Evoo7Service', 'Reconnexion au broker EVOO7 réussie après changement de configuration');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn('Evoo7Service', `Échec de reconnexion au broker EVOO7 après changement de configuration: ${message}`);
+      this.eventBus.emitGeneric('evoo7:error',
+        createEvoo7Error('EVOO7_CONNECTION_ERROR', message, 'evoo7:mqtt', { host: this.config.mqtt.host }));
+    }
+    this.emitStatus();
   }
 
   // ==========================================================================
@@ -258,6 +298,20 @@ export class Evoo7Service implements IEvoo7Service {
       objectId: donnee.id,
       deviceId: donnee.id,
       essential
+    });
+  }
+
+  /**
+   * Retire la découverte HA d'une donnée qui vient de passer de sélectionnée (consultation ou
+   * miseAJour) à totalement désélectionnée — sans ça l'entité restait visible dans HA
+   * indéfiniment (voir TODO.md, correctif socle discovery.ts::unpublishDiscovery).
+   */
+  private removeDonneeDiscovery(donnee: Evoo7DataDefinition): void {
+    const component = determineComponent(donnee);
+    this.eventBus.emitGeneric(`integration:${MODULE_NAME}:discovery:remove`, {
+      bridgeInstance: this.config.bridgeInstance,
+      component,
+      objectId: donnee.id
     });
   }
 
@@ -385,11 +439,12 @@ export class Evoo7Service implements IEvoo7Service {
           return;
         }
 
-        // ⚠️ Limitation connue (même contrat que RFXCOM/transmitToHa) : désélectionner ne retire
-        // pas la découverte déjà publiée côté HA (pas de mécanisme de retrait dans le socle) —
-        // seule une nouvelle sélection republie/actualise.
-        if (donnee.consultation || donnee.miseAJour) {
+        const wasPublished = previous.consultation || previous.miseAJour;
+        const isPublished = donnee.consultation || donnee.miseAJour;
+        if (isPublished) {
           this.publishDonneeDiscovery(donnee);
+        } else if (wasPublished) {
+          this.removeDonneeDiscovery(donnee);
         }
 
         this.eventBus.emitGeneric('evoo7:donnee:save:response', { id: data.id, success: true });

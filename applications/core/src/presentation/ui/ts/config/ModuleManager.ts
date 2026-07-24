@@ -337,7 +337,7 @@ export class ModuleManager {
           <input
             type="text"
             id="${id}"
-            value="${value || ''}"
+            value="${this.escapeHtmlAttr(String(value ?? ''))}"
             data-module="${moduleId}"
             data-field="${fieldName}"
             placeholder="${field.placeholder || ''}"
@@ -396,10 +396,10 @@ export class ModuleManager {
         
       case 'password':
         html += `
-          <input 
-            type="password" 
+          <input
+            type="password"
             id="${id}"
-            value="${value || ''}"
+            value="${this.escapeHtmlAttr(String(value ?? ''))}"
             data-module="${moduleId}"
             data-field="${fieldName}"
             autocomplete="off"

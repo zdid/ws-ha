@@ -32,6 +32,12 @@ export interface DiscoveryRequestEvent {
   essential: EssentialEntityData;
 }
 
+export interface DiscoveryRemoveRequestEvent {
+  bridgeInstance: string;
+  component: string;
+  objectId: string;
+}
+
 export interface StateRequestEvent {
   bridgeInstance: string;
   deviceId: string;
@@ -134,6 +140,11 @@ export class IntegrationBridge {
     this.eventBus.onGeneric<DiscoveryRequestEvent>(`integration:${moduleName}:discovery`, (data) => {
       if (!this.mqttEnabled) return;
       this.haMqttService.publishDiscoveryFor(moduleName, data.bridgeInstance, data.component, data.objectId, data.deviceId, data.essential);
+    });
+
+    this.eventBus.onGeneric<DiscoveryRemoveRequestEvent>(`integration:${moduleName}:discovery:remove`, (data) => {
+      if (!this.mqttEnabled) return;
+      this.haMqttService.removeDiscoveryFor(moduleName, data.bridgeInstance, data.component, data.objectId);
     });
 
     this.eventBus.onGeneric<StateRequestEvent>(`integration:${moduleName}:state`, (data) => {

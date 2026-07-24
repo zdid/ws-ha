@@ -102,3 +102,18 @@ export function publishDiscovery(
 ): void {
   transport.publish(getDiscoveryTopic(component, objectId), JSON.stringify(entity), qos, retain);
 }
+
+/**
+ * Retire une entité déjà découverte côté HA — convention MQTT Discovery standard : un payload
+ * vide (pas `{}`, une chaîne réellement vide) publié en retain sur le même topic de découverte
+ * fait supprimer l'entité par HA. Utilisé quand un module désélectionne une donnée/un device
+ * qui avait déjà été publié (sans ça, l'entité restait visible dans HA indéfiniment).
+ */
+export function unpublishDiscovery(
+  transport: MqttTransport,
+  component: string,
+  objectId: string,
+  qos: 0 | 1 = 1
+): void {
+  transport.publish(getDiscoveryTopic(component, objectId), '', qos, true);
+}

@@ -11,7 +11,7 @@ import { Logger } from '../../infrastructure/logger/index';
 import { createMqttError } from '../../types/errors';
 import { getBridgeStatusTopic } from './types/ha-mqtt';
 import type { HaMqttDiscoveryEntity, HaMqttStateMessage } from './types/ha-mqtt';
-import { buildDiscoveryPayload, publishDiscovery, type EssentialEntityData } from './discovery';
+import { buildDiscoveryPayload, publishDiscovery, unpublishDiscovery, type EssentialEntityData } from './discovery';
 import { publishState, subscribeCommands, parseIncomingCommand, type ParsedIncomingCommand } from './stateCommand';
 import { publishDiscoveryPassthrough, publishPassthrough } from './passthrough';
 
@@ -139,6 +139,16 @@ export class HaMqttIntegrationService {
     if (essential.commandEnabled) {
       subscribeCommands(transport, moduleName, bridgeInstance, deviceId);
     }
+  }
+
+  /**
+   * Retire une découverte déjà publiée (voir discovery.ts::unpublishDiscovery) — à utiliser quand
+   * un module désélectionne une donnée/un device qui avait déjà été annoncé à HA.
+   */
+  removeDiscoveryFor(moduleName: string, bridgeInstance: string, component: string, objectId: string): void {
+    const transport = this.getBridgeOrWarn(moduleName, bridgeInstance);
+    if (!transport) return;
+    unpublishDiscovery(transport, component, objectId);
   }
 
   publishState(moduleName: string, bridgeInstance: string, deviceId: string, state: HaMqttStateMessage): void {
