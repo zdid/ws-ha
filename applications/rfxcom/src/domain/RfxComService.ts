@@ -21,6 +21,7 @@ import { ReceiverManager } from './receivers/ReceiverManager';
 import { SceneManager } from './scenes/SceneManager';
 import { SceneExecutor } from './scenes/SceneExecutor';
 import { RfxComTransceiver } from './transceiver/RfxComTransceiver';
+import { detectRfxComPort } from './transceiver/PortDetector';
 import { ConfigFileManager } from './yaml/ConfigFileManager';
 import { getDefaultComponent, getDefaultUnit, buildStateDeviceId } from './classification';
 import { extractTaxonomy, buildAttributsTaxonomie } from './taxonomy';
@@ -107,8 +108,9 @@ export class RfxComService implements IRfxComService {
     this.transceiver.onMessage((message) => this.handleRfxMessage(message));
     this.transceiver.onConnectionChange(() => this.emitStatus());
 
+    const port = this.resolvePort();
     try {
-      await this.transceiver.connect({ port: this.config.port, baudRate: this.config.baudRate });
+      await this.transceiver.connect({ port, baudRate: this.config.baudRate });
     } catch (error) {
       // Conforme implementation-rfxcom_specs §11.1 : échec de connexion = WARNING, pas de crash.
       // La découverte HA n'en dépend plus (voir setupSocleEventListeners) — un transceiver RF433
@@ -116,7 +118,7 @@ export class RfxComService implements IRfxComService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn('RfxComService', `Transceiver RFXCOM indisponible au démarrage: ${message}`);
       this.eventBus.emitGeneric('rfxcom:error',
-        createRfxComError('RFXCOM_CONNECTION_ERROR', message, 'rfxcom:transceiver', { port: this.config.port }));
+        createRfxComError('RFXCOM_CONNECTION_ERROR', message, 'rfxcom:transceiver', { port }));
     }
 
     this.emitStatus();
@@ -181,27 +183,44 @@ export class RfxComService implements IRfxComService {
     );
   }
 
-  /** Recharge la config et reconnecte le transceiver si `port`/`baudRate` ont changé. */
+  /** Recharge la config et reconnecte le transceiver si le port réellement utilisé ou le baudRate ont changé. */
   private async reconnectTransceiverIfConfigChanged(): Promise<void> {
-    const previous = { port: this.config.port, baudRate: this.config.baudRate };
+    const previousPort = this.resolvePort();
+    const previousBaudRate = this.config.baudRate;
     this.config = this.loadConfig();
+    const newPort = this.resolvePort();
 
-    if (previous.port === this.config.port && previous.baudRate === this.config.baudRate) {
+    if (previousPort === newPort && previousBaudRate === this.config.baudRate) {
       return;
     }
 
     this.logger.info('RfxComService', 'Configuration du port série modifiée — reconnexion à chaud...');
     this.transceiver.disconnect();
     try {
-      await this.transceiver.connect({ port: this.config.port, baudRate: this.config.baudRate });
+      await this.transceiver.connect({ port: newPort, baudRate: this.config.baudRate });
       this.logger.info('RfxComService', 'Reconnexion au transceiver RFXCOM réussie après changement de configuration');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn('RfxComService', `Échec de reconnexion au transceiver RFXCOM après changement de configuration: ${message}`);
       this.eventBus.emitGeneric('rfxcom:error',
-        createRfxComError('RFXCOM_CONNECTION_ERROR', message, 'rfxcom:transceiver', { port: this.config.port }));
+        createRfxComError('RFXCOM_CONNECTION_ERROR', message, 'rfxcom:transceiver', { port: newPort }));
     }
     this.emitStatus();
+  }
+
+  /**
+   * Port réellement utilisé pour la connexion : détection automatique via /dev/serial/by-id en
+   * priorité (voir PortDetector — stable d'un redémarrage à l'autre, contrairement à /dev/ttyUSBx
+   * qui dépend de l'ordre d'énumération USB au démarrage), repli sur le port configuré
+   * manuellement si la détection échoue (dossier absent, aucune entrée correspondante — ex:
+   * certains environnements Docker sans /dev/serial monté).
+   */
+  private resolvePort(): string {
+    const detected = detectRfxComPort(this.logger);
+    if (detected) return detected;
+    this.logger.info('RfxComService',
+      `Port RFXCOM non détecté automatiquement (/dev/serial/by-id) — utilisation du port configuré: ${this.config.port}`);
+    return this.config.port;
   }
 
   // ==========================================================================
