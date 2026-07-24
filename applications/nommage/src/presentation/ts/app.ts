@@ -164,8 +164,8 @@ function setupEventListeners(): void {
     showDisconnected();
   });
   
-  // Événements persistants (reçus automatiquement à la connexion)
-  socket.on('nommage:status', updateStatusDisplay);
+  // Note : 'nommage:status' est déjà écouté ci-dessus (ligne ~127) — inutile de le réabonner ici,
+  // le rejeu à la reconnexion (événement persistant côté socle) passe par ce même listener.
   socket.on('nommage:taxonomy:structure', (data: TaxonomyStructure) => {
     if (data.count > 0) {
       $('messages-counter')!.textContent = String(data.count);
@@ -473,6 +473,10 @@ window.nommageApp = {
   refreshStatus,
   getTaxonomy
 };
+// Les boutons HTML appellent refreshStatus()/getTaxonomy() directement (onclick="..."),
+// pas window.nommageApp.refreshStatus() — même piège identifié et corrigé côté `ia` (app.ts).
+(window as unknown as { refreshStatus: () => void }).refreshStatus = refreshStatus;
+(window as unknown as { getTaxonomy: () => void }).getTaxonomy = getTaxonomy;
 
 // ============================================================================
 // Initialisation automatique au chargement de la page

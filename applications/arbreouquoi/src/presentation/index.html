@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arbre Où Quoi - Visualisation du Référentiel HA</title>
   <link rel="stylesheet" href="/applications/arbreouquoi/presentation/styles/arbreouquoi.css">
-  <!-- Derniere modification: 2026-07-24 - Retire le <link> vers /styles/main.css : la coquille HA/MQTT le charge deja au niveau document, et sa reinjection ici (via innerHTML dans ModuleContainer) le dupliquait a l'interieur du Shadow DOM du module, ou sa regle generique ".app-container { display:flex }" entrait en collision avec la classe .app-container propre a arbreouquoi.css (poussait l'arbre ~1800px hors ecran) -->
+  <!-- Derniere modification: 2026-07-24 - Ajoute un champ "Rafraichissement auto (s)" dans la barre d'outils, cote client uniquement (jamais sauvegarde en config), 0 = desactive -->
 </head>
 <body>
   <div class="app-container">
@@ -34,6 +34,13 @@
         <label class="filter-toggle" for="filter-active-only">
           <input type="checkbox" id="filter-active-only" checked />
           Afficher uniquement les entités actives
+        </label>
+      </div>
+
+      <div class="toolbar-section">
+        <label class="filter-toggle" for="auto-refresh-seconds">
+          Rafraîchissement auto (s, 0 = désactivé)
+          <input type="number" id="auto-refresh-seconds" min="0" step="1" value="0" style="width: 4em;" />
         </label>
       </div>
 

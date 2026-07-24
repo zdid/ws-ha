@@ -2,6 +2,20 @@
 
 ## Problèmes prioritaires
 
+### 🔴 `MqttTransport.publish()` lève une exception synchrone sur déconnexion transitoire — fait planter tout le process
+- **Constaté en direct (2026-07-24)**, pendant une session de tests navigateur sans rapport (vérification d'un correctif ArbreOuQuoi) : le serveur entier s'est arrêté brutalement, `curl` sur `:8080` refusait la connexion juste après.
+- **Cause racine** (log `Uncaught Exception`) : le broker EVOO7 a flappé (connexions/déconnexions répétées en boucle, visibles juste avant dans les logs — `Bridge déconnecté: arexx:arexx_bridge_0001 (Client went offline)` / `(Connection closed by broker)`, plusieurs fois en quelques millisecondes). Pendant une fenêtre où le client MQTT du bridge était déconnecté, `Evoo7Service.handleEvoo7Message()` a reçu un message et tenté de relayer l'état vers HA via `HaMqttIntegrationService.publishState()` → `stateCommand.ts::publishState()` → `MqttTransport.publish()` (`applications/core/src/infrastructure/transport/MqttTransport.ts:131-135`), qui **lève une exception synchrone** (`throw new Error('Cannot publish: MQTT client is not connected')`) au lieu de gérer ce cas (déconnexion transitoire attendue, pas une erreur de programmation).
+- **Pourquoi ça plante tout le process** : la pile d'appel complète (`IntegrationBridge` → `EventBus.emitGeneric` → listener) est **100% synchrone**, sans aucun `try/catch` à aucun niveau. Le `throw` remonte donc jusqu'au callback `'message'` du client MQTT brut d'EVOO7 (`Evoo7MqttClient.ts`), déclenché par la librairie `mqtt` dans son propre event loop — un throw non intercepté à ce niveau devient une exception non capturée au niveau du process Node entier, qui tue **toutes** les applications, pas seulement EVOO7.
+- **Portée** : n'importe quel module d'intégration (EVOO7, RFXCOM, NOMMAGE, AREXX) qui publie un état pendant une micro-fenêtre de déconnexion du bridge HA MQTT peut déclencher le même crash — pas spécifique à EVOO7, EVOO7 a juste été le premier à le déclencher en conditions réelles (broker de test instable dans cet environnement).
+- **À faire** : `MqttTransport.publish()` (et `subscribe()`, probablement même défaut) ne devrait pas lever pour une déconnexion transitoire — logger un WARN et abandonner silencieusement le message (comportement standard pour du pub/sub best-effort), ou file d'attente courte à rejouer à la reconnexion si la perte de messages d'état est jugée inacceptable. À défaut d'un correctif immédiat, un `try/catch` par appelant (`IntegrationBridge.subscribeModuleEvents()`) limiterait au moins le rayon d'impact à un `WARN` loggé plutôt qu'un crash total.
+- **Statut** : Découvert, non corrigé
+- **Priorité** : Haute (crash total du process, déclenchable par une simple instabilité réseau normale)
+
+### 🔴 ModuleContainer : `loadModuleContent` s'exécute plusieurs fois pour une seule navigation — écouteurs de clic morts après la 1ère visite d'un module dans l'onglet
+- **Rappel** : voir l'entrée détaillée plus bas dans "Problèmes secondaires" (section ArbreOuQuoi/dashboards) — remontée ici en tête vu son impact transverse confirmé (reproduit à nouveau le 2026-07-24 lors des tests du champ auto-refresh d'ArbreOuQuoi, y compris sur une navigation fraîche après rechargement complet de page, pas seulement en 2e visite comme supposé initialement).
+- **Statut** : Découvert, non corrigé
+- **Priorité** : Haute
+
 ### 🟢 Nommage : `discoveryTopics` d'une source ignore son `topicPrefix` — abonnement aux mauvais topics MQTT — Corrigé
 - **Problème**, trouvé en direct (2026-07-23) en testant le nouveau champ `array` "Sources" : après avoir ajouté une source `zigbee` (`topicPrefix: 'homeassist'`, broker `192.168.1.53` — réellement joignable), le service s'est abonné à **`ha/+/+/config`, `homeassistant/+/+/config`, `homeassistant/+/+/discovery`** (`NommageMqttIntegrationService`, log `[zigbee] Abonné à ...`) — les 3 topics par défaut du schéma (`sourceMqttConfigSchema`), au lieu d'un topic dérivé de `topicPrefix` (attendu : un seul topic, `homeassist/+/+/config`).
 - **Cause racine** : `discoveryTopics` a été **volontairement exclu** des `itemFields` du champ `array` générique construit à l'Étape 4 (tableau imbriqué non supporté par ce mécanisme, voir commentaire dans `applications/nommage/src/domain/index.ts`). Résultat : une source ajoutée via l'UI retombe systématiquement sur le défaut du schéma pour `discoveryTopics`, sans lien avec le `topicPrefix` réellement saisi.
@@ -11,11 +25,12 @@
 - **Statut** : Corrigé (2026-07-24)
 - **Priorité** : Était Haute — résolu
 
-### 🟡 Nommage : statut de connexion affiché incohérent avec l'état réel des sources
+### 🟢 Nommage : statut de connexion affiché incohérent avec l'état réel des sources — Corrigé (boutons)
 - **Problème**, observé en direct (2026-07-23) juste après le bug ci-dessus : l'écran affiche "Statut de connexion : Déconnecté" en haut, alors que la liste des connexions par source affiche "zigbee : connecté" — et le log serveur confirme bien `[zigbee] Connecté au broker MQTT avec succès`. Le bouton "Rafraîchir le statut" n'a aucun effet visible. Le bouton "Voir la taxonomie" n'affiche rien.
-- **Hypothèse non vérifiée** (arrêt du serveur avant d'avoir pu creuser) : problème d'affichage/rafraîchissement côté client plutôt que côté service — `NommageService.emitStatus()` et le listener `nommage:mqtt:status` semblent corrects à la lecture du code, donc le décalage est probablement dans la page cliente (`NommageService.ts`/écran de statut Nommage) qui n'actualise pas son affichage, ou dans le bouton Rafraîchir qui ne redemande pas réellement l'état au serveur.
-- **À faire** : reproduire en direct avec les DevTools ouverts, vérifier si `nommage:status:get`/`nommage:taxonomy:get` sont bien émis au clic sur les boutons concernés et si la réponse est bien reçue et appliquée au DOM.
-- **Statut** : Non investigué (interrompu)
+- **Cause racine trouvée (2026-07-24)** : `applications/nommage/src/presentation/index.html` appelle les boutons via `onclick="refreshStatus()"`/`onclick="getTaxonomy()"` — des attributs inline qui résolvent contre `window.refreshStatus`/`window.getTaxonomy` directement. Mais `app.ts` n'exportait que `window.nommageApp = {init, refreshStatus, getTaxonomy}` (objet imbriqué), jamais les fonctions à plat sur `window` — chaque clic levait donc une `ReferenceError` silencieuse (piège déjà rencontré et corrigé côté `ia`, qui exporte bien les deux formes). Confirmé en direct : après correctif, aucune `ReferenceError` en console au clic sur les deux boutons.
+- **Correctif** : ajout de `window.refreshStatus = refreshStatus;` et `window.getTaxonomy = getTaxonomy;` en plus de `window.nommageApp`. Suppression au passage d'un abonnement dupliqué à `nommage:status` (deux `socket.on('nommage:status', ...)` distincts appelaient chacun `updateStatusDisplay` sur le même payload — inoffensif mais source de confusion lors de l'investigation).
+- **Non résolu / à re-tester** : l'incohérence *initiale* rapportée (badge du haut "Déconnecté" pendant que "zigbee" affichait "Connecté") n'a pas pu être reproduite avec une seule source active — le calcul serveur (`mqttConnected = connectedSources.size > 0`) et l'affichage semblent corrects à la relecture. Reste à confirmer en conditions réelles avec au moins 2 sources (dont une déconnectée) que le badge global et la liste par source restent synchronisés.
+- **Statut** : Corrigé (boutons Rafraîchir/Voir la taxonomie) — incohérence d'affichage initiale à reconfirmer avec plusieurs sources
 - **Priorité** : Moyenne
 
 ### 🟢 Le formulaire générique de config module ne valide rien côté serveur — peut écrire des données qui font planter un module au redémarrage — Corrigé
@@ -102,10 +117,21 @@
 - **Statut** : Corrigé (2026-07-23) pour la boucle infinie — la fusion superficielle reste un problème mineur distinct, non corrigé.
 - **Priorité** : Était Critique (corruption de données réelles) — résolu.
 
-### 🟡 Libellé du bouton bascule OÙ/QUOI jamais mis à jour après le premier rendu
+### 🟢 Libellé du bouton bascule OÙ/QUOI jamais mis à jour après le premier rendu — Corrigé
 - **Problème** : `updateViewModeButton()` (arbreouquoi/app.ts) n'est appelée qu'une fois dans `initUI()` — ni après un clic sur le bouton lui-même, ni après réception d'un nouvel arbre (`TREE_STRUCTURE`, qui porte pourtant `payload.viewMode` à jour). Le texte du bouton reste figé sur son état initial même quand le mode bascule réellement (l'arbre affiché, lui, change bien). Préexistant, découvert en vérifiant la migration Alpine.js Phase 2 (non lié à Alpine — la logique de rendu de l'arbre elle-même bascule correctement).
-- **Statut** : Non résolu
-- **Priorité** : Basse (cosmétique, la fonctionnalité sous-jacente marche)
+- **Correctif (2026-07-24)** : ajout de `updateViewModeButton()` dans le handler `TREE_STRUCTURE` (juste après `state.viewMode = payload.viewMode`) et dans le handler de clic du bouton (juste après la mise à jour optimiste de `state.viewMode`).
+- **Vérifié en direct** : après un rechargement complet de page (pour repartir d'un état d'exécution propre du script — voir le bug distinct découvert ci-dessous), le bouton affiche bien le libellé initial par défaut ("Passer en mode QUOI → OÙ") puis se corrige automatiquement dès réception de `TREE_STRUCTURE` pour refléter le vrai mode serveur persisté ("Passer en mode OÙ → QUOI", car `data/arbreouquoi/config.yaml` avait `viewMode: quoi-first`).
+- **Statut** : Corrigé
+- **Priorité** : Était Basse — résolu
+
+### 🔴 ModuleContainer : `loadModuleContent` s'exécute plusieurs fois pour une seule navigation — écouteurs de clic morts après la 1ère visite d'un module dans l'onglet
+- **Découvert par accident (2026-07-24)** en vérifiant le correctif ci-dessus : sur l'onglet navigateur utilisé pendant toute cette session (déjà naviguée vers `arbreouquoi` bien plus tôt), cliquer sur N'IMPORTE QUEL bouton du dashboard (Rafraîchir, bascule OÙ/QUOI) ne déclenchait plus AUCUN événement Socket.io — confirmé en patchant `Socket.prototype.emit` pour tracer tous les émissions `arbreouquoi:*` : liste vide après clic, alors qu'un `addEventListener` de test ajouté directement sur le même nœud DOM se déclenche bien lui.
+- **Cause racine identifiée** : `applications/core/src/presentation/ui/ts/components/ModuleContainer.ts::loadModuleContent()` s'est exécuté **3 fois** pour une seule navigation vers `arbreouquoi` (confirmé via les logs console horodatés à la même seconde) — `window.addEventListener('module:activated', ...)`/`'modules:loaded'` semblent s'accumuler en doublons dans `setupEventListeners()` (appelée depuis `connectedCallback()`, qui peut se redéclencher si l'élément est détaché/rattaché au DOM). Chaque exécution refait un `fetch` + `container.innerHTML = ...` + `executeScripts()` qui **recrée entièrement** les nœuds DOM (boutons compris) et recrée une nouvelle instance du module `app.ts` (donc une nouvelle connexion Socket.io, un nouveau `state` local, de nouveaux écouteurs). La DERNIÈRE exécution gagne pour l'affichage visible, mais rien ne garantit qu'elle correspond à l'instance dont les écouteurs sont réellement attachés aux nœuds DOM finaux — d'où des clics qui ne déclenchent plus rien.
+- **Repli déjà en place mais insuffisant** : le chemin "déjà chargé" (`moduleContents[moduleId]` + `moduleInited[moduleId]`) réutilise le HTML en cache SANS rejouer `executeScripts()` (commentaire explicite : éviter de rappeler `customElements.define()`) — correct en théorie pour une vraie 2e visite, mais si une exécution "premier chargement" concurrente est aussi en vol au même moment, le résultat final observé est un mélange imprévisible des deux chemins.
+- **Impact** : après un premier passage sur un module dans un onglet donné, les boutons de son dashboard peuvent devenir silencieusement inertes jusqu'au prochain rechargement complet de la page — probablement la vraie explication de plusieurs symptômes "bouton sans effet visible" déjà rapportés sur plusieurs apps cette session (RFXCOM, Nommage), pas seulement arbreouquoi.
+- **À faire** : tracer pourquoi `loadModuleContent` (ou les événements qui le déclenchent) s'exécute plusieurs fois pour un seul clic dans le menu — vérifier si `connectedCallback()` de `ModuleContainer` se redéclenche, ou si `Sidebar.ts` dispatch `module:activated`/`modules:loaded` plusieurs fois. Décider d'une garde (ex: flag "chargement en cours" par `moduleId`, ou désinscription des écouteurs avant réinscription dans `connectedCallback`).
+- **Statut** : Découvert, non corrigé — hors périmètre de la correction ci-dessus (touche le core, partagé par toutes les applications)
+- **Priorité** : Haute (impact potentiel sur toutes les apps, silencieux, déjà probablement observé ailleurs sous d'autres symptômes)
 
 ### 🟢 Pipeline de build navigateur pour arbreouquoi — Corrigé (étendu aux 3 autres apps)
 - **Problème** : comme `nommage`/`evoo7`/`rfxcom`, `arbreouquoi` n'avait qu'un seul réglage TypeScript (orienté serveur, Node/CommonJS), appliqué aussi à `app.ts` (navigateur) — `require`/`exports` invalides dans un `<script>`, plus un import qui traversait vers `core/src` (jamais compilé en JS navigateur).
@@ -120,6 +146,12 @@
 - **Correctif** : déjà résolu par le chantier pipeline navigateur + Shadow DOM du 2026-07-23 (`$()` scopé sur `window.__moduleContainerRoot`, voir "Pipeline de build navigateur pour arbreouquoi").
 - **Vérifié en direct (2026-07-23)** : serveur sans transceiver physique réel connecté broadcastant tout de même `connected:true` (bibliothèque `rfxcom` en environnement de dev) — badge affiche bien "Connecté" (couleur verte), au lieu du défaut HTML "Déconnecté".
 - **Statut** : Corrigé (2026-07-23)
+
+### 🟡 Sidebar : section "Applications" repliée par défaut au démarrage — un clic supplémentaire à chaque session
+- **Demande utilisateur (2026-07-24)** : ouvrir automatiquement la section "Applications" du menu latéral au chargement de la page, comme c'est déjà le cas pour "Paramètres Techniques" — évite un clic manuel systématique avant de pouvoir accéder à une application.
+- **À faire** : identifier le composant Sidebar (`applications/core/src/presentation/ui/ts/components/Sidebar.ts` ou équivalent) et son état initial replié/déplié par section, aligner "Applications" sur le même défaut que "Paramètres Techniques".
+- **Statut** : Non traité
+- **Priorité** : Basse (confort d'usage)
 
 ---
 
@@ -282,6 +314,15 @@
 - **Décision** : pas d'éclatement supplémentaire pour l'instant (le HA-bridge restant dans `RfxComService.ts` n'est plus disproportionné à 651 lignes) — on attaque directement les vrais items RFXCOM restants.
 - **Statut** : Entrée périmée — le principal (le "~1800 lignes") était déjà résolu, non annoncé
 - **Priorité** : Était Basse
+
+### 🟡 Définir et mettre en place l'interface web des applications IA et Planificateur
+- **Constat actuel** :
+  - IA (`applications/ia/src/presentation/`) : dashboard (`index.html`) avec statut Mistral/Ollama, outil de test conversationnel, historique des derniers échanges — mais aucune page de configuration dédiée ; les réglages (`mistralApiKey`, `mistralBaseUrl`, `ollamaHttpPort`, `rulesFile`, fournisseurs généralistes, voir `fonctionnelles-ia_specs` §12) passent uniquement par le formulaire générique de "Paramètres Techniques" (`ModuleManager`).
+  - Planificateur (`applications/planificateur/src/presentation/`) : dashboard avec compteurs (macros/planifications/minuteurs actifs) + page `config.html` listant macros et planifications (activer/désactiver/supprimer) — pas de création via l'UI, volontairement 100% conversationnelle via `ia` (`fonctionnelles-planificateur_specs`).
+- **À définir** : le périmètre voulu pour chaque application au-delà de l'existant — ex : consultation détaillée du contenu d'une macro/planification (séquence `execution`), historique des déploiements/exécutions passés, réglages avancés propres à `ia` (règles domotiques, routage multi-IA §6 de `fonctionnelles-ia_specs`).
+- **À faire** : une fois le périmètre défini avec l'utilisateur, implémenter les pages manquantes selon le pipeline de build navigateur commun (`tsconfig.ui.json` dédié + Shadow DOM `ModuleContainer`, voir "Pipeline de build navigateur pour arbreouquoi" ci-dessus).
+- **Statut** : Non défini
+- **Priorité** : Moyenne
 
 ---
 

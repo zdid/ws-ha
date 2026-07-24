@@ -109,6 +109,27 @@ let state = {
 const socket = new SocketService();
 socket.connect();
 
+// Rafraîchissement auto côté client uniquement (champ "auto-refresh-seconds" de la barre
+// d'outils) — jamais persisté en config, purement local à cet onglet/cette session. 0 (défaut)
+// = désactivé, seul le bouton "Rafraîchir" (ou un vrai changement HA via refreshOnHaUpdate côté
+// serveur) déclenche alors une mise à jour.
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+function triggerRefresh(): void {
+  socket.emit(ARBREOUQUOI_SOCKET_EVENTS.REFRESH);
+  showLoading();
+}
+
+function setAutoRefresh(seconds: number): void {
+  if (autoRefreshTimer !== null) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  if (seconds > 0) {
+    autoRefreshTimer = setInterval(triggerRefresh, seconds * 1000);
+  }
+}
+
 // Ce script est injecté par ModuleContainer.ts (core) bien après le chargement initial de la
 // page — au clic sur l'onglet, pas au chargement du document — donc `document.readyState` est
 // déjà 'complete' à ce moment-là : `document.addEventListener('DOMContentLoaded', ...)` seul ne
@@ -171,6 +192,7 @@ function initEventListeners(): void {
     renderTree();
     renderQuoiCatalog();
     updateStats();
+    updateViewModeButton();
     hideLoading();
     hideError();
   });
@@ -218,8 +240,12 @@ function initEventListeners(): void {
 
   // Événements UI
   $('refresh-btn')?.addEventListener('click', () => {
-    socket.emit(ARBREOUQUOI_SOCKET_EVENTS.REFRESH);
-    showLoading();
+    triggerRefresh();
+  });
+
+  $('auto-refresh-seconds')?.addEventListener('change', (e) => {
+    const seconds = Number((e.target as HTMLInputElement).value) || 0;
+    setAutoRefresh(seconds);
   });
 
   $('filter-active-only')?.addEventListener('change', (e) => {
@@ -242,6 +268,7 @@ function initEventListeners(): void {
   $('toggle-view-mode-btn')?.addEventListener('click', () => {
     const newMode = state.viewMode === 'ou-first' ? 'quoi-first' : 'ou-first';
     state.viewMode = newMode;
+    updateViewModeButton();
     socket.emit(ARBREOUQUOI_SOCKET_EVENTS.CONFIG_SAVE, {
       display: { viewMode: newMode }
     });
