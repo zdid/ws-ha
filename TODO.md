@@ -2,14 +2,14 @@
 
 ## Problèmes prioritaires
 
-### 🔴 Nommage : `discoveryTopics` d'une source ignore son `topicPrefix` — abonnement aux mauvais topics MQTT
+### 🟢 Nommage : `discoveryTopics` d'une source ignore son `topicPrefix` — abonnement aux mauvais topics MQTT — Corrigé
 - **Problème**, trouvé en direct (2026-07-23) en testant le nouveau champ `array` "Sources" : après avoir ajouté une source `zigbee` (`topicPrefix: 'homeassist'`, broker `192.168.1.53` — réellement joignable), le service s'est abonné à **`ha/+/+/config`, `homeassistant/+/+/config`, `homeassistant/+/+/discovery`** (`NommageMqttIntegrationService`, log `[zigbee] Abonné à ...`) — les 3 topics par défaut du schéma (`sourceMqttConfigSchema`), au lieu d'un topic dérivé de `topicPrefix` (attendu : un seul topic, `homeassist/+/+/config`).
 - **Cause racine** : `discoveryTopics` a été **volontairement exclu** des `itemFields` du champ `array` générique construit à l'Étape 4 (tableau imbriqué non supporté par ce mécanisme, voir commentaire dans `applications/nommage/src/domain/index.ts`). Résultat : une source ajoutée via l'UI retombe systématiquement sur le défaut du schéma pour `discoveryTopics`, sans lien avec le `topicPrefix` réellement saisi.
 - **Conséquence concrète observée** : le broker `192.168.1.53` étant un vrai broker joignable, l'abonnement aux mauvais topics a fait affluer des centaines de messages de découverte non pertinents en quelques secondes (612 messages parsés, avalanche d'événements `nommage:status`/`nommage:taxonomy:structure` — a nécessité l'arrêt du serveur).
-- **À faire** : soit dériver `discoveryTopics` automatiquement de `topicPrefix` à la création d'une source (ex: `${topicPrefix}+/+/config`) au lieu d'un défaut fixe, soit trouver un moyen de l'exposer dans le formulaire `array` (le mécanisme actuel ne gère qu'un niveau de champs, pas de tableau imbriqué par item).
-- **Aggravation constatée (2026-07-23, session suivante)** : au redémarrage du serveur pour un autre chantier (nouvelle application AREXX), le même abonnement erroné a cette fois fait **planter le process entier** (`FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory`) — le broker `192.168.1.53` livrant apparemment plus de messages retained qu'au premier constat. **Contournement manuel appliqué** : `discoveryTopics: [homeassist/+/+/config]` ajouté explicitement à la source `zigbee` dans `data/config.yaml` (sauvegarde faite avant, `backups/data/config.yaml_backup_2026-07-23_avant-fix-discoveryTopics-nommage.yaml`) — stabilise le serveur, mais ne corrige pas la cause racine : toute nouvelle source ajoutée via l'UI retombera sur le même défaut fixe et pourra reproduire le crash.
-- **Statut** : Contournement manuel (données) appliqué — cause racine (code) non corrigée
-- **Priorité** : Haute — le crash complet (pas seulement une avalanche d'événements) élève le risque
+- **Aggravation constatée (2026-07-23, session suivante)** : au redémarrage du serveur pour un autre chantier (nouvelle application AREXX), le même abonnement erroné a cette fois fait **planter le process entier** (`FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory`) — le broker `192.168.1.53` livrant apparemment plus de messages retained qu'au premier constat. Contournement manuel temporaire appliqué (`discoveryTopics` figé dans `data/config.yaml`), remplacé depuis par le vrai correctif ci-dessous.
+- **Corrigé (2026-07-24)** : `discoveryTopics` (`sourceMqttConfigSchema`, `applications/nommage/src/domain/config-schema.ts`) est maintenant **toujours recalculé** à partir de `topicPrefix` via un `.transform()` Zod, quelle que soit la valeur soumise par le client — plus de défaut fixe, plus de dépendance à un champ jamais exposé dans le formulaire `array`. Génère **deux patterns bornés** reflétant le format officiel de découverte MQTT HA (`<prefix>/<component>/[<node_id>/]<object_id>/config`, `node_id` optionnel) : `${prefix}/+/+/config` et `${prefix}/+/+/+/config` — pas un catch-all (`prefix/#`), qui réintroduirait le risque d'afflux déjà rencontré. `NommageService.loadConfig()` re-parse `nommageConfigSchema` à chaque démarrage, donc l'auto-correction s'applique aussi rétroactivement à toute configuration déjà sur disque, sans action manuelle. Vérifié en direct : `[zigbee] Abonné à homeassist/+/+/config` et `.../+/+/+/config` (topicPrefix `"homeassist"`, sans `/` final, correctement normalisé), plus besoin du contournement manuel dans `data/config.yaml`.
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Haute — résolu
 
 ### 🟡 Nommage : statut de connexion affiché incohérent avec l'état réel des sources
 - **Problème**, observé en direct (2026-07-23) juste après le bug ci-dessus : l'écran affiche "Statut de connexion : Déconnecté" en haut, alors que la liste des connexions par source affiche "zigbee : connecté" — et le log serveur confirme bien `[zigbee] Connecté au broker MQTT avec succès`. Le bouton "Rafraîchir le statut" n'a aucun effet visible. Le bouton "Voir la taxonomie" n'affiche rien.
@@ -18,13 +18,17 @@
 - **Statut** : Non investigué (interrompu)
 - **Priorité** : Moyenne
 
-### 🔴 Le formulaire générique de config module ne valide rien côté serveur — peut écrire des données qui font planter un module au redémarrage
+### 🟢 Le formulaire générique de config module ne valide rien côté serveur — peut écrire des données qui font planter un module au redémarrage — Corrigé
 - **Problème**, constaté en direct sur Nommage (2026-07-23) : `ConfigService.saveModuleConfig()` (`applications/core/src/infrastructure/config/ConfigService.ts:205-219`), utilisé par le formulaire générique "Paramètres Techniques" (`app:modules:config:save`), fusionne et écrit sur disque **n'importe quelle forme de données pour un module, sans passer par son schéma Zod** (`nommageConfigSchema`, `evoo7ConfigSchema`, etc.). Une manipulation du champ `array` "Sources" de Nommage (suppression puis ajout d'une source) a laissé une entrée avec `id: ''` — invalide au regard de `nommageSourceSchema` (`id: z.string().min(1)`, `config-schema.ts:51`) — et le serveur a quand même répondu `success:true`, persistant l'entrée invalide dans `data/config.yaml`.
-- **Pourquoi c'est grave** : chaque module recharge sa config au démarrage via un `.parse()` Zod **strict, qui lève une exception** en cas d'invalidité (`NommageService.loadConfig()`, `NommageService.ts:104`, même pattern probable pour EVOO7/RFXCOM). Le service en cours d'exécution n'est pas affecté immédiatement (le formulaire générique ne le notifie jamais — même bug de duplication que l'entrée EVOO7 ci-dessous), mais **au prochain redémarrage du serveur, le module concerné plante au démarrage**, sans qu'aucun avertissement n'ait été donné au moment de la sauvegarde invalide.
-- **Corrigé en urgence en direct** : l'entrée `id: ''` retirée via l'UI (nouvelle sauvegarde valide), `data/config.yaml` vérifié propre avant tout redémarrage. Mais la cause racine (absence de validation serveur sur le chemin générique) reste entière — le même scénario peut se reproduire à tout moment, sur n'importe quel module.
-- **À faire** : faire valider `ConfigService.saveModuleConfig()` contre le schéma Zod du module concerné (à exposer par chaque module, ex: réutiliser `nommageConfigSchema`/`evoo7ConfigSchema` déjà existants) avant écriture sur disque, et renvoyer un échec explicite (pas `success:true`) si invalide — au lieu de laisser chaque module découvrir le problème à son prochain redémarrage.
-- **Statut** : Contournement manuel appliqué (entrée invalide retirée) — cause racine non corrigée
-- **Priorité** : Haute
+- **Pourquoi c'était grave** : chaque module recharge sa config au démarrage via un `.parse()` Zod **strict, qui lève une exception** en cas d'invalidité (`NommageService.loadConfig()`, `NommageService.ts:104`, même pattern probable pour EVOO7/RFXCOM). Le service en cours d'exécution n'était pas affecté immédiatement (le formulaire générique ne le notifiait jamais), mais **au prochain redémarrage du serveur, le module concerné plantait au démarrage**, sans qu'aucun avertissement n'ait été donné au moment de la sauvegarde invalide.
+- **Corrigé en urgence en direct (2026-07-23)** : l'entrée `id: ''` retirée via l'UI (nouvelle sauvegarde valide) — contournement, cause racine non corrigée à ce stade.
+- **Corrigé (2026-07-24)** :
+  - `AppService` détecte désormais le schéma Zod exporté par chaque module (convention `{moduleId}ConfigSchema`, ex: `nommageConfigSchema`, déjà suivie par toutes les apps) au chargement, et l'enregistre via `ConfigService.registerModuleSchema()`.
+  - `ConfigService.saveModuleConfig()` valide contre ce schéma avant toute écriture disque — renvoie `{success:false, error}` avec le détail Zod si invalide, au lieu du `success:true` optimiste précédent. Sans schéma enregistré pour un module (cas non attendu vu la convention), la sauvegarde procède sans validation dédiée (comportement antérieur, pas de régression).
+  - Persiste la **sortie** de Zod (`validation.data`), pas la donnée brute soumise par le client — nécessaire pour que les `.transform()` de normalisation (ex: `discoveryTopics` de Nommage, voir entrée dédiée) s'appliquent réellement à ce qui est écrit sur disque.
+- **Vérifié** : build propre sur les 7 apps (core, rfxcom, evoo7, arbreouquoi, arexx, ia, planificateur), aucune régression au démarrage réel.
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Haute — résolu
 
 ### 🟡 Pages dédiées evoo7/rfxcom (Paramétrage & Données / Devices & Récepteurs) injoignables — Corrigé
 - **Problème** : `menu.entry.path` et l'entrée `pages[]` "config" pointaient tous les deux vers `/evoo7/config`/`/rfxcom/config` — un chemin interne (jamais une vraie route servie par le serveur), et identique à `entry.path`, donc jamais rendu comme lien distinct par `Sidebar.ts` (`page.path !== entry.path`). Le seul endroit où ce lien apparaissait réellement était un `<a href="/evoo7/config">` en dur dans le tableau de bord de chaque app — un clic dessus donnait un 404. Même chantier que la migration Alpine.js (evoo7/rfxcom n'avaient pas non plus de pipeline de build navigateur pour ces pages dédiées : import `SocketService` cassé, pas de `type="module"`, et — spécifique aux pages de navigation complète, contrairement aux tableaux de bord injectés dans le Shadow DOM du core — pas de script socket.io chargé du tout, `io is not defined` au premier chargement).
@@ -37,10 +41,11 @@
 - **Correctif** : `ensureModuleSections: vi.fn()` ajouté au mock.
 - **Statut** : Corrigé (2026-07-22)
 
-### 🟡 Classification QUOI jamais implémentée (HaStructureRegistry)
+### 🟢 Classification QUOI jamais implémentée (HaStructureRegistry) — Corrigé
 - **Problème** : `HaStructureRegistry.test.ts` (11 tests) attend un classifieur qui assigne des QUOI (`eclairage`, `temperature`...) aux entités selon domaine/device_class — jamais implémenté en pratique. Confirmé par le test ET par l'instantané réel du référentiel HA (`ha-structure-debug.yaml`, toutes les `area.quoi` vides). Les tests sont corrects, c'est la fonctionnalité qui manque.
-- **Statut** : Non implémenté
-- **Priorité** : Basse pour l'instant (confirmé attendu par l'utilisateur, pas une régression)
+- **Corrigé (2026-07-23)**, dans le cadre de l'implémentation des applications `ia`/`planificateur` (qui en avaient besoin pour résoudre des entités par QUOI/OÙ) : nouveau `TaxonomyHaClassifier` (`applications/core/src/ha/sync/TaxonomyHaClassifier.ts`), branché à la place du stub `DefaultHaClassifier` dans `core/src/index.ts`. Priorité à `attributs_taxonomie` déjà posé par RFXCOM/AREXX/EVOO7/Nommage, repli sur domain/device_class HA sinon, avec synthèse d'une taxonomie "virtuelle" (lieu par défaut "maison") pour les entités qui n'en auront jamais.
+- **Vérifié en direct** : `totalOuPaths` (ArbreOùQuoi) passé de 0 à 18 sur les 469 entités réelles. `resolved_service_call` (planificateur) confirmé fonctionnel de bout en bout grâce à cette classification (commande `homeassistant.turn_on` envoyée et reçue par HA).
+- **Statut** : Corrigé (2026-07-23)
 
 ### 🔴 Les attributs de taxonomie n'atteignent jamais HA (attributs_taxonomie)
 - **Problème** : `rfxcom`/`evoo7`/`nommage` injectent tous `attributs_taxonomie` via `extra: {attributs_taxonomie: buildAttributsTaxonomie(...)}`, fusionné par `buildDiscoveryPayload()` (`applications/core/src/ha/integration/discovery.ts` ligne 77) comme clé de premier niveau dans le message de découverte MQTT (`homeassistant/{component}/{object_id}/config`). Confirmé en direct sur l'instance HA réelle (script de diagnostic jetable, `get_states` sur les 469 entités) : **aucune** n'a `attributs_taxonomie` dans ses attributs réels — HA valide le message de découverte contre un schéma strict par plateforme et ignore silencieusement les clés non reconnues. La fonctionnalité "injecter les attributs de taxonomie" (réglage `ha.injectTaxonomyAttributes` de Nommage, et l'équivalent RFXCOM/EVOO7) n'a donc jamais fonctionné, depuis le début — pas de régression récente, un problème de conception initiale.
@@ -155,8 +160,9 @@
 ### 🟡 Aucune confirmation visible pour l'utilisateur après une sauvegarde de config
 - **Problème** : `ConfigForm.saveConfig()` (`applications/core/src/presentation/ui/ts/components/ConfigForm.ts`) réactive le bouton "Sauvegarder" après un simple `setTimeout(1000)`, sans jamais attendre ni afficher le vrai résultat de la sauvegarde (succès, erreurs de validation, échec d'écriture disque). Le serveur envoie pourtant deux événements dédiés à ce résultat réel (`config:save:result` pour la sauvegarde globale, `app:module:config:saved` pour un module) — désormais correctement relayés au navigateur (voir "Sauvegarde configuration avec anciennes données" ci-dessus et le point 1 du chantier config:current), mais côté UI, rien ne les écoute.
 - **À faire** : Dans `ConfigForm.ts`, écouter `config:save:result`/`app:module:config:saved` (via `TechnicalConfigManager`/`ModuleManager`, en socket.on ou en CustomEvent relayé) pour afficher un vrai succès/échec (et les erreurs de validation le cas échéant) au lieu du `setTimeout` optimiste actuel.
-- **Statut** : Non implémenté
+- **Statut** : Non implémenté (reste ouvert pour le formulaire générique du core)
 - **Priorité** : Moyenne
+- **Note** : un défaut de la même famille, mais sur un mécanisme distinct (page dédiée EVOO7, actions `evoo7:donnee:set_selection`/`set_topic`), a été corrigé le 2026-07-24 — voir "EVOO7 : formulaire générique et page dédiée..." ci-dessus. `Evoo7Service` renvoyait `success:true` sans jamais regarder le résultat réel de l'écriture disque ; le client affichait une confirmation avant même que le serveur ait traité la requête.
 
 ### 🟡 Édition non sauvegardée écrasée par config:current (onglets statiques)
 - **Problème** : Sur les onglets statiques (Web services, MQTT, Serveur Web, Journalisation), si une sauvegarde a lieu ailleurs (autre onglet ouvert, autre utilisateur) pendant qu'un champ vient d'être modifié mais pas encore sauvegardé, la réception de `config:current` déclenche un `render()` dans `ConfigForm.ts` qui écrase la saisie en cours avec la valeur serveur. Le même problème a été corrigé pour les formulaires de module (voir "Sauvegarde configuration avec anciennes données") en les découplant de `config:current`, mais les sections statiques n'ont pas d'autre source de vérité — pas de découplage possible sans suivi des champs "modifiés mais non sauvegardés".
@@ -189,15 +195,20 @@
 - **Statut** : Non implémenté — impact à évaluer
 - **Priorité** : Basse (aucun des 43 formats connus ne semble en dépendre, à confirmer)
 
-### 🟠 EVOO7 : formulaire générique et page dédiée éditent les mêmes champs par deux chemins de sauvegarde différents, dont un ne prend jamais effet à chaud
+### 🟢 EVOO7 : formulaire générique et page dédiée éditent les mêmes champs par deux chemins de sauvegarde différents, dont un ne prend jamais effet à chaud — Corrigé
 - **Problème**, trouvé en comparant "Paramètres Techniques → EVOO7" (formulaire générique du core) et l'onglet "Paramétrage" de la page dédiée (`config.html`) :
   1. **Duplication partielle** : `mqtt.host`, `mqtt.port`, `bridgeInstance`, `topicCommand` sont éditables aux deux endroits (`EVOO7_UI_METADATA.fields`, `applications/evoo7/src/domain/index.ts:37-72`, vs onglet Paramétrage de `config.html`). Utilisateur/mot de passe MQTT, QoS et le format du message Commande n'existent, eux, que dans la page dédiée.
-  2. **Plus grave — deux chemins de sauvegarde distincts pour les mêmes champs** : la page dédiée sauvegarde via `evoo7:config:save`, géré directement par `Evoo7Service`, qui recharge son `this.config` en mémoire aussitôt (`Evoo7Service.ts` ligne ~420-428). Le formulaire générique sauvegarde via `app:modules:config:save` (mécanisme du socle) — qui écrit bien sur disque, mais `Evoo7Service` n'écoute jamais `config:reload` pour se resynchroniser. Un bloc de code prévu pour ça existe déjà, commenté et jamais activé (`AppService.ts` ligne 148-152, `restartApplicationService(moduleId)`).
-  3. **Conséquence** : modifier `bridgeInstance`/`mqtt.host` etc. via "Paramètres Techniques → EVOO7" est bien persisté sur disque, mais le service EVOO7 en cours d'exécution continue de travailler avec l'ancienne valeur jusqu'au redémarrage du serveur — silencieusement, sans même l'avertissement de redémarrage que la page dédiée affiche. Le formulaire générique est donc trompeur pour ces champs précis.
+  2. **Plus grave — deux chemins de sauvegarde distincts pour les mêmes champs** : la page dédiée sauvegardait via `evoo7:config:save`, géré directement par `Evoo7Service`, qui rechargeait son `this.config` en mémoire aussitôt. Le formulaire générique sauvegardait via `app:modules:config:save` (mécanisme du socle) — qui écrit bien sur disque, mais `Evoo7Service` n'écoutait jamais `config:reload` pour se resynchroniser.
+  3. **Conséquence** : modifier `bridgeInstance`/`mqtt.host` etc. via "Paramètres Techniques → EVOO7" était bien persisté sur disque, mais le service EVOO7 en cours d'exécution continuait de travailler avec l'ancienne valeur jusqu'au redémarrage du serveur — silencieusement, sans même l'avertissement de redémarrage que la page dédiée affichait. Le formulaire générique était donc trompeur pour ces champs précis.
 - **Constaté en testant en direct** (2026-07-23), en creusant après avoir remarqué le doublon visuel entre les deux écrans.
-- **À faire** : soit retirer ces 4 champs du formulaire générique (`EVOO7_UI_METADATA`) pour ne laisser que la page dédiée comme source unique, soit activer/adapter le mécanisme `restartApplicationService`/`config:reload` commenté dans `AppService.ts` pour que le formulaire générique déclenche effectivement un rechargement de `Evoo7Service`.
-- **Statut** : Non implémenté
-- **Priorité** : Moyenne
+- **Corrigé (2026-07-24)**, option retenue : le formulaire générique (`Paramètres Techniques → EVOO7`) devient l'unique source de vérité pour tout le paramétrage.
+  - `EVOO7_UI_METADATA` (`applications/evoo7/src/domain/index.ts`) complété avec les 4 champs qui n'existaient jusque-là que sur la page dédiée : `mqtt.username`, `mqtt.password`, `mqtt.qos`, `formatMessageCommand`.
+  - Onglet "Paramétrage" retiré de `config.html` (EVOO7) — ne reste que "Données" (renommée en conséquence : titre, lien du tableau de bord, entrée de menu).
+  - Handlers `evoo7:config:get`/`evoo7:config:save` (et leurs événements associés) retirés de `Evoo7Service.ts`/`socket-events.ts` — code mort une fois la page dédiée dépossédée de son propre chemin de sauvegarde.
+  - La limitation "pas de rechargement à chaud" (voir entrée dédiée ci-dessous) reste entière mais n'est plus trompeuse : un seul chemin de sauvegarde, un seul avertissement à surveiller.
+- **Vérifié en direct** : build propre (core + evoo7), formulaire générique affiche et sauvegarde bien les 8 champs, page dédiée n'affiche plus que "Données".
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Moyenne — résolu
 
 ### 🟡 Désélection d'une donnée (EVOO7) / device (RFXCOM) ne retire pas sa découverte déjà publiée côté HA
 - **Problème** : Décocher "Consultation"/"Mise à jour" pour une donnée EVOO7 (`evoo7:donnee:set_selection`, `Evoo7Service.ts` ligne ~360-382), ou désactiver `transmitToHa` pour un device/récepteur RFXCOM — même contrat, même limitation dans les deux services — met bien à jour l'état interne et le persiste sur disque immédiatement, mais ne retire **pas** la découverte MQTT déjà publiée côté Home Assistant. L'entité reste visible dans HA après désélection ; seule une nouvelle sélection republie/actualise. Le socle (`applications/core/src/ha/integration/discovery.ts`) n'a pas de mécanisme de retrait de découverte MQTT (publication d'un payload vide sur le topic de config, convention HA standard pour supprimer une entité).
@@ -207,16 +218,16 @@
 - **Priorité** : Basse
 
 ### 🟡 Changement de connexion broker EVOO7 (et port série RFXCOM) non pris en compte à chaud
-- **Problème** : Sauvegarder un changement d'hôte/port/identifiants MQTT dans l'onglet Paramétrage d'EVOO7 (`evoo7:config:save`, `Evoo7Service.ts` ligne ~420-428) persiste bien la nouvelle config sur disque, mais la connexion MQTT déjà établie n'est pas reconfigurée à chaud — un redémarrage du serveur est nécessaire pour qu'elle soit réellement prise en compte, alors que l'UI affiche "Sauvegardé" comme si c'était appliqué immédiatement (avertissement présent dans `config.html`, mais rien ne le rappelle une fois la sauvegarde faite). Même limitation, même commentaire dans le code, pour le port série RFXCOM (`transceiver = new rfxcomLib.RfxCom(serialPort, ...)`, non recréé si `serialPort` change).
+- **Problème** : Sauvegarder un changement d'hôte/port/identifiants MQTT via "Paramètres Techniques → EVOO7" (désormais le seul chemin de sauvegarde, voir entrée dédiée ci-dessus) persiste bien la nouvelle config sur disque, mais la connexion MQTT déjà établie n'est pas reconfigurée à chaud — un redémarrage du serveur est nécessaire pour qu'elle soit réellement prise en compte. Même limitation, même commentaire dans le code, pour le port série RFXCOM (`transceiver = new rfxcomLib.RfxCom(serialPort, ...)`, non recréé si `serialPort` change).
 - **À voir** : soit reconnecter dynamiquement le client MQTT/transceiver série à la sauvegarde (annule proprement l'ancienne connexion puis en ouvre une nouvelle), soit a minima rendre le besoin de redémarrage plus visible dans l'UI après la sauvegarde (pas seulement en avertissement statique avant).
 - **Statut** : Non implémenté
 - **Priorité** : Basse
 
-### 🟡 Pages dédiées EVOO7/RFXCOM : aucun lien de retour vers l'application
-- **Problème** : `config.html` d'EVOO7 (Paramétrage & Données) et de RFXCOM (Devices & Récepteurs) sont de vraies navigations de page complète (pas injectées dans le Shadow DOM du core comme le tableau de bord) — une fois dessus, aucun lien/bouton ne ramène vers l'interface principale (`/`), seul le bouton "Précédent" du navigateur permet d'y revenir.
-- **À faire** : ajouter une flèche/lien de retour (`← Retour`, `href="/"`) dans l'en-tête de chaque `config.html`.
-- **Statut** : Non implémenté
-- **Priorité** : Basse
+### 🟢 Pages dédiées EVOO7/RFXCOM : aucun lien de retour vers l'application — Corrigé
+- **Problème** : `config.html` d'EVOO7 (Données) et de RFXCOM (Devices & Récepteurs) sont de vraies navigations de page complète (pas injectées dans le Shadow DOM du core comme le tableau de bord) — une fois dessus, aucun lien/bouton ne ramenait vers l'interface principale (`/`), seul le bouton "Précédent" du navigateur permettait d'y revenir.
+- **Corrigé (2026-07-24)** : lien `← Retour` (`href="/"`) ajouté en haut de chaque `config.html`.
+- **Statut** : Corrigé (2026-07-24)
+- **Priorité** : Était Basse — résolu
 
 ### 🟡 Architecture RFXCOM
 - **Problème** : Le module `RfxComService` fait ~1800 lignes
